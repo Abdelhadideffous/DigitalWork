@@ -1,0 +1,84 @@
+<?php
+
+
+use App\Http\Controllers\ApiBridgeController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\PriorityController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\StatusController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\TeamController;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+
+
+
+
+
+//route User
+
+// Route::get('/users', [UserController::class, 'index']);
+Route::post('/users', [UserController::class, 'store']);
+Route::get('/users/{id}', [UserController::class, 'show']);
+Route::put('/users/{id}', [UserController::class, 'update']);
+Route::delete('/users/{id}', [UserController::class, 'destroy']);
+Route::get('/users', [UserController::class, 'getAllUsers']);
+
+
+
+
+//route login 
+
+Route::post('/login', [AuthController::class, 'login']);
+
+// Route de déconnexion - nécessite authentification
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+
+
+
+
+// route priority
+Route::get('/priority', [PriorityController::class, 'index']);
+
+// route statues
+Route::get('/statuses', [StatusController::class, 'index']);
+
+
+
+
+//route projects
+
+Route::get('/projects', [ProjectController::class, 'index']);
+Route::post('/projects', [ProjectController::class, 'store']);
+Route::get('/projects/{id}', [ProjectController::class, 'show']);
+Route::put('/projects/{id}', [ProjectController::class, 'update']);
+Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
+
+
+//route team 
+
+// Routes pour les équipes
+Route::get('/teams', [TeamController::class, 'index']);
+Route::post('/teams', [TeamController::class, 'store']);
+Route::get('/teams/{id}', [TeamController::class, 'show']);
+Route::put('/teams/{id}', [TeamController::class, 'update']);
+Route::delete('/teams/{id}', [TeamController::class, 'destroy']);
+
+// Routes pour les membres d'équipes
+Route::post('/teams/{teamId}/members', [TeamController::class, 'addMember']);
+Route::delete('/teams/{teamId}/members/{userId}', [TeamController::class, 'removeMember']);
+
+// Route pour récupérer tous les utilisateurs
+Route::get('users/search', [UserController::class, 'searchUsers']);
+
+
+
+
+Route::get('/test-api', function () {
+    return response()->json([
+        'message' => 'Hello World!'
+    ]);
+});
