@@ -5,6 +5,7 @@ namespace App\Models;
 
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
@@ -49,6 +50,12 @@ class Project extends Model
         return $this->belongsToMany(User::class, 'project_teams', 'project_id', 'user_id');
     }
 
-
+ /**
+     * Get all comments associated with the project.
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(CommentsProject::class);
+    }
 
 }

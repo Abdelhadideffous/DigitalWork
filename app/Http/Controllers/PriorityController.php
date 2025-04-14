@@ -20,6 +20,17 @@ class PriorityController extends Controller
         ], 200);
     }
 
+    public function getAllPriorities()
+    {
+
+
+        $priorities = PriorityResource::collection(Priority::all());
+        return response()->json([
+            'success' => true,
+            'data' => PriorityResource::collection($priorities),
+        ], 200);
+    }
+
 
 
 }

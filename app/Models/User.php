@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens; // Ajout de l'import
+use Illuminate\Database\Eloquent\Relations\HasMany; // Import HasMany
 
 class User extends Authenticatable
 {
@@ -64,6 +65,9 @@ class User extends Authenticatable
          return $this->belongsToMany(Project::class, 'project_teams', 'user_id', 'project_id');
      }
 
-
+     public function comments(): HasMany
+     {
+         return $this->hasMany(CommentsProject::class);
+     }
 
 }

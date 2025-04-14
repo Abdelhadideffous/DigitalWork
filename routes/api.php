@@ -3,6 +3,7 @@
 
 use App\Http\Controllers\ApiBridgeController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CommentsProjetController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\StatusController;
@@ -42,6 +43,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanc
 
 // route priority
 Route::get('/priority', [PriorityController::class, 'index']);
+Route::get('/priorities', [PriorityController::class, 'getAllPriorities']);
 
 // route statues
 Route::get('/statuses', [StatusController::class, 'index']);
@@ -74,6 +76,20 @@ Route::delete('/teams/{teamId}/members/{userId}', [TeamController::class, 'remov
 // Route pour récupérer tous les utilisateurs
 Route::get('users/search', [UserController::class, 'searchUsers']);
 
+
+
+//Routes pour commentaire d'un projet
+
+Route::get('/projects/{projectId}/comments', [CommentsProjetController::class, 'index']);
+
+
+Route::post('/comments', [CommentsProjetController::class, 'store']);
+
+Route::get('/comments/{id}', [CommentsProjetController::class, 'show']);
+
+Route::put('/comments/{id}', [CommentsProjetController::class, 'update']);
+
+Route::delete('/comments/{id}', [CommentsProjetController::class, 'destroy']);
 
 
 
