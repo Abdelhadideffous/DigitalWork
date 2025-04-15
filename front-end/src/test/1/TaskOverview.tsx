@@ -100,7 +100,7 @@ export default function TaskOverview() {
         project_id: 0,
         status_id: 1, // Par défaut "À faire"
         priority_id: 2, // Par défaut "Moyenne"
-        user_id: 0,
+        assigned_to: 0, // Modifié de user_id à assigned_to
         start_date: getCurrentDate(),
         end_date: addDays(getCurrentDate(), 7),
     });
@@ -124,7 +124,7 @@ export default function TaskOverview() {
         project_id: 0,
         status_id: 1,
         priority_id: 2,
-        user_id: 0,
+        assigned_to: 0, // Modifié de user_id à assigned_to
         start_date: getCurrentDate(),
         end_date: getCurrentDate(),
     });
@@ -176,6 +176,7 @@ export default function TaskOverview() {
         try {
             setLoading(true);
             const tasksData = await taskApi.getAllTasks();
+            console.log('Données des tâches reçues:', tasksData); // Debug
             setTasks(tasksData);
             setLoading(false);
         } catch (error) {
@@ -208,6 +209,7 @@ export default function TaskOverview() {
     const fetchUsers = async () => {
         try {
             const usersData = await userApi.getAllUsers();
+            console.log('Utilisateurs chargés:', usersData); // Debug
             setUsers(usersData);
         } catch (error) {
             console.error('Erreur lors du chargement des utilisateurs:', error);
@@ -268,7 +270,7 @@ export default function TaskOverview() {
             project_id: 0,
             status_id: 1,
             priority_id: 2,
-            user_id: 0,
+            assigned_to: 0, // Modifié de user_id à assigned_to
             start_date: getCurrentDate(),
             end_date: addDays(getCurrentDate(), 7),
         });
@@ -358,7 +360,7 @@ export default function TaskOverview() {
     const handleNewTaskUserChange = (e: React.ChangeEvent<{ value: unknown }>) => {
         setNewTaskData({
             ...newTaskData,
-            user_id: e.target.value as number,
+            assigned_to: e.target.value as number, // Modifié de user_id à assigned_to
         });
 
         // Réinitialiser l'erreur si un utilisateur est sélectionné
@@ -378,7 +380,7 @@ export default function TaskOverview() {
         const projectEmpty = !newTaskData.project_id;
         const statusEmpty = !newTaskData.status_id;
         const priorityEmpty = !newTaskData.priority_id;
-        const userEmpty = !newTaskData.user_id;
+        const userEmpty = !newTaskData.assigned_to; // Modifié de user_id à assigned_to
         const startDateInvalid = !newTaskData.start_date;
         const endDateInvalid = !newTaskData.end_date;
 
@@ -406,6 +408,7 @@ export default function TaskOverview() {
         ) {
             try {
                 setLoading(true);
+                console.log('Données de tâche à créer:', newTaskData); // Debug
                 await taskApi.createTask(newTaskData);
 
                 setSnackbar({
@@ -447,6 +450,7 @@ export default function TaskOverview() {
     const handleEditTaskDialogOpen = (taskId: number) => {
         const task = tasks.find((t) => t.id === taskId);
         if (task) {
+            console.log('Tâche à modifier:', task); // Debug
             setEditTaskData({
                 id: task.id,
                 title: task.title,
@@ -454,7 +458,7 @@ export default function TaskOverview() {
                 project_id: task.project_id,
                 status_id: task.status_id,
                 priority_id: task.priority_id,
-                user_id: task.user_id,
+                assigned_to: task.assigned_to, // Modifié de user_id à assigned_to
                 start_date: task.start_date,
                 end_date: task.end_date,
             });
@@ -547,7 +551,7 @@ export default function TaskOverview() {
     const handleEditTaskUserChange = (e: React.ChangeEvent<{ value: unknown }>) => {
         setEditTaskData({
             ...editTaskData,
-            user_id: e.target.value as number,
+            assigned_to: e.target.value as number, // Modifié de user_id à assigned_to
         });
 
         // Réinitialiser l'erreur si un utilisateur est sélectionné
@@ -567,7 +571,7 @@ export default function TaskOverview() {
         const projectEmpty = !editTaskData.project_id;
         const statusEmpty = !editTaskData.status_id;
         const priorityEmpty = !editTaskData.priority_id;
-        const userEmpty = !editTaskData.user_id;
+        const userEmpty = !editTaskData.assigned_to; // Modifié de user_id à assigned_to
         const startDateInvalid = !editTaskData.start_date;
         const endDateInvalid = !editTaskData.end_date;
 
@@ -595,6 +599,7 @@ export default function TaskOverview() {
         ) {
             try {
                 setLoading(true);
+                console.log('Données de mise à jour de tâche:', editTaskData); // Debug
                 await taskApi.updateTask(editTaskData.id, editTaskData);
 
                 setSnackbar({
@@ -736,6 +741,7 @@ export default function TaskOverview() {
 
     // Fonction pour obtenir le nom de l'utilisateur à partir de l'ID
     const getUserName = (userId: number) => {
+        // Chercher d'abord l'utilisateur dans la liste des utilisateurs
         const user = users.find((u) => u.id === userId);
         return user ? user.name : 'Inconnu';
     };
@@ -954,8 +960,8 @@ export default function TaskOverview() {
                                 <InputLabel id="user-label">Assigné à</InputLabel>
                                 <Select
                                     labelId="user-label"
-                                    id="user_id"
-                                    value={newTaskData.user_id || ''}
+                                    id="assigned_to" // Modifié de user_id à assigned_to
+                                    value={newTaskData.assigned_to || ''}
                                     label="Assigné à"
                                     onChange={handleNewTaskUserChange as any}
                                     required
@@ -1149,8 +1155,8 @@ export default function TaskOverview() {
                                 <InputLabel id="edit-user-label">Assigné à</InputLabel>
                                 <Select
                                     labelId="edit-user-label"
-                                    id="edit_user_id"
-                                    value={editTaskData.user_id || ''}
+                                    id="edit_assigned_to" // Modifié de edit_user_id à edit_assigned_to
+                                    value={editTaskData.assigned_to || ''}
                                     label="Assigné à"
                                     onChange={handleEditTaskUserChange as any}
                                     required
@@ -1351,8 +1357,10 @@ export default function TaskOverview() {
                                         const priorityName = task.priority?.name || getPriorityName(task.priority_id);
                                         const statusColor = getStatusColor(statusName);
                                         const priorityColor = getPriorityColor(priorityName);
-                                        const userName = task.user?.name || getUserName(task.user_id);
-                                        const userAvatar = task.user?.avatar || '/placeholder.svg?height=40&width=40';
+
+                                        // CORRECTION: Utiliser assigned_user en priorité
+                                        const userName = task.assigned_user?.name || getUserName(task.assigned_to);
+                                        const userAvatar = '/placeholder.svg?height=40&width=40';
 
                                         return (
                                             <TableRow

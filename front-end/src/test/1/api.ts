@@ -52,7 +52,15 @@ export interface Priority {
     name: string;
 }
 
-// Types pour les tâches
+// Mise à jour de l'interface User pour inclure toutes les propriétés possibles
+export interface User {
+    id: number;
+    name: string;
+    email: string;
+    avatar?: string;
+}
+
+// Types pour les tâches - mise à jour pour correspondre au backend Laravel
 export interface Task {
     id: number;
     title: string;
@@ -60,13 +68,28 @@ export interface Task {
     project_id: number;
     status_id: number;
     priority_id: number;
-    user_id: number;
+    
+    // Ajout des propriétés pour l'utilisateur assigné telles que renvoyées par le backend
+    assigned_to: number;
+    assigned_user?: {
+        id: number;
+        name: string;
+        email: string;
+    };
+    
+    // Garder user_id/user pour rétrocompatibilité
+    user_id?: number;
+    user?: {
+        id: number;
+        name: string;
+        avatar?: string;
+    };
+    
     start_date: string;
     end_date: string;
     status?: { id: number; name: string };
     priority?: { id: number; name: string };
     project?: { id: number; title: string };
-    user?: { id: number; name: string; avatar: string };
     created_at?: string;
     updated_at?: string;
 }
@@ -77,7 +100,7 @@ export interface NewTaskData {
     project_id: number;
     status_id: number;
     priority_id: number;
-    user_id: number;
+    assigned_to: number; // Mise à jour pour utiliser assigned_to au lieu de user_id
     start_date: string;
     end_date: string;
 }
@@ -87,7 +110,8 @@ export const taskApi = {
     getAllTasks: async () => {
         try {
             const response = await api.get('/tasks');
-            // Return only the data array from the response
+            // Imprimer la réponse pour débogage
+            console.log('Réponse API tâches:', response.data);
             return response.data.data;
         } catch (error) {
             console.error('Erreur lors de la récupération des tâches:', error);
@@ -99,7 +123,6 @@ export const taskApi = {
     getTaskById: async (id: number) => {
         try {
             const response = await api.get(`/tasks/${id}`);
-            // Return only the data object from the response
             return response.data.data;
         } catch (error) {
             console.error(`Erreur lors de la récupération de la tâche ${id}:`, error);
@@ -110,7 +133,12 @@ export const taskApi = {
     // Créer une nouvelle tâche
     createTask: async (taskData: NewTaskData) => {
         try {
-            const response = await api.post('/tasks', taskData);
+            // Adapter les données pour le backend qui attend assigned_to au lieu de user_id
+            const response = await api.post('/tasks', {
+                ...taskData,
+                // Utiliser assigned_to pour le backend
+                assigned_to: taskData.assigned_to
+            });
             return response.data;
         } catch (error) {
             console.error('Erreur lors de la création de la tâche:', error);
@@ -121,7 +149,12 @@ export const taskApi = {
     // Mettre à jour une tâche
     updateTask: async (id: number, taskData: Partial<NewTaskData>) => {
         try {
-            const response = await api.put(`/tasks/${id}`, taskData);
+            // Adapter les données pour le backend
+            const response = await api.put(`/tasks/${id}`, {
+                ...taskData,
+                // Utiliser assigned_to pour le backend
+                assigned_to: taskData.assigned_to
+            });
             return response.data;
         } catch (error) {
             console.error(`Erreur lors de la mise à jour de la tâche ${id}:`, error);
@@ -146,7 +179,6 @@ export const projectApi = {
     getAllProjects: async () => {
         try {
             const response = await api.get('/projects');
-            // Return only the data array from the response
             return response.data.data;
         } catch (error) {
             console.error('Erreur lors de la récupération des projets:', error);
@@ -158,7 +190,6 @@ export const projectApi = {
     getProjectById: async (id: number) => {
         try {
             const response = await api.get(`/projects/${id}`);
-            // Return only the data object from the response
             return response.data.data;
         } catch (error) {
             console.error(`Erreur lors de la récupération du projet ${id}:`, error);

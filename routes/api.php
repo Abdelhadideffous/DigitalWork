@@ -7,6 +7,7 @@ use App\Http\Controllers\CommentsProjetController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\StatusController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TeamController;
 
@@ -90,6 +91,16 @@ Route::delete('/comments/{id}', [CommentsProjetController::class, 'destroy']);
 // Routes publiques
 Route::get('/projects/{projectId}/comments', [CommentsProjetController::class, 'index']);
 Route::get('/comments/{id}', [CommentsProjetController::class, 'show']);
+
+
+
+//route pour Task
+
+Route::get('/tasks', [TaskController::class, 'index']);
+Route::post('/tasks', [TaskController::class, 'store']);
+Route::get('/tasks/{task}', [TaskController::class, 'show']);
+Route::put('/tasks/{task}', [TaskController::class, 'update']);
+Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
 
 
 Route::get('/test-api', function () {
