@@ -79,18 +79,17 @@ Route::get('users/search', [UserController::class, 'searchUsers']);
 
 
 //Routes pour commentaire d'un projet
-
-Route::get('/projects/{projectId}/comments', [CommentsProjetController::class, 'index']);
-
+// Routes qui nécessitent une authentification
 
 Route::post('/comments', [CommentsProjetController::class, 'store']);
-
-Route::get('/comments/{id}', [CommentsProjetController::class, 'show']);
-
 Route::put('/comments/{id}', [CommentsProjetController::class, 'update']);
-
 Route::delete('/comments/{id}', [CommentsProjetController::class, 'destroy']);
+// Ajoutez d'autres routes protégées ici
 
+
+// Routes publiques
+Route::get('/projects/{projectId}/comments', [CommentsProjetController::class, 'index']);
+Route::get('/comments/{id}', [CommentsProjetController::class, 'show']);
 
 
 Route::get('/test-api', function () {

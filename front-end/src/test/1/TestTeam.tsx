@@ -57,8 +57,9 @@ import {
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import AppLayout from './AppLayout';
+import { projectApi, teamApi, userApi } from './api';
 
-function TestTeam() {
+function Teambadi() {
     // État pour le menu d'actions des équipes
     const [teamActionMenuAnchorEl, setTeamActionMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
@@ -74,19 +75,24 @@ function TestTeam() {
     const [newTeamData, setNewTeamData] = useState({
         name: '',
         leader: '',
+        leaderId: 0,
         description: '',
+        projectId: 0,
     });
     const [newTeamErrors, setNewTeamErrors] = useState({
         name: false,
         leader: false,
         description: false,
+        projectId: false,
     });
 
-    // État pour l'autocomplétion du chef d'équipe
-    const [leaderSearchQuery, setLeaderSearchQuery] = useState('');
-    const [leaderOptions, setLeaderOptions] = useState<Array<{ id: number; name: string; email: string }>>([]);
+    // État pour la liste des utilisateurs (chefs d'équipe)
+    const [allUsers, setAllUsers] = useState<Array<{ id: number; name: string; email: string }>>([]);
     const [selectedLeader, setSelectedLeader] = useState<{ id: number; name: string; email: string } | null>(null);
-    const [loadingLeaders, setLoadingLeaders] = useState(false);
+
+    // État pour les projets
+    const [projects, setProjects] = useState<Array<{ id: number; title: string; description: string }>>([]);
+    const [selectedProject, setSelectedProject] = useState<{ id: number; title: string } | null>(null);
 
     // État pour le formulaire d'ajout de membre
     const [newMemberData, setNewMemberData] = useState({
@@ -112,14 +118,18 @@ function TestTeam() {
         id: 0,
         name: '',
         leader: '',
+        leaderId: 0,
         description: '',
+        projectId: 0,
     });
     const [editTeamErrors, setEditTeamErrors] = useState({
         name: false,
         leader: false,
         description: false,
+        projectId: false,
     });
     const [selectedEditLeader, setSelectedEditLeader] = useState<{ id: number; name: string; email: string } | null>(null);
+    const [selectedEditProject, setSelectedEditProject] = useState<{ id: number; title: string } | null>(null);
 
     // État pour les notifications
     const [snackbar, setSnackbar] = useState({
@@ -144,154 +154,10 @@ function TestTeam() {
     const fetchTeams = async () => {
         try {
             setInitialLoading(true);
-
-            // Simulation d'un appel API pour le développement frontend
             console.log('Chargement des équipes...');
-
-            // Données simulées pour le développement
-            const mockTeams = [
-                {
-                    id: 1,
-                    name: 'Équipe Développement',
-                    memberCount: 5,
-                    leader: 'Thomas Dubois',
-                    leaderInitials: 'TD',
-                    projectList: ['Refonte du site web', 'Application mobile'],
-                    createdAt: '01/01/2025',
-                    description: 'Équipe responsable du développement frontend et backend des applications',
-                    members: [
-                        {
-                            id: 1,
-                            name: 'Thomas Dubois',
-                            email: 'thomas.dubois@example.com',
-                            status: 'Actif',
-                            projects: ['Refonte du site web', 'Application mobile'],
-                        },
-                        {
-                            id: 2,
-                            name: 'Lucas Petit',
-                            email: 'lucas.petit@example.com',
-                            status: 'Actif',
-                            projects: ['Refonte du site web'],
-                        },
-                        {
-                            id: 3,
-                            name: 'Sophie Martin',
-                            email: 'sophie.martin@example.com',
-                            status: 'Actif',
-                            projects: ['Application mobile'],
-                        },
-                        {
-                            id: 4,
-                            name: 'Emma Bernard',
-                            email: 'emma.bernard@example.com',
-                            status: 'Actif',
-                            projects: ['Refonte du site web', 'Application mobile'],
-                        },
-                        {
-                            id: 5,
-                            name: 'Hugo Leroy',
-                            email: 'hugo.leroy@example.com',
-                            status: 'En congé',
-                            projects: ['Application mobile'],
-                        },
-                    ],
-                    projects: [
-                        {
-                            id: 1,
-                            name: 'Refonte du site web',
-                            status: 'En cours',
-                            deadline: '15/04/2025',
-                            progress: 65,
-                            description: "Refonte complète du site web de l'entreprise avec un nouveau design et de nouvelles fonctionnalités.",
-                            assignedMembers: 4,
-                        },
-                        {
-                            id: 2,
-                            name: 'Application mobile',
-                            status: 'En cours',
-                            deadline: '30/06/2025',
-                            progress: 35,
-                            description: "Développement d'une application mobile pour les clients de l'entreprise.",
-                            assignedMembers: 3,
-                        },
-                    ],
-                },
-                {
-                    id: 2,
-                    name: 'Équipe Marketing',
-                    memberCount: 3,
-                    leader: 'Julie Moreau',
-                    leaderInitials: 'JM',
-                    projectList: ['Campagne réseaux sociaux', 'Refonte de la marque'],
-                    createdAt: '15/01/2025',
-                    description: 'Équipe responsable des stratégies marketing et de la communication',
-                    members: [
-                        {
-                            id: 6,
-                            name: 'Julie Moreau',
-                            email: 'julie.moreau@example.com',
-                            status: 'Actif',
-                            projects: ['Campagne réseaux sociaux', 'Refonte de la marque'],
-                        },
-                        {
-                            id: 7,
-                            name: 'Antoine Dupont',
-                            email: 'antoine.dupont@example.com',
-                            status: 'Actif',
-                            projects: ['Campagne réseaux sociaux'],
-                        },
-                        {
-                            id: 8,
-                            name: 'Camille Rousseau',
-                            email: 'camille.rousseau@example.com',
-                            status: 'Actif',
-                            projects: ['Refonte de la marque'],
-                        },
-                    ],
-                    projects: [
-                        {
-                            id: 3,
-                            name: 'Campagne réseaux sociaux',
-                            status: 'En cours',
-                            deadline: '01/03/2025',
-                            progress: 80,
-                            description: "Campagne de promotion sur les réseaux sociaux pour augmenter la visibilité de l'entreprise.",
-                            assignedMembers: 2,
-                        },
-                        {
-                            id: 4,
-                            name: 'Refonte de la marque',
-                            status: 'Planifié',
-                            deadline: '01/07/2025',
-                            progress: 15,
-                            description: "Refonte complète de l'identité visuelle de l'entreprise.",
-                            assignedMembers: 2,
-                        },
-                    ],
-                },
-            ];
-
-            // Simuler un délai de chargement
-            setTimeout(() => {
-                setTeams(mockTeams);
-                setInitialLoading(false);
-            }, 500);
-
-            // Utilisation de l'API réelle (à décommenter pour l'utilisation réelle)
-            // try {
-            //   const teamsData = await teamApi.getAllTeams();
-            //   setTeams(teamsData);
-            //   setInitialLoading(false);
-            // } catch (error) {
-            //   console.error("Erreur lors du chargement des équipes:", error);
-            //   setSnackbar({
-            //     open: true,
-            //     message: "Erreur lors du chargement des équipes",
-            //     severity: "error",
-            //   });
-            //   setInitialLoading(false);
-            // }
+            const teamsData = await teamApi.getAllTeams();
+            setTeams(teamsData);
+            setInitialLoading(false);
         } catch (error) {
             console.error('Erreur lors du chargement des équipes:', error);
             setSnackbar({
@@ -306,77 +172,11 @@ function TestTeam() {
     // Fonction pour charger les utilisateurs depuis l'API
     const fetchUsers = async () => {
         try {
-            // Simulation d'un appel API pour le développement frontend
             console.log('Chargement des utilisateurs...');
-
-            // Données simulées pour le développement
-            const mockUsers = [
-                {
-                    id: 1,
-                    name: 'Thomas Dubois',
-                    email: 'thomas.dubois@example.com',
-                },
-                {
-                    id: 2,
-                    name: 'Lucas Petit',
-                    email: 'lucas.petit@example.com',
-                },
-                {
-                    id: 3,
-                    name: 'Sophie Martin',
-                    email: 'sophie.martin@example.com',
-                },
-                {
-                    id: 4,
-                    name: 'Emma Bernard',
-                    email: 'emma.bernard@example.com',
-                },
-                {
-                    id: 5,
-                    name: 'Hugo Leroy',
-                    email: 'hugo.leroy@example.com',
-                },
-                {
-                    id: 6,
-                    name: 'Julie Moreau',
-                    email: 'julie.moreau@example.com',
-                },
-                {
-                    id: 7,
-                    name: 'Antoine Dupont',
-                    email: 'antoine.dupont@example.com',
-                },
-                {
-                    id: 8,
-                    name: 'Camille Rousseau',
-                    email: 'camille.rousseau@example.com',
-                },
-                {
-                    id: 9,
-                    name: 'Mathieu Blanc',
-                    email: 'mathieu.blanc@example.com',
-                },
-                {
-                    id: 10,
-                    name: 'Laura Girard',
-                    email: 'laura.girard@example.com',
-                },
-            ];
-
-            setExistingUsers(mockUsers);
-
-            // Utilisation de l'API réelle (à décommenter pour l'utilisation réelle)
-            // try {
-            //   const usersData = await userApi.getAllUsers();
-            //   setExistingUsers(usersData);
-            // } catch (error) {
-            //   console.error("Erreur lors du chargement des utilisateurs:", error);
-            //   setSnackbar({
-            //     open: true,
-            //     message: "Erreur lors du chargement des utilisateurs",
-            //     severity: "error",
-            //   });
-            // }
+            const usersData = await userApi.getAllUsers();
+            console.log('Utilisateurs chargés:', usersData);
+            setExistingUsers(usersData);
+            setAllUsers(usersData); // Stocker également dans allUsers pour l'autocomplete
         } catch (error) {
             console.error('Erreur lors du chargement des utilisateurs:', error);
             setSnackbar({
@@ -387,52 +187,28 @@ function TestTeam() {
         }
     };
 
-    // Fonction pour rechercher des chefs d'équipe
-    const searchLeaders = async (query: string) => {
-        setLoadingLeaders(true);
-
-        // Données simulées pour le développement
-        if (query.trim() !== '') {
-            // Filtrer les utilisateurs existants en fonction de la requête
-            const filteredLeaders = existingUsers.filter((user) => user.name.toLowerCase().includes(query.toLowerCase()));
-            setLeaderOptions(filteredLeaders);
-        } else {
-            setLeaderOptions([]);
+    // Fonction pour charger les projets depuis l'API
+    const fetchProjects = async () => {
+        try {
+            console.log('Chargement des projets...');
+            const projectsData = await projectApi.getAllProjects();
+            console.log('Projets chargés:', projectsData);
+            setProjects(projectsData);
+        } catch (error) {
+            console.error('Erreur lors du chargement des projets:', error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors du chargement des projets',
+                severity: 'error',
+            });
         }
-
-        setLoadingLeaders(false);
-
-        // Utilisation de l'API réelle (à décommenter pour l'utilisation réelle)
-        // try {
-        //   if (query.trim() !== "") {
-        //     const leaders = await userApi.searchUsersByName(query);
-        //     setLeaderOptions(leaders);
-        //   } else {
-        //     setLeaderOptions([]);
-        //   }
-        // } catch (error) {
-        //   console.error("Erreur lors de la recherche des chefs d'équipe:", error);
-        //   setLeaderOptions([]);
-        // } finally {
-        //   setLoadingLeaders(false);
-        // }
     };
-
-    // Effet pour charger les chefs d'équipe lorsque la requête change
-    useEffect(() => {
-        const delayDebounceFn = setTimeout(() => {
-            if (leaderSearchQuery) {
-                searchLeaders(leaderSearchQuery);
-            }
-        }, 300);
-
-        return () => clearTimeout(delayDebounceFn);
-    }, [leaderSearchQuery]);
 
     // Charger les équipes au chargement du composant
     useEffect(() => {
         fetchTeams();
         fetchUsers();
+        fetchProjects();
     }, []);
 
     // Filtrage des équipes par recherche
@@ -484,16 +260,23 @@ function TestTeam() {
         setNewTeamData({
             name: '',
             leader: '',
+            leaderId: 0,
             description: '',
+            projectId: 0,
         });
         setNewTeamErrors({
             name: false,
             leader: false,
             description: false,
+            projectId: false,
         });
         setSelectedLeader(null);
-        setLeaderSearchQuery('');
-        setLeaderOptions([]);
+        setSelectedProject(null);
+
+        // Charger les utilisateurs si ce n'est pas déjà fait
+        if (allUsers.length === 0) {
+            fetchUsers();
+        }
     };
 
     const handleNewTeamDialogClose = () => {
@@ -501,16 +284,18 @@ function TestTeam() {
         setNewTeamData({
             name: '',
             leader: '',
+            leaderId: 0,
             description: '',
+            projectId: 0,
         });
         setNewTeamErrors({
             name: false,
             leader: false,
             description: false,
+            projectId: false,
         });
         setSelectedLeader(null);
-        setLeaderSearchQuery('');
-        setLeaderOptions([]);
+        setSelectedProject(null);
     };
 
     const handleNewTeamInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -535,6 +320,7 @@ function TestTeam() {
             setNewTeamData({
                 ...newTeamData,
                 leader: value.name,
+                leaderId: value.id,
             });
             // Réinitialiser l'erreur si un chef d'équipe est sélectionné
             if (newTeamErrors.leader) {
@@ -547,6 +333,29 @@ function TestTeam() {
             setNewTeamData({
                 ...newTeamData,
                 leader: '',
+                leaderId: 0,
+            });
+        }
+    };
+
+    const handleProjectChange = (_: React.SyntheticEvent, value: { id: number; title: string } | null) => {
+        setSelectedProject(value);
+        if (value) {
+            setNewTeamData({
+                ...newTeamData,
+                projectId: value.id,
+            });
+            // Réinitialiser l'erreur si un projet est sélectionné
+            if (newTeamErrors.projectId) {
+                setNewTeamErrors({
+                    ...newTeamErrors,
+                    projectId: false,
+                });
+            }
+        } else {
+            setNewTeamData({
+                ...newTeamData,
+                projectId: 0,
             });
         }
     };
@@ -557,6 +366,7 @@ function TestTeam() {
             setEditTeamData({
                 ...editTeamData,
                 leader: value.name,
+                leaderId: value.id,
             });
             // Réinitialiser l'erreur si un chef d'équipe est sélectionné
             if (editTeamErrors.leader) {
@@ -569,6 +379,29 @@ function TestTeam() {
             setEditTeamData({
                 ...editTeamData,
                 leader: '',
+                leaderId: 0,
+            });
+        }
+    };
+
+    const handleEditProjectChange = (_: React.SyntheticEvent, value: { id: number; title: string } | null) => {
+        setSelectedEditProject(value);
+        if (value) {
+            setEditTeamData({
+                ...editTeamData,
+                projectId: value.id,
+            });
+            // Réinitialiser l'erreur si un projet est sélectionné
+            if (editTeamErrors.projectId) {
+                setEditTeamErrors({
+                    ...editTeamErrors,
+                    projectId: false,
+                });
+            }
+        } else {
+            setEditTeamData({
+                ...editTeamData,
+                projectId: 0,
             });
         }
     };
@@ -591,7 +424,6 @@ function TestTeam() {
         }
     };
 
-    // Fonction pour sélectionner/désélectionner tous les utilisateurs filtrés
     const handleSelectAllUsers = () => {
         const allSelected = filteredUsers.every((user) => selectedUsers.some((selected) => selected.id === user.id));
 
@@ -633,44 +465,16 @@ function TestTeam() {
 
         try {
             setLoading(true);
-
-            // Préparation des données pour l'API
             const userIds = selectedUsers.map((user) => user.id);
-
-            // Simulation d'un appel API pour le développement frontend
-            console.log('Ajout de membres en lot:', userIds, "à l'équipe:", selectedTeam.id);
-
-            setTimeout(() => {
-                setLoading(false);
-                setSnackbar({
-                    open: true,
-                    message: `${selectedUsers.length} membre(s) ajouté(s) avec succès`,
-                    severity: 'success',
-                });
-                handleBatchAddDialogClose();
-            }, 500);
-
-            // Utilisation de l'API réelle (à décommenter pour l'utilisation réelle)
-            // try {
-            //   await teamApi.addMultipleMembers(selectedTeam.id, userIds);
-            //   setSnackbar({
-            //     open: true,
-            //     message: `${selectedUsers.length} membre(s) ajouté(s) avec succès`,
-            //     severity: "success",
-            //   });
-            //   handleBatchAddDialogClose();
-            //   // Recharger les détails de l'équipe
-            //   await handleViewTeamDetails(selectedTeam.id);
-            // } catch (error) {
-            //   console.error("Erreur lors de l'ajout des membres:", error);
-            //   setSnackbar({
-            //     open: true,
-            //     message: "Erreur lors de l'ajout des membres",
-            //     severity: "error",
-            //   });
-            // } finally {
-            //   setLoading(false);
-            // }
+            await teamApi.addMultipleMembers(selectedTeam.id, userIds);
+            setSnackbar({
+                open: true,
+                message: `${selectedUsers.length} membre(s) ajouté(s) avec succès`,
+                severity: 'success',
+            });
+            handleBatchAddDialogClose();
+            // Recharger les détails de l'équipe
+            await handleViewTeamDetails(selectedTeam.id);
         } catch (error) {
             console.error("Erreur lors de l'ajout des membres:", error);
             setSnackbar({
@@ -678,6 +482,7 @@ function TestTeam() {
                 message: "Erreur lors de l'ajout des membres",
                 severity: 'error',
             });
+        } finally {
             setLoading(false);
         }
     };
@@ -685,53 +490,35 @@ function TestTeam() {
     const handleCreateNewTeam = async () => {
         // Validation des champs
         const nameEmpty = newTeamData.name.trim() === '';
-        const leaderEmpty = newTeamData.leader.trim() === '';
+        const leaderEmpty = newTeamData.leaderId === 0;
         const descriptionEmpty = newTeamData.description.trim() === '';
+        const projectEmpty = newTeamData.projectId === 0;
 
         setNewTeamErrors({
             name: nameEmpty,
             leader: leaderEmpty,
             description: descriptionEmpty,
+            projectId: projectEmpty,
         });
 
         // Si tous les champs sont remplis, procéder à la création
-        if (!nameEmpty && !leaderEmpty && !descriptionEmpty) {
+        if (!nameEmpty && !leaderEmpty && !descriptionEmpty && !projectEmpty) {
             try {
                 setLoading(true);
-
-                // Simulation d'un appel API pour le développement frontend
-                console.log('Équipe créée avec succès:', newTeamData);
-
-                setTimeout(() => {
-                    setLoading(false);
-                    setSnackbar({
-                        open: true,
-                        message: 'Équipe créée avec succès',
-                        severity: 'success',
-                    });
-                    handleNewTeamDialogClose();
-                }, 500);
-
-                // try {
-                //   await teamApi.createTeam(newTeamData);
-                //   setSnackbar({
-                //     open: true,
-                //     message: "Équipe créée avec succès",
-                //     severity: "success",
-                //   });
-                //   handleNewTeamDialogClose();
-                //   // Recharger la liste des équipes
-                //   fetchTeams();
-                // } catch (error) {
-                //   console.error("Erreur lors de la création de l'équipe:", error);
-                //   setSnackbar({
-                //     open: true,
-                //     message: "Erreur lors de la création de l'équipe",
-                //     severity: "error",
-                //   });
-                // } finally {
-                //   setLoading(false);
-                // }
+                await teamApi.createTeam({
+                    name: newTeamData.name,
+                    leaderId: newTeamData.leaderId,
+                    description: newTeamData.description,
+                    projectId: newTeamData.projectId,
+                });
+                setSnackbar({
+                    open: true,
+                    message: 'Équipe créée avec succès',
+                    severity: 'success',
+                });
+                handleNewTeamDialogClose();
+                // Recharger la liste des équipes
+                fetchTeams();
             } catch (error) {
                 console.error("Erreur lors de la création de l'équipe:", error);
                 setSnackbar({
@@ -739,6 +526,7 @@ function TestTeam() {
                     message: "Erreur lors de la création de l'équipe",
                     severity: 'error',
                 });
+            } finally {
                 setLoading(false);
             }
         }
@@ -757,54 +545,10 @@ function TestTeam() {
 
         try {
             setLoading(true);
-
-            // Simulation d'un appel API pour le développement frontend
-            console.log("Chargement des détails de l'équipe:", teamId);
-
-            // Trouver l'équipe dans les données simulées
-            const team = teams.find((t) => t.id === teamId);
-
-            // Simuler un délai de chargement
-            setTimeout(() => {
-                if (team) {
-                    setSelectedTeam(team);
-                    setShowTeamDetails(true);
-                    setSearchMemberQuery('');
-                } else {
-                    // Si l'équipe n'est pas trouvée, utiliser des données par défaut
-                    const mockTeamDetails = {
-                        id: teamId,
-                        name: `Équipe ${teamId}`,
-                        leader: "Chef d'équipe",
-                        description: "Description de l'équipe",
-                        createdAt: '01/01/2025',
-                        memberCount: 0,
-                        members: [],
-                        projects: [],
-                    };
-                    setSelectedTeam(mockTeamDetails);
-                    setShowTeamDetails(true);
-                    setSearchMemberQuery('');
-                }
-                setLoading(false);
-            }, 300);
-
-            // Utilisation de l'API réelle
-            // try {
-            //   const teamDetails = await teamApi.getTeamById(teamId);
-            //   setSelectedTeam(teamDetails);
-            //   setShowTeamDetails(true);
-            //   setSearchMemberQuery("");
-            // } catch (error) {
-            //   console.error("Erreur lors du chargement des détails de l'équipe:", error);
-            //   setSnackbar({
-            //     open: true,
-            //     message: "Erreur lors du chargement des détails de l'équipe",
-            //     severity: "error",
-            //   });
-            // } finally {
-            //   setLoading(false);
-            // }
+            const teamDetails = await teamApi.getTeamById(teamId);
+            setSelectedTeam(teamDetails);
+            setShowTeamDetails(true);
+            setSearchMemberQuery('');
         } catch (error) {
             console.error("Erreur lors du chargement des détails de l'équipe:", error);
             setSnackbar({
@@ -812,6 +556,7 @@ function TestTeam() {
                 message: "Erreur lors du chargement des détails de l'équipe",
                 severity: 'error',
             });
+        } finally {
             setLoading(false);
         }
     };
@@ -832,42 +577,15 @@ function TestTeam() {
 
         try {
             setLoading(true);
-
-            // Simulation d'un appel API pour le développement frontend
-            console.log('Suppression du membre:', memberId, "de l'équipe:", selectedTeam.id);
-
-            setTimeout(() => {
-                setLoading(false);
-                setSnackbar({
-                    open: true,
-                    message: 'Membre supprimé avec succès',
-                    severity: 'success',
-                });
-                handleMemberActionMenuClose();
-            }, 500);
-
-            // Utilisation de l'API réelle (à décommenter pour l'utilisation réelle)
-            // try {
-            //   await teamApi.removeMember(selectedTeam.id, memberId);
-            //   setSnackbar({
-            //     open: true,
-            //     message: "Membre supprimé avec succès",
-            //     severity: "success",
-            //   });
-            //   handleMemberActionMenuClose();
-            //   // Recharger les détails de l'équipe
-            //   await handleViewTeamDetails(selectedTeam.id);
-            // } catch (error) {
-            //   console.error("Erreur lors de la suppression du membre:", error);
-            //   setSnackbar({
-            //     open: true,
-            //     message: "Erreur lors de la suppression du membre",
-            //     severity: "error",
-            //   });
-            //   handleMemberActionMenuClose();
-            // } finally {
-            //   setLoading(false);
-            // }
+            await teamApi.removeMember(selectedTeam.id, memberId);
+            setSnackbar({
+                open: true,
+                message: 'Membre supprimé avec succès',
+                severity: 'success',
+            });
+            handleMemberActionMenuClose();
+            // Recharger les détails de l'équipe
+            await handleViewTeamDetails(selectedTeam.id);
         } catch (error) {
             console.error('Erreur lors de la suppression du membre:', error);
             setSnackbar({
@@ -875,8 +593,9 @@ function TestTeam() {
                 message: 'Erreur lors de la suppression du membre',
                 severity: 'error',
             });
-            setLoading(false);
             handleMemberActionMenuClose();
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -884,20 +603,43 @@ function TestTeam() {
     const handleEditTeamDialogOpen = (teamId: number) => {
         const team = teams.find((t) => t.id === teamId);
         if (team) {
+            // Trouver le projet correspondant dans la liste des projets
+            const projectObj = projects.find((p) => p.id === team.project?.id) || null;
+
             setEditTeamData({
                 id: team.id,
                 name: team.name,
-                leader: team.leader,
+                leader: team.manager?.name || '',
+                leaderId: team.manager?.id || 0,
                 description: team.description,
+                projectId: team.project?.id || 0,
             });
+
             setEditTeamErrors({
                 name: false,
                 leader: false,
                 description: false,
+                projectId: false,
             });
-            setSelectedEditLeader(null);
-            setLeaderSearchQuery('');
-            setLeaderOptions([]);
+
+            // Trouver l'utilisateur correspondant dans la liste complète des utilisateurs
+            const leaderObj = allUsers.find((u) => u.id === team.manager?.id) || null;
+            setSelectedEditLeader(leaderObj);
+
+            setSelectedEditProject(
+                projectObj
+                    ? {
+                          id: projectObj.id,
+                          title: projectObj.title,
+                      }
+                    : null,
+            );
+
+            // Charger les utilisateurs si ce n'est pas déjà fait
+            if (allUsers.length === 0) {
+                fetchUsers();
+            }
+
             setOpenEditTeamDialog(true);
         }
         handleTeamActionMenuClose();
@@ -909,10 +651,10 @@ function TestTeam() {
             name: false,
             leader: false,
             description: false,
+            projectId: false,
         });
         setSelectedEditLeader(null);
-        setLeaderSearchQuery('');
-        setLeaderOptions([]);
+        setSelectedEditProject(null);
     };
 
     const handleEditTeamInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -934,62 +676,39 @@ function TestTeam() {
     const handleUpdateTeam = async () => {
         // Validation des champs
         const nameEmpty = editTeamData.name.trim() === '';
-        const leaderEmpty = editTeamData.leader.trim() === '';
+        const leaderEmpty = editTeamData.leaderId === 0;
         const descriptionEmpty = editTeamData.description.trim() === '';
+        const projectEmpty = editTeamData.projectId === 0;
 
         setEditTeamErrors({
             name: nameEmpty,
             leader: leaderEmpty,
             description: descriptionEmpty,
+            projectId: projectEmpty,
         });
 
         // Si tous les champs sont remplis, procéder à la mise à jour
-        if (!nameEmpty && !leaderEmpty && !descriptionEmpty) {
+        if (!nameEmpty && !leaderEmpty && !descriptionEmpty && !projectEmpty) {
             try {
                 setLoading(true);
-
-                // Simulation d'un appel API pour le développement frontend
-                console.log('Équipe mise à jour avec succès:', editTeamData);
-
-                setTimeout(() => {
-                    setLoading(false);
-                    setSnackbar({
-                        open: true,
-                        message: 'Équipe mise à jour avec succès',
-                        severity: 'success',
-                    });
-                    handleEditTeamDialogClose();
-                }, 500);
-
-                // Utilisation de l'API réelle (à décommenter pour l'utilisation réelle)
-                // try {
-                //   await teamApi.updateTeam(editTeamData.id, {
-                //     name: editTeamData.name,
-                //     leader: editTeamData.leader,
-                //     description: editTeamData.description,
-                //   });
-                //   setSnackbar({
-                //     open: true,
-                //     message: "Équipe mise à jour avec succès",
-                //     severity: "success",
-                //   });
-                //   handleEditTeamDialogClose();
-                //   // Recharger la liste des équipes
-                //   fetchTeams();
-                //   // Si nous sommes dans la vue détaillée de l'équipe modifiée, recharger les détails
-                //   if (showTeamDetails && selectedTeam?.id === editTeamData.id) {
-                //     await handleViewTeamDetails(editTeamData.id);
-                //   }
-                // } catch (error) {
-                //   console.error("Erreur lors de la mise à jour de l'équipe:", error);
-                //   setSnackbar({
-                //     open: true,
-                //     message: "Erreur lors de la mise à jour de l'équipe",
-                //     severity: "error",
-                //   });
-                // } finally {
-                //   setLoading(false);
-                // }
+                await teamApi.updateTeam(editTeamData.id, {
+                    name: editTeamData.name,
+                    leaderId: editTeamData.leaderId,
+                    description: editTeamData.description,
+                    projectId: editTeamData.projectId,
+                });
+                setSnackbar({
+                    open: true,
+                    message: 'Équipe mise à jour avec succès',
+                    severity: 'success',
+                });
+                handleEditTeamDialogClose();
+                // Recharger la liste des équipes
+                fetchTeams();
+                // Si nous sommes dans la vue détaillée de l'équipe modifiée, recharger les détails
+                if (showTeamDetails && selectedTeam?.id === editTeamData.id) {
+                    await handleViewTeamDetails(editTeamData.id);
+                }
             } catch (error) {
                 console.error("Erreur lors de la mise à jour de l'équipe:", error);
                 setSnackbar({
@@ -997,6 +716,7 @@ function TestTeam() {
                     message: "Erreur lors de la mise à jour de l'équipe",
                     severity: 'error',
                 });
+            } finally {
                 setLoading(false);
             }
         }
@@ -1010,12 +730,12 @@ function TestTeam() {
     };
 
     const handleDeleteTeamDialogClose = () => {
+        console.log('Annuler la supprition');
         setOpenDeleteTeamDialog(false);
         // Effacer selectedTeamId seulement lorsque le dialogue est fermé
         setSelectedTeamId(null);
     };
 
-    // Fonction corrigée pour la suppression d'équipe
     const handleDeleteTeam = async () => {
         // Stocker l'ID dans une variable locale pour s'assurer qu'il ne change pas
         const teamIdToDelete = selectedTeamId;
@@ -1024,13 +744,14 @@ function TestTeam() {
 
         try {
             setLoading(true);
-            console.log("Suppression de l'équipe:", teamIdToDelete);
+            await teamApi.deleteTeam(teamIdToDelete);
 
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            // Simuler la mise à jour de la liste des équipes
-            const updatedTeams = teams.filter((team) => team.id !== teamIdToDelete);
-            setTeams(updatedTeams);
+            // Afficher le Snackbar de succès
+            setSnackbar({
+                open: true,
+                message: 'Équipe supprimée avec succès',
+                severity: 'success',
+            });
 
             // Fermer le dialogue de confirmation
             handleDeleteTeamDialogClose();
@@ -1040,38 +761,34 @@ function TestTeam() {
                 handleBackToTeamsList();
             }
 
-            setLoading(false);
-
-            // Afficher le Snackbar de succès
-            setSnackbar({
-                open: true,
-                message: 'Équipe supprimée avec succès',
-                severity: 'success',
-            });
+            // Recharger la liste des équipes
+            await fetchTeams();
         } catch (error) {
             console.error("Erreur lors de la suppression de l'équipe:", error);
-            setLoading(false);
-            handleDeleteTeamDialogClose();
+
+            // Afficher le Snackbar d'erreur
             setSnackbar({
                 open: true,
                 message: "Erreur lors de la suppression de l'équipe",
                 severity: 'error',
             });
+
+            // Fermer le dialogue de confirmation
+            handleDeleteTeamDialogClose();
+        } finally {
+            setLoading(false);
         }
     };
 
-    // Fonction corrigée pour fermer la notification
+    // Fonction pour fermer la notification
     const handleSnackbarClose = (_?: React.SyntheticEvent | Event, reason?: string) => {
-        // Ne pas fermer le Snackbar si l'utilisateur clique en dehors
         if (reason === 'clickaway') {
             return;
         }
-
-        // Fermer le Snackbar
-        setSnackbar((prev) => ({
-            ...prev,
+        setSnackbar({
+            ...snackbar,
             open: false,
-        }));
+        });
     };
 
     // Afficher un indicateur de chargement pendant le chargement initial
@@ -1157,7 +874,7 @@ function TestTeam() {
 
                         {/* Badge et chef d'équipe */}
                         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="body2">Chef d'équipe: {selectedTeam?.leader}</Typography>
+                            <Typography variant="body2">Chef d'équipe: {selectedTeam?.manager?.name}</Typography>
                         </Box>
 
                         {/* Informations de l'équipe - Nouveau design */}
@@ -1174,7 +891,7 @@ function TestTeam() {
                                         <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" gutterBottom>
                                             Date de création
                                         </Typography>
-                                        <Typography variant="body1">{selectedTeam?.createdAt}</Typography>
+                                        <Typography variant="body1">{selectedTeam?.created_at}</Typography>
                                     </Box>
                                     <Box sx={{ flex: 1 }}>
                                         <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" gutterBottom>
@@ -1355,98 +1072,30 @@ function TestTeam() {
                                                 <Button variant="outlined">Voir tous les projets</Button>
                                             </Box>
 
-                                            {selectedTeam?.projects && selectedTeam.projects.length > 0 ? (
-                                                selectedTeam.projects.map((project: any) => (
-                                                    <Paper
-                                                        key={project.id}
-                                                        elevation={1}
-                                                        sx={{
-                                                            p: 3,
-                                                            mb: 3,
-                                                            borderRadius: 2,
-                                                            transition: 'transform 0.2s, box-shadow 0.2s',
-                                                            '&:hover': {
-                                                                boxShadow: 3,
-                                                            },
-                                                        }}
-                                                    >
-                                                        <Box
-                                                            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}
-                                                        >
-                                                            <Box>
-                                                                <Typography variant="h6" fontWeight="bold">
-                                                                    {project.name}
-                                                                </Typography>
-                                                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                                                                    <Chip
-                                                                        label={project.status}
-                                                                        color={project.status === 'En cours' ? 'success' : 'warning'}
-                                                                        size="small"
-                                                                        sx={{ mr: 2 }}
-                                                                    />
-                                                                    <Typography variant="body2">Échéance: {project.deadline}</Typography>
-                                                                </Box>
-                                                            </Box>
-                                                            <Button variant="outlined" size="small">
-                                                                Voir les détails
-                                                            </Button>
-                                                        </Box>
-
-                                                        <Typography variant="body2" sx={{ mb: 3 }}>
-                                                            {project.description}
-                                                        </Typography>
-
-                                                        <Box sx={{ mb: 3 }}>
-                                                            <Box
-                                                                sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}
-                                                            >
-                                                                <Typography variant="body2" fontWeight="medium">
-                                                                    Progression
-                                                                </Typography>
-                                                                <Typography variant="body2" fontWeight="medium">
-                                                                    {project.progress}%
-                                                                </Typography>
-                                                            </Box>
-                                                            <LinearProgress
-                                                                variant="determinate"
-                                                                value={project.progress}
-                                                                sx={{
-                                                                    height: 8,
-                                                                    borderRadius: 5,
-                                                                    backgroundColor: '#e0f2f1',
-                                                                    '& .MuiLinearProgress-bar': {
-                                                                        backgroundColor: '#16A249',
-                                                                    },
-                                                                }}
-                                                            />
-                                                        </Box>
-
+                                            {selectedTeam?.project ? (
+                                                <Paper
+                                                    elevation={1}
+                                                    sx={{
+                                                        p: 3,
+                                                        mb: 3,
+                                                        borderRadius: 2,
+                                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                                        '&:hover': {
+                                                            boxShadow: 3,
+                                                        },
+                                                    }}
+                                                >
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                                                         <Box>
-                                                            <Typography variant="body2" fontWeight="medium" sx={{ mb: 1 }}>
-                                                                Membres assignés
+                                                            <Typography variant="h6" fontWeight="bold">
+                                                                {selectedTeam.project.title}
                                                             </Typography>
-                                                            <Box sx={{ display: 'flex' }}>
-                                                                {Array(project.assignedMembers)
-                                                                    .fill(0)
-                                                                    .map((_, index) => (
-                                                                        <Avatar
-                                                                            key={index}
-                                                                            sx={{
-                                                                                width: 32,
-                                                                                height: 32,
-                                                                                bgcolor: '#16A249',
-                                                                                fontSize: 14,
-                                                                                border: '2px solid white',
-                                                                                ml: index > 0 ? -1 : 0,
-                                                                            }}
-                                                                        >
-                                                                            {index + 1}
-                                                                        </Avatar>
-                                                                    ))}
-                                                            </Box>
                                                         </Box>
-                                                    </Paper>
-                                                ))
+                                                        <Button variant="outlined" size="small">
+                                                            Voir les détails
+                                                        </Button>
+                                                    </Box>
+                                                </Paper>
                                             ) : (
                                                 <Box sx={{ textAlign: 'center', py: 4 }}>
                                                     <Typography variant="body1" color="text.secondary">
@@ -1508,7 +1157,7 @@ function TestTeam() {
                                         <TableCell sx={{ fontWeight: 'bold' }}>Nom</TableCell>
                                         <TableCell sx={{ fontWeight: 'bold' }}>Membres</TableCell>
                                         <TableCell sx={{ fontWeight: 'bold' }}>Chef d'équipe</TableCell>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Projets</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold' }}>Projet</TableCell>
                                         <TableCell sx={{ fontWeight: 'bold' }}>Date de création</TableCell>
                                         <TableCell sx={{ fontWeight: 'bold' }} align="right">
                                             Actions
@@ -1531,11 +1180,12 @@ function TestTeam() {
                                                             }}
                                                             onClick={(e) => handleViewTeamDetails(team.id, e)}
                                                         >
-                                                            {team.leaderInitials ||
-                                                                team.leader
-                                                                    ?.split(' ')
-                                                                    .map((n: string) => n[0])
-                                                                    .join('')}
+                                                            {team.manager && team.manager.name
+                                                                ? team.manager.name
+                                                                      .split(' ')
+                                                                      .map((n: string) => n[0])
+                                                                      .join('')
+                                                                : ''}
                                                         </Avatar>
                                                         <Typography
                                                             fontWeight="bold"
@@ -1549,28 +1199,23 @@ function TestTeam() {
                                                         </Typography>
                                                     </Box>
                                                 </TableCell>
-                                                <TableCell>{team.memberCount}</TableCell>
-                                                <TableCell>{team.leader}</TableCell>
+                                                <TableCell>{team.members ? team.members.length : 0}</TableCell>
+                                                <TableCell>{team.manager ? team.manager.name : ''}</TableCell>
                                                 <TableCell>
-                                                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                                        {team.projectList && team.projectList.length > 0 ? (
-                                                            team.projectList.map((project: string, index: number) => (
-                                                                <Chip
-                                                                    key={index}
-                                                                    label={project}
-                                                                    size="small"
-                                                                    variant="outlined"
-                                                                    sx={{ fontWeight: 'medium' }}
-                                                                />
-                                                            ))
-                                                        ) : (
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                Aucun projet
-                                                            </Typography>
-                                                        )}
-                                                    </Box>
+                                                    {team.project ? (
+                                                        <Chip
+                                                            label={team.project.title}
+                                                            size="small"
+                                                            variant="outlined"
+                                                            sx={{ fontWeight: 'medium' }}
+                                                        />
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            Aucun projet
+                                                        </Typography>
+                                                    )}
                                                 </TableCell>
-                                                <TableCell>{team.createdAt}</TableCell>
+                                                <TableCell>{team.created_at}</TableCell>
                                                 <TableCell align="right">
                                                     <IconButton size="small" onClick={(e) => handleTeamActionMenuOpen(e, team.id)}>
                                                         <MoreVert />
@@ -1614,12 +1259,11 @@ function TestTeam() {
                     />
                     <Autocomplete
                         id="leader"
-                        options={leaderOptions}
+                        options={allUsers}
                         getOptionLabel={(option) => option.name}
                         value={selectedLeader}
                         onChange={handleLeaderChange}
-                        onInputChange={(_, newInputValue) => setLeaderSearchQuery(newInputValue)}
-                        loading={loadingLeaders}
+                        loading={loading}
                         renderInput={(params) => (
                             <TextField
                                 {...params}
@@ -1634,7 +1278,7 @@ function TestTeam() {
                                     ...params.InputProps,
                                     endAdornment: (
                                         <>
-                                            {loadingLeaders ? <CircularProgress color="inherit" size={20} /> : null}
+                                            {loading ? <CircularProgress color="inherit" size={20} /> : null}
                                             {params.InputProps.endAdornment}
                                         </>
                                     ),
@@ -1663,6 +1307,35 @@ function TestTeam() {
                                             {option.email}
                                         </Typography>
                                     </Box>
+                                </Box>
+                            </li>
+                        )}
+                    />
+                    <Autocomplete
+                        id="project"
+                        options={projects}
+                        getOptionLabel={(option) => option.title}
+                        value={selectedProject}
+                        onChange={handleProjectChange}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                margin="dense"
+                                name="project"
+                                label="Projet"
+                                variant="outlined"
+                                error={newTeamErrors.projectId}
+                                helperText={newTeamErrors.projectId ? 'Le projet est requis' : ''}
+                                required
+                            />
+                        )}
+                        renderOption={(props, option) => (
+                            <li {...props}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                    <Typography variant="body1">{option.title}</Typography>
+                                    <Typography variant="body2" color="text.secondary" noWrap>
+                                        {option.title || 'Description non disponible'}
+                                    </Typography>
                                 </Box>
                             </li>
                         )}
@@ -1687,7 +1360,7 @@ function TestTeam() {
                 <DialogActions>
                     <Button onClick={handleNewTeamDialogClose}>Annuler</Button>
                     <Button onClick={handleCreateNewTeam} variant="contained" color="success" sx={{ bgcolor: '#16A249' }} disabled={loading}>
-                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Créer'}
+                        Créer
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -1712,12 +1385,11 @@ function TestTeam() {
                     />
                     <Autocomplete
                         id="edit-leader"
-                        options={leaderOptions}
+                        options={allUsers}
                         getOptionLabel={(option) => option.name}
                         value={selectedEditLeader}
                         onChange={handleEditLeaderChange}
-                        onInputChange={(_, newInputValue) => setLeaderSearchQuery(newInputValue)}
-                        loading={loadingLeaders}
+                        loading={loading}
                         renderInput={(params) => (
                             <TextField
                                 {...params}
@@ -1732,7 +1404,7 @@ function TestTeam() {
                                     ...params.InputProps,
                                     endAdornment: (
                                         <>
-                                            {loadingLeaders ? <CircularProgress color="inherit" size={20} /> : null}
+                                            {loading ? <CircularProgress color="inherit" size={20} /> : null}
                                             {params.InputProps.endAdornment}
                                         </>
                                     ),
@@ -1765,6 +1437,35 @@ function TestTeam() {
                             </li>
                         )}
                     />
+                    <Autocomplete
+                        id="edit-project"
+                        options={projects}
+                        getOptionLabel={(option) => option.title}
+                        value={selectedEditProject}
+                        onChange={handleEditProjectChange}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                margin="dense"
+                                name="project"
+                                label="Projet"
+                                variant="outlined"
+                                error={editTeamErrors.projectId}
+                                helperText={editTeamErrors.projectId ? 'Le projet est requis' : ''}
+                                required
+                            />
+                        )}
+                        renderOption={(props, option) => (
+                            <li {...props}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                    <Typography variant="body1">{option.title}</Typography>
+                                    <Typography variant="body2" color="text.secondary" noWrap>
+                                        {option.title}
+                                    </Typography>
+                                </Box>
+                            </li>
+                        )}
+                    />
                     <TextField
                         margin="dense"
                         id="description"
@@ -1785,7 +1486,7 @@ function TestTeam() {
                 <DialogActions>
                     <Button onClick={handleEditTeamDialogClose}>Annuler</Button>
                     <Button onClick={handleUpdateTeam} variant="contained" color="success" sx={{ bgcolor: '#16A249' }} disabled={loading}>
-                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Mettre à jour'}
+                        Mettre à jour
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -1923,7 +1624,7 @@ function TestTeam() {
                     </Box>
 
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="subtitle1" fontWeight="bold">
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                             Utilisateurs disponibles
                         </Typography>
                         <Button size="small" onClick={handleSelectAllUsers} disabled={filteredUsers.length === 0}>
@@ -2017,7 +1718,7 @@ function TestTeam() {
                         </>
                     )}
 
-                    {selectedTeam?.projects && selectedTeam.projects.length > 0 && (
+                    {availableProjects.length > 0 && (
                         <Box sx={{ mt: 3 }}>
                             <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                                 Assigner à un projet (optionnel)
@@ -2066,4 +1767,4 @@ function TestTeam() {
     );
 }
 
-export default TestTeam;
+export default Teambadi;
