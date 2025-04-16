@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\TeamRequest;
 use App\Http\Resources\TeamResource;
 use App\Http\Resources\UserResource;
+use App\Models\Project;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -85,26 +86,26 @@ class TeamController extends Controller
     public function destroy($id)
     {
         $team = Team::find($id);
-        
+
         if (!$team) {
             return response()->json([
                 'success' => false,
                 'message' => 'Équipe non trouvée'
             ], 404);
         }
-        
+
         // Commencer une transaction pour s'assurer que tout est supprimé correctement
         DB::beginTransaction();
         try {
             // D'abord, supprimer les entrées de la table pivot team_user
             DB::table('team_user')->where('team_id', $id)->delete();
-            
+
             // Ensuite, supprimer l'équipe elle-même
             $team->delete();
-            
+
             // Valider la transaction
             DB::commit();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Équipe et ses membres supprimés avec succès'
@@ -112,7 +113,7 @@ class TeamController extends Controller
         } catch (\Exception $e) {
             // En cas d'erreur, annuler la transaction
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la suppression de l\'équipe',
@@ -138,13 +139,23 @@ class TeamController extends Controller
             ], 404);
         }
 
-        // Vérifiez si cette ligne s'exécute correctement
+        // Vérifier si le membre existe déjà dans l'équipe
+        $memberExists = $team->members()->where('user_id', $request->user_id)->exists();
+
+        if ($memberExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ce membre fait déjà partie de l\'équipe'
+            ], 400);
+        }
+
+        // Ajouter le membre puisqu'il n'existe pas encore dans l'équipe
         $team->members()->attach($request->user_id);
 
         return response()->json([
             'success' => true,
             'message' => 'Membre ajouté avec succès'
-        ],200);
+        ], 200);
     }
 
     // Retirer un membre de l'équipe
@@ -167,8 +178,21 @@ class TeamController extends Controller
         ], 200);
     }
 
+    // Récupérer les projets qui ne sont pas associés à une équipe
+    public function getAvailableProjects()
+    {
+        // Récupérer les IDs des projets qui sont déjà associés à une équipe
+        $assignedProjectIds = Team::pluck('project_id')->toArray();
 
-  
+        // Récupérer tous les projets qui ne sont pas dans cette liste
+        $availableProjects = Project::whereNotIn('id', $assignedProjectIds)->get();
 
-    
+        return response()->json([
+            'success' => true,
+            'data' => $availableProjects
+        ]);
+    }
+
+
+
 }

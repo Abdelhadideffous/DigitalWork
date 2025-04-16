@@ -218,10 +218,7 @@ function Teambadi() {
     const filteredMembers = selectedTeam?.members.filter((member: any) => member.name.toLowerCase().includes(searchMemberQuery.toLowerCase())) || [];
 
     // Filtrage des utilisateurs existants par recherche
-    const filteredUsers = existingUsers.filter(
-        (user) =>
-            user.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || user.email.toLowerCase().includes(memberSearchQuery.toLowerCase()),
-    );
+    // Filtrage des utilisateurs existants par recherche
 
     // Liste des projets disponibles pour l'ajout de membre
     const availableProjects = selectedTeam?.projects?.map((project: any) => project.name) || [];
@@ -277,6 +274,7 @@ function Teambadi() {
         if (allUsers.length === 0) {
             fetchUsers();
         }
+        fetchAvailableProjects();
     };
 
     const handleNewTeamDialogClose = () => {
@@ -338,6 +336,35 @@ function Teambadi() {
         }
     };
 
+    // Fonction pour filtrer les utilisateurs qui ne sont pas déjà membres de l'équipe
+    const getAvailableUsers = () => {
+        if (!selectedTeam || !selectedTeam.members) {
+            return allUsers;
+        }
+
+        // Obtenir les IDs des membres déjà dans l'équipe
+        const existingMemberIds = selectedTeam.members.map((member: any) => member.id);
+
+        // Retourner uniquement les utilisateurs qui ne sont pas déjà membres
+        return allUsers.filter((user) => !existingMemberIds.includes(user.id));
+    };
+
+    const fetchAvailableProjects = async () => {
+        try {
+            console.log('Chargement des projets disponibles...');
+            const projectsData = await projectApi.getAvailableProjects();
+            console.log('Projets disponibles chargés:', projectsData);
+            setProjects(projectsData);
+        } catch (error) {
+            console.error('Erreur lors du chargement des projets disponibles:', error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors du chargement des projets disponibles',
+                severity: 'error',
+            });
+        }
+    };
+
     const handleProjectChange = (_: React.SyntheticEvent, value: { id: number; title: string } | null) => {
         setSelectedProject(value);
         if (value) {
@@ -384,6 +411,11 @@ function Teambadi() {
         }
     };
 
+    const filteredUsers = getAvailableUsers().filter(
+        (user) =>
+            user.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || user.email.toLowerCase().includes(memberSearchQuery.toLowerCase()),
+    );
+
     const handleEditProjectChange = (_: React.SyntheticEvent, value: { id: number; title: string } | null) => {
         setSelectedEditProject(value);
         if (value) {
@@ -416,6 +448,17 @@ function Teambadi() {
 
     const handleSelectMultipleUsers = (user: { id: number; name: string; email: string }) => {
         const isAlreadySelected = selectedUsers.some((selected) => selected.id === user.id);
+        const isExistingMember = selectedTeam?.members.some((member: any) => member.id === user.id);
+
+        if (isExistingMember) {
+            // L'utilisateur est déjà membre de l'équipe, ne rien faire
+            setSnackbar({
+                open: true,
+                message: `${user.name} est déjà membre de l'équipe`,
+                severity: 'warning',
+            });
+            return;
+        }
 
         if (isAlreadySelected) {
             setSelectedUsers(selectedUsers.filter((selected) => selected.id !== user.id));
@@ -444,13 +487,36 @@ function Teambadi() {
         }
     };
 
-    const handleBatchAddDialogOpen = () => {
+    const handleBatchAddDialogOpen = async () => {
         setOpenBatchAddDialog(true);
         setSelectedUsers([]);
         setMemberSearchQuery('');
-        // Charger les utilisateurs si ce n'est pas déjà fait
-        if (existingUsers.length === 0) {
-            fetchUsers();
+
+        try {
+            setLoading(true);
+
+            // Toujours recharger la liste complète des utilisateurs
+            await fetchUsers();
+
+            if (selectedTeam && selectedTeam.members) {
+                // Obtenir les IDs des membres déjà dans l'équipe
+                const existingMemberIds = selectedTeam.members.map((member: any) => member.id);
+
+                // Filtrer la liste des utilisateurs pour exclure ceux déjà dans l'équipe
+                const availableUsers = existingUsers.filter((user) => !existingMemberIds.includes(user.id));
+
+                // Mettre à jour la liste des utilisateurs disponibles pour l'ajout
+                setExistingUsers(availableUsers);
+            }
+        } catch (error) {
+            console.error("Erreur lors de la préparation de l'ajout de membres:", error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors du chargement des utilisateurs disponibles',
+                severity: 'error',
+            });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -578,14 +644,21 @@ function Teambadi() {
         try {
             setLoading(true);
             await teamApi.removeMember(selectedTeam.id, memberId);
+
+            // Notification de succès
             setSnackbar({
                 open: true,
                 message: 'Membre supprimé avec succès',
                 severity: 'success',
             });
+
             handleMemberActionMenuClose();
+
             // Recharger les détails de l'équipe
             await handleViewTeamDetails(selectedTeam.id);
+
+            // Recharger la liste complète des utilisateurs pour mettre à jour les disponibles
+            await fetchUsers();
         } catch (error) {
             console.error('Erreur lors de la suppression du membre:', error);
             setSnackbar({

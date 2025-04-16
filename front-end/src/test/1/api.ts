@@ -68,7 +68,7 @@ export interface Task {
     project_id: number;
     status_id: number;
     priority_id: number;
-    
+
     // Ajout des propriétés pour l'utilisateur assigné telles que renvoyées par le backend
     assigned_to: number;
     assigned_user?: {
@@ -76,7 +76,7 @@ export interface Task {
         name: string;
         email: string;
     };
-    
+
     // Garder user_id/user pour rétrocompatibilité
     user_id?: number;
     user?: {
@@ -84,7 +84,7 @@ export interface Task {
         name: string;
         avatar?: string;
     };
-    
+
     start_date: string;
     end_date: string;
     status?: { id: number; name: string };
@@ -137,7 +137,7 @@ export const taskApi = {
             const response = await api.post('/tasks', {
                 ...taskData,
                 // Utiliser assigned_to pour le backend
-                assigned_to: taskData.assigned_to
+                assigned_to: taskData.assigned_to,
             });
             return response.data;
         } catch (error) {
@@ -153,7 +153,7 @@ export const taskApi = {
             const response = await api.put(`/tasks/${id}`, {
                 ...taskData,
                 // Utiliser assigned_to pour le backend
-                assigned_to: taskData.assigned_to
+                assigned_to: taskData.assigned_to,
             });
             return response.data;
         } catch (error) {
@@ -248,6 +248,16 @@ export const projectApi = {
             return response.data.data;
         } catch (error) {
             console.error('Erreur lors de la récupération des priorités:', error);
+            throw error;
+        }
+    },
+
+    getAvailableProjects: async () => {
+        try {
+            const response = await api.get('/available-projects');
+            return response.data.data;
+        } catch (error) {
+            console.error('Erreur lors de la récupération des projets disponibles:', error);
             throw error;
         }
     },

@@ -73,6 +73,8 @@ Route::delete('/teams/{id}', [TeamController::class, 'destroy']);
 // Routes pour les membres d'équipes
 Route::post('/teams/{teamId}/members', [TeamController::class, 'addMember']);
 Route::delete('/teams/{teamId}/members/{userId}', [TeamController::class, 'removeMember']);
+// Route pour récupérer les projets disponibles (non associés à une équipe)
+Route::get('/available-projects', [TeamController::class, 'getAvailableProjects']);
 
 // Route pour récupérer tous les utilisateurs
 Route::get('users/search', [UserController::class, 'searchUsers']);
