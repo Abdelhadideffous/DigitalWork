@@ -7,6 +7,7 @@ import {
     Edit as EditIcon,
     MailOutline,
     MoreVert,
+    Person,
     RemoveCircleOutline as RemoveCircleOutlineIcon,
     Search as SearchIcon,
     Visibility as VisibilityIcon,
@@ -51,6 +52,7 @@ import {
     TableRow,
     Tabs,
     TextField,
+    Tooltip,
     Typography,
     type SelectChangeEvent,
 } from '@mui/material';
@@ -91,7 +93,7 @@ function Teambadi() {
     const [selectedLeader, setSelectedLeader] = useState<{ id: number; name: string; email: string } | null>(null);
 
     // État pour les projets
-    const [projects, setProjects] = useState<Array<{ id: number; title: string; description: string }>>([]);
+    const [projects, setProjects] = useState<Array<{ id: number; title: string; description?: string }>>([]);
     const [selectedProject, setSelectedProject] = useState<{ id: number; title: string } | null>(null);
 
     // État pour le formulaire d'ajout de membre
@@ -204,6 +206,58 @@ function Teambadi() {
         }
     };
 
+    // Fonction pour charger les projets disponibles (non associés à une équipe)
+    const fetchAvailableProjects = async () => {
+        try {
+            console.log('Chargement des projets disponibles...');
+            const projectsData = await projectApi.getAvailableProjects();
+            console.log('Projets disponibles chargés:', projectsData);
+            setProjects(projectsData);
+        } catch (error) {
+            console.error('Erreur lors du chargement des projets disponibles:', error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors du chargement des projets disponibles',
+                severity: 'error',
+            });
+        }
+    };
+
+    // Fonction pour charger les projets disponibles pour l'édition (inclut le projet actuel)
+    const fetchAvailableProjectsForEdit = async (currentProjectId?: number) => {
+        try {
+            console.log('Chargement des projets disponibles pour édition...');
+            const availableProjects = await projectApi.getAvailableProjects();
+            
+            // Si l'équipe a déjà un projet, nous devons également charger ce projet
+            if (currentProjectId) {
+                try {
+                    const currentProject = await projectApi.getProjectById(currentProjectId);
+                    // Vérifier si le projet actuel n'est pas déjà dans la liste
+                    const projectExists = availableProjects.some(p => p.id === currentProjectId);
+                    
+                    if (!projectExists && currentProject) {
+                        // Ajouter le projet actuel à la liste des projets disponibles
+                        setProjects([currentProject, ...availableProjects]);
+                        return;
+                    }
+                } catch (error) {
+                    console.error(`Erreur lors du chargement du projet actuel (ID: ${currentProjectId}):`, error);
+                    // Continuer avec les projets disponibles même si nous ne pouvons pas charger le projet actuel
+                }
+            }
+            
+            setProjects(availableProjects);
+        } catch (error) {
+            console.error('Erreur lors du chargement des projets disponibles:', error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors du chargement des projets disponibles',
+                severity: 'error',
+            });
+        }
+    };
+
     // Charger les équipes au chargement du composant
     useEffect(() => {
         fetchTeams();
@@ -214,11 +268,65 @@ function Teambadi() {
     // Filtrage des équipes par recherche
     const filteredTeams = teams.filter((team) => team.name.toLowerCase().includes(searchTeamQuery.toLowerCase()));
 
+    // Fonction pour obtenir tous les membres, y compris le chef d'équipe
+    const getAllTeamMembers = (teamData = selectedTeam) => {
+        if (!teamData) return [];
+
+        // S'assurer que members est un tableau (protection contre undefined)
+        const members = teamData.members || [];
+        
+        // Créer une copie du tableau des membres
+        const allMembers = [...members];
+        
+        // Vérifier si le manager existe
+        if (teamData.manager) {
+            // Trouver si le manager est déjà dans la liste des membres
+            const managerIndex = allMembers.findIndex(member => member.id === teamData.manager.id);
+            
+            if (managerIndex >= 0) {
+                // Le manager est déjà dans la liste - mettre à jour son statut
+                allMembers[managerIndex] = {
+                    ...allMembers[managerIndex],
+                    isManager: true
+                };
+            } else {
+                // Le manager n'est pas dans la liste - l'ajouter au début
+                allMembers.unshift({
+                    ...teamData.manager,
+                    isManager: true
+                });
+            }
+        }
+        
+        return allMembers;
+    };
+
     // Filtrage des membres par recherche
-    const filteredMembers = selectedTeam?.members.filter((member: any) => member.name.toLowerCase().includes(searchMemberQuery.toLowerCase())) || [];
+    const filteredMembers = getAllTeamMembers().filter((member: any) => 
+        member.name.toLowerCase().includes(searchMemberQuery.toLowerCase())
+    ) || [];
+
+    // Fonction pour filtrer les utilisateurs qui ne sont pas déjà membres de l'équipe et qui ne sont pas le manager
+    const getAvailableUsers = () => {
+        if (!selectedTeam) {
+            return allUsers;
+        }
+
+        // Obtenir les IDs des membres déjà dans l'équipe
+        const existingMemberIds = selectedTeam.members?.map((member: any) => member.id) || [];
+
+        // Obtenir l'ID du manager
+        const managerId = selectedTeam.manager?.id;
+
+        // Retourner uniquement les utilisateurs qui ne sont pas déjà membres ET qui ne sont pas le manager
+        return allUsers.filter((user) => !existingMemberIds.includes(user.id) && user.id !== managerId);
+    };
 
     // Filtrage des utilisateurs existants par recherche
-    // Filtrage des utilisateurs existants par recherche
+    const filteredUsers = getAvailableUsers().filter(
+        (user) =>
+            user.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || user.email.toLowerCase().includes(memberSearchQuery.toLowerCase()),
+    );
 
     // Liste des projets disponibles pour l'ajout de membre
     const availableProjects = selectedTeam?.projects?.map((project: any) => project.name) || [];
@@ -274,6 +382,8 @@ function Teambadi() {
         if (allUsers.length === 0) {
             fetchUsers();
         }
+        
+        // Charger les projets disponibles pour la création d'équipe
         fetchAvailableProjects();
     };
 
@@ -336,35 +446,6 @@ function Teambadi() {
         }
     };
 
-    // Fonction pour filtrer les utilisateurs qui ne sont pas déjà membres de l'équipe
-    const getAvailableUsers = () => {
-        if (!selectedTeam || !selectedTeam.members) {
-            return allUsers;
-        }
-
-        // Obtenir les IDs des membres déjà dans l'équipe
-        const existingMemberIds = selectedTeam.members.map((member: any) => member.id);
-
-        // Retourner uniquement les utilisateurs qui ne sont pas déjà membres
-        return allUsers.filter((user) => !existingMemberIds.includes(user.id));
-    };
-
-    const fetchAvailableProjects = async () => {
-        try {
-            console.log('Chargement des projets disponibles...');
-            const projectsData = await projectApi.getAvailableProjects();
-            console.log('Projets disponibles chargés:', projectsData);
-            setProjects(projectsData);
-        } catch (error) {
-            console.error('Erreur lors du chargement des projets disponibles:', error);
-            setSnackbar({
-                open: true,
-                message: 'Erreur lors du chargement des projets disponibles',
-                severity: 'error',
-            });
-        }
-    };
-
     const handleProjectChange = (_: React.SyntheticEvent, value: { id: number; title: string } | null) => {
         setSelectedProject(value);
         if (value) {
@@ -411,11 +492,6 @@ function Teambadi() {
         }
     };
 
-    const filteredUsers = getAvailableUsers().filter(
-        (user) =>
-            user.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || user.email.toLowerCase().includes(memberSearchQuery.toLowerCase()),
-    );
-
     const handleEditProjectChange = (_: React.SyntheticEvent, value: { id: number; title: string } | null) => {
         setSelectedEditProject(value);
         if (value) {
@@ -449,12 +525,13 @@ function Teambadi() {
     const handleSelectMultipleUsers = (user: { id: number; name: string; email: string }) => {
         const isAlreadySelected = selectedUsers.some((selected) => selected.id === user.id);
         const isExistingMember = selectedTeam?.members.some((member: any) => member.id === user.id);
+        const isManager = selectedTeam?.manager?.id === user.id;
 
-        if (isExistingMember) {
-            // L'utilisateur est déjà membre de l'équipe, ne rien faire
+        if (isExistingMember || isManager) {
+            // L'utilisateur est déjà membre de l'équipe ou est le manager
             setSnackbar({
                 open: true,
-                message: `${user.name} est déjà membre de l'équipe`,
+                message: isManager ? `${user.name} est déjà le chef d'équipe` : `${user.name} est déjà membre de l'équipe`,
                 severity: 'warning',
             });
             return;
@@ -498,12 +575,15 @@ function Teambadi() {
             // Toujours recharger la liste complète des utilisateurs
             await fetchUsers();
 
-            if (selectedTeam && selectedTeam.members) {
+            if (selectedTeam) {
                 // Obtenir les IDs des membres déjà dans l'équipe
-                const existingMemberIds = selectedTeam.members.map((member: any) => member.id);
+                const existingMemberIds = selectedTeam.members?.map((member: any) => member.id) || [];
 
-                // Filtrer la liste des utilisateurs pour exclure ceux déjà dans l'équipe
-                const availableUsers = existingUsers.filter((user) => !existingMemberIds.includes(user.id));
+                // Obtenir l'ID du manager
+                const managerId = selectedTeam.manager?.id;
+
+                // Filtrer la liste des utilisateurs pour exclure ceux déjà dans l'équipe et le manager
+                const availableUsers = allUsers.filter((user) => !existingMemberIds.includes(user.id) && user.id !== managerId);
 
                 // Mettre à jour la liste des utilisateurs disponibles pour l'ajout
                 setExistingUsers(availableUsers);
@@ -532,15 +612,38 @@ function Teambadi() {
         try {
             setLoading(true);
             const userIds = selectedUsers.map((user) => user.id);
-            await teamApi.addMultipleMembers(selectedTeam.id, userIds);
-            setSnackbar({
-                open: true,
-                message: `${selectedUsers.length} membre(s) ajouté(s) avec succès`,
-                severity: 'success',
-            });
+            
+            // Implémenter notre propre version de addMultipleMembers directement dans le composant
+            const results = await Promise.all(
+                userIds.map(userId => 
+                    teamApi.addMember(selectedTeam.id, userId)
+                        .then(() => ({ status: 'fulfilled', userId }))
+                        .catch(error => ({ status: 'rejected', userId, error }))
+                )
+            );
+            
+            const successful = results.filter(result => result.status === 'fulfilled').length;
+            const failed = results.length - successful;
+            
+            if (failed > 0) {
+                setSnackbar({
+                    open: true,
+                    message: `${successful} membre(s) ajouté(s) avec succès, ${failed} échec(s)`,
+                    severity: 'warning',
+                });
+            } else {
+                setSnackbar({
+                    open: true,
+                    message: `${successful} membre(s) ajouté(s) avec succès`,
+                    severity: 'success',
+                });
+            }
+            
             handleBatchAddDialogClose();
             // Recharger les détails de l'équipe
             await handleViewTeamDetails(selectedTeam.id);
+            // Recharger la liste complète des utilisateurs pour mettre à jour les disponibles
+            await fetchUsers();
         } catch (error) {
             console.error("Erreur lors de l'ajout des membres:", error);
             setSnackbar({
@@ -641,6 +744,17 @@ function Teambadi() {
     const handleRemoveMember = async (memberId: number) => {
         if (!selectedTeam) return;
 
+        // Vérifier si le membre est le manager
+        if (selectedTeam.manager?.id === memberId) {
+            setSnackbar({
+                open: true,
+                message: "Vous ne pouvez pas supprimer le chef d'équipe",
+                severity: 'error',
+            });
+            handleMemberActionMenuClose();
+            return;
+        }
+
         try {
             setLoading(true);
             await teamApi.removeMember(selectedTeam.id, memberId);
@@ -712,6 +826,10 @@ function Teambadi() {
             if (allUsers.length === 0) {
                 fetchUsers();
             }
+            
+            // Charger les projets disponibles pour l'édition
+            // Notez que nous incluons aussi le projet actuel de l'équipe
+            fetchAvailableProjectsForEdit(team.project?.id);
 
             setOpenEditTeamDialog(true);
         }
@@ -764,23 +882,42 @@ function Teambadi() {
         if (!nameEmpty && !leaderEmpty && !descriptionEmpty && !projectEmpty) {
             try {
                 setLoading(true);
+                
+                // Déterminer si le nouveau chef d'équipe était un membre régulier
+                const currentMembers = selectedTeam?.members || [];
+                const newLeaderWasMember = currentMembers.some(member => member.id === editTeamData.leaderId);
+                
                 await teamApi.updateTeam(editTeamData.id, {
                     name: editTeamData.name,
                     leaderId: editTeamData.leaderId,
                     description: editTeamData.description,
                     projectId: editTeamData.projectId,
                 });
+                
                 setSnackbar({
                     open: true,
                     message: 'Équipe mise à jour avec succès',
                     severity: 'success',
                 });
+                
                 handleEditTeamDialogClose();
+                
                 // Recharger la liste des équipes
-                fetchTeams();
+                await fetchTeams();
+                
                 // Si nous sommes dans la vue détaillée de l'équipe modifiée, recharger les détails
                 if (showTeamDetails && selectedTeam?.id === editTeamData.id) {
+                    // Force le rechargement complet pour s'assurer que les statuts de manager sont mis à jour
                     await handleViewTeamDetails(editTeamData.id);
+                }
+                
+                // Si nous avons changé le chef d'équipe, afficher une notification spécifique
+                if (newLeaderWasMember) {
+                    setSnackbar({
+                        open: true,
+                        message: `${selectedEditLeader?.name} est maintenant le chef d'équipe`,
+                        severity: 'info',
+                    });
                 }
             } catch (error) {
                 console.error("Erreur lors de la mise à jour de l'équipe:", error);
@@ -803,7 +940,7 @@ function Teambadi() {
     };
 
     const handleDeleteTeamDialogClose = () => {
-        console.log('Annuler la supprition');
+        console.log('Annuler la suppression');
         setOpenDeleteTeamDialog(false);
         // Effacer selectedTeamId seulement lorsque le dialogue est fermé
         setSelectedTeamId(null);
@@ -947,7 +1084,12 @@ function Teambadi() {
 
                         {/* Badge et chef d'équipe */}
                         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="body2">Chef d'équipe: {selectedTeam?.manager?.name}</Typography>
+                            <Chip 
+                                icon={<Person />} 
+                                label={`Chef d'équipe: ${selectedTeam?.manager?.name}`} 
+                                variant="outlined" 
+                                sx={{ fontWeight: 'medium', bgcolor: 'rgba(255, 140, 0, 0.1)' }} 
+                            />
                         </Box>
 
                         {/* Informations de l'équipe - Nouveau design */}
@@ -970,7 +1112,7 @@ function Teambadi() {
                                         <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" gutterBottom>
                                             Nombre de membres
                                         </Typography>
-                                        <Typography variant="body1">{selectedTeam?.members?.length || 0} membres</Typography>
+                                        <Typography variant="body1">{getAllTeamMembers().length} membres</Typography>
                                     </Box>
                                 </Box>
                             </CardContent>
@@ -1047,7 +1189,14 @@ function Teambadi() {
                                                     <TableBody>
                                                         {filteredMembers && filteredMembers.length > 0 ? (
                                                             filteredMembers.map((member: any) => (
-                                                                <TableRow key={member.id} hover>
+                                                                <TableRow 
+                                                                    key={member.id} 
+                                                                    hover 
+                                                                    sx={member.isManager ? { 
+                                                                        backgroundColor: 'rgba(255, 140, 0, 0.05)',
+                                                                        borderLeft: '4px solid #FF8C00'
+                                                                    } : {}}
+                                                                >
                                                                     <TableCell>
                                                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                                                             <Avatar
@@ -1055,7 +1204,7 @@ function Teambadi() {
                                                                                     width: 40,
                                                                                     height: 40,
                                                                                     mr: 2,
-                                                                                    bgcolor: '#16A249',
+                                                                                    bgcolor: member.isManager ? '#FF8C00' : '#16A249',
                                                                                     cursor: 'pointer',
                                                                                 }}
                                                                             >
@@ -1065,9 +1214,20 @@ function Teambadi() {
                                                                                     .join('')}
                                                                             </Avatar>
                                                                             <Box>
-                                                                                <Typography fontWeight="bold">{member.name}</Typography>
+                                                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                                                    <Typography fontWeight="bold">{member.name}</Typography>
+                                                                                    {member.isManager && (
+                                                                                        <Chip
+                                                                                            label="Chef d'équipe"
+                                                                                            size="small"
+                                                                                            color="warning"
+                                                                                            variant="outlined"
+                                                                                            sx={{ ml: 1, fontWeight: 'medium', fontSize: '0.7rem' }}
+                                                                                        />
+                                                                                    )}
+                                                                                </Box>
                                                                                 <Typography variant="body2" color="text.secondary">
-                                                                                    {member.status}
+                                                                                    {member.isManager ? 'Responsable de l\'équipe' : member.status}
                                                                                 </Typography>
                                                                             </Box>
                                                                         </Box>
@@ -1104,12 +1264,24 @@ function Teambadi() {
                                                                         </Box>
                                                                     </TableCell>
                                                                     <TableCell align="right">
-                                                                        <IconButton
-                                                                            size="small"
-                                                                            onClick={(e) => handleMemberActionMenuOpen(e, member.id)}
-                                                                        >
-                                                                            <MoreVert />
-                                                                        </IconButton>
+                                                                        {!member.isManager ? (
+                                                                            // Menu d'actions pour les membres réguliers
+                                                                            <IconButton
+                                                                                size="small"
+                                                                                onClick={(e) => handleMemberActionMenuOpen(e, member.id)}
+                                                                            >
+                                                                                <MoreVert />
+                                                                            </IconButton>
+                                                                        ) : (
+                                                                            // Tooltip expliquant pourquoi on ne peut pas supprimer le chef d'équipe
+                                                                            <Tooltip title="Le chef d'équipe ne peut pas être supprimé" arrow>
+                                                                                <span>
+                                                                                    <IconButton size="small" disabled>
+                                                                                        <MoreVert />
+                                                                                    </IconButton>
+                                                                                </span>
+                                                                            </Tooltip>
+                                                                        )}
                                                                     </TableCell>
                                                                 </TableRow>
                                                             ))
@@ -1253,12 +1425,10 @@ function Teambadi() {
                                                             }}
                                                             onClick={(e) => handleViewTeamDetails(team.id, e)}
                                                         >
-                                                            {team.manager && team.manager.name
-                                                                ? team.manager.name
-                                                                      .split(' ')
-                                                                      .map((n: string) => n[0])
-                                                                      .join('')
-                                                                : ''}
+                                                            {team.name
+                                                                .split(' ')
+                                                                .map((n: string) => n[0])
+                                                                .join('')}
                                                         </Avatar>
                                                         <Typography
                                                             fontWeight="bold"
@@ -1272,8 +1442,35 @@ function Teambadi() {
                                                         </Typography>
                                                     </Box>
                                                 </TableCell>
-                                                <TableCell>{team.members ? team.members.length : 0}</TableCell>
-                                                <TableCell>{team.manager ? team.manager.name : ''}</TableCell>
+                                                <TableCell>{getAllTeamMembers(team).length}</TableCell>
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                        <Avatar
+                                                            sx={{
+                                                                width: 24,
+                                                                height: 24,
+                                                                mr: 1,
+                                                                bgcolor: '#FF8C00',
+                                                                fontSize: '0.75rem',
+                                                            }}
+                                                        >
+                                                            {team.manager && team.manager.name
+                                                                ? team.manager.name
+                                                                      .split(' ')
+                                                                      .map((n: string) => n[0])
+                                                                      .join('')
+                                                                : ''}
+                                                        </Avatar>
+                                                        <Box>
+                                                            <Typography variant="body2">{team.manager ? team.manager.name : ''}</Typography>
+                                                            {team.members?.some(member => member.id === team.manager?.id) && (
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    (également membre)
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                </TableCell>
                                                 <TableCell>
                                                     {team.project ? (
                                                         <Chip
@@ -1407,7 +1604,7 @@ function Teambadi() {
                                 <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                                     <Typography variant="body1">{option.title}</Typography>
                                     <Typography variant="body2" color="text.secondary" noWrap>
-                                        {option.title || 'Description non disponible'}
+                                        {option.description || 'Description non disponible'}
                                     </Typography>
                                 </Box>
                             </li>
@@ -1484,31 +1681,47 @@ function Teambadi() {
                                 }}
                             />
                         )}
-                        renderOption={(props, option) => (
-                            <li {...props}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                    <Avatar
-                                        sx={{
-                                            width: 32,
-                                            height: 32,
-                                            mr: 2,
-                                            bgcolor: '#16A249',
-                                        }}
-                                    >
-                                        {option.name
-                                            .split(' ')
-                                            .map((n: string) => n[0])
-                                            .join('')}
-                                    </Avatar>
-                                    <Box sx={{ flexGrow: 1 }}>
-                                        <Typography variant="body1">{option.name}</Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {option.email}
-                                        </Typography>
+                        renderOption={(props, option) => {
+                            // Vérifier si cet utilisateur est déjà un membre de l'équipe
+                            const isExistingMember = selectedTeam?.members?.some(member => member.id === option.id);
+                            
+                            return (
+                                <li {...props}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                        <Avatar
+                                            sx={{
+                                                width: 32,
+                                                height: 32,
+                                                mr: 2,
+                                                bgcolor: isExistingMember ? '#FF8C00' : '#16A249',
+                                            }}
+                                        >
+                                            {option.name
+                                                .split(' ')
+                                                .map((n: string) => n[0])
+                                                .join('')}
+                                        </Avatar>
+                                        <Box sx={{ flexGrow: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <Typography variant="body1">{option.name}</Typography>
+                                                {isExistingMember && (
+                                                    <Chip
+                                                        label="Membre actuel"
+                                                        size="small"
+                                                        variant="outlined"
+                                                        color="warning"
+                                                        sx={{ ml: 1, fontSize: '0.7rem' }}
+                                                    />
+                                                )}
+                                            </Box>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {option.email}
+                                            </Typography>
+                                        </Box>
                                     </Box>
-                                </Box>
-                            </li>
-                        )}
+                                </li>
+                            );
+                        }}
                     />
                     <Autocomplete
                         id="edit-project"
@@ -1533,7 +1746,7 @@ function Teambadi() {
                                 <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                                     <Typography variant="body1">{option.title}</Typography>
                                     <Typography variant="body2" color="text.secondary" noWrap>
-                                        {option.title}
+                                        {option.description || 'Description non disponible'}
                                     </Typography>
                                 </Box>
                             </li>

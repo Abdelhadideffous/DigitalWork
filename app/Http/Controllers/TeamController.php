@@ -72,17 +72,31 @@ class TeamController extends Controller
 
         $validated = $request->validated();
 
+        // Vérifier si le nouveau manager était un membre
+        $newManagerWasMember = false;
+        if ($team->manager_id != $validated['manager_id']) {
+            $newManagerWasMember = $team->members()->where('user_id', $validated['manager_id'])->exists();
+
+            // Si le nouveau manager était un membre, le retirer de la liste des membres
+            if ($newManagerWasMember) {
+                $team->members()->detach($validated['manager_id']);
+            }
+        }
+
         $team->update($validated);
 
         // Mettre à jour les membres si présents dans la requête
         if (isset($validated['members']) && is_array($validated['members'])) {
             $memberIds = collect($validated['members'])->pluck('user_id')->toArray();
+            // Assurez-vous que le manager n'est pas dans la liste des membres
+            $memberIds = array_filter($memberIds, function ($id) use ($validated) {
+                return $id != $validated['manager_id'];
+            });
             $team->members()->sync($memberIds);
         }
 
         return response()->noContent();
     }
-
     public function destroy($id)
     {
         $team = Team::find($id);
@@ -139,6 +153,14 @@ class TeamController extends Controller
             ], 404);
         }
 
+        // Vérifier si l'utilisateur est le manager de l'équipe
+        if ($team->manager_id == $request->user_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cet utilisateur est déjà le chef d\'équipe'
+            ], 400);
+        }
+
         // Vérifier si le membre existe déjà dans l'équipe
         $memberExists = $team->members()->where('user_id', $request->user_id)->exists();
 
@@ -157,7 +179,6 @@ class TeamController extends Controller
             'message' => 'Membre ajouté avec succès'
         ], 200);
     }
-
     // Retirer un membre de l'équipe
     public function removeMember($teamId, $userId)
     {
