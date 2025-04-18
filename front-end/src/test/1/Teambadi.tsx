@@ -17,7 +17,7 @@ import {
     Autocomplete,
     Avatar,
     Box,
-    Breadcrumbs,
+    // Breadcrumbs,
     Button,
     Card,
     CardContent,
@@ -29,10 +29,10 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    FormControl,
+    // FormControl,
     IconButton,
     InputAdornment,
-    InputLabel,
+    // InputLabel,
     LinearProgress,
     List,
     ListItem,
@@ -41,7 +41,7 @@ import {
     Menu,
     MenuItem,
     Paper,
-    Select,
+    // Select,
     Snackbar,
     Tab,
     Table,
@@ -54,12 +54,55 @@ import {
     TextField,
     Tooltip,
     Typography,
-    type SelectChangeEvent,
 } from '@mui/material';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import AppLayout from './AppLayout';
 import { projectApi, teamApi, userApi } from './api';
+
+// Définir des interfaces pour les objets utilisés
+interface TeamMember {
+    id: number;
+    name: string;
+    email: string;
+    status?: string;
+    projects?: string[];
+    isManager?: boolean;
+}
+
+interface TeamManager {
+    id: number;
+    name: string;
+    email: string;
+}
+
+interface TeamProject {
+    id: number;
+    title: string;
+    description?: string;
+}
+
+interface Team {
+    id: number;
+    name: string;
+    description: string;
+    created_at: string;
+    project?: TeamProject;
+    manager?: TeamManager;
+    members: TeamMember[];
+}
+
+interface UserOption {
+    id: number;
+    name: string;
+    email: string;
+}
+
+interface ProjectOption {
+    id: number;
+    title: string;
+    description?: string;
+}
 
 function Teambadi() {
     // État pour le menu d'actions des équipes
@@ -89,24 +132,24 @@ function Teambadi() {
     });
 
     // État pour la liste des utilisateurs (chefs d'équipe)
-    const [allUsers, setAllUsers] = useState<Array<{ id: number; name: string; email: string }>>([]);
-    const [selectedLeader, setSelectedLeader] = useState<{ id: number; name: string; email: string } | null>(null);
+    const [allUsers, setAllUsers] = useState<UserOption[]>([]);
+    const [selectedLeader, setSelectedLeader] = useState<UserOption | null>(null);
 
     // État pour les projets
-    const [projects, setProjects] = useState<Array<{ id: number; title: string; description?: string }>>([]);
-    const [selectedProject, setSelectedProject] = useState<{ id: number; title: string } | null>(null);
+    const [projects, setProjects] = useState<ProjectOption[]>([]);
+    const [selectedProject, setSelectedProject] = useState<ProjectOption | null>(null);
 
-    // État pour le formulaire d'ajout de membre
-    const [newMemberData, setNewMemberData] = useState({
-        name: '',
-        project: '',
-        email: '',
-    });
+    // // État pour le formulaire d'ajout de membre
+    // const [newMemberData, setNewMemberData] = useState({
+    //     name: '',
+    //     project: '',
+    //     email: '',
+    // });
     const [memberSearchQuery, setMemberSearchQuery] = useState('');
 
     // État pour la vue détaillée d'une équipe
     const [showTeamDetails, setShowTeamDetails] = useState(false);
-    const [selectedTeam, setSelectedTeam] = useState<any>(null);
+    const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const [tabValue, setTabValue] = useState(0);
 
     // État pour la recherche
@@ -130,8 +173,8 @@ function Teambadi() {
         description: false,
         projectId: false,
     });
-    const [selectedEditLeader, setSelectedEditLeader] = useState<{ id: number; name: string; email: string } | null>(null);
-    const [selectedEditProject, setSelectedEditProject] = useState<{ id: number; title: string } | null>(null);
+    const [selectedEditLeader, setSelectedEditLeader] = useState<UserOption | null>(null);
+    const [selectedEditProject, setSelectedEditProject] = useState<ProjectOption | null>(null);
 
     // État pour les notifications
     const [snackbar, setSnackbar] = useState({
@@ -145,12 +188,13 @@ function Teambadi() {
     const [initialLoading, setInitialLoading] = useState(true);
 
     // État pour l'ajout de plusieurs membres
-    const [selectedUsers, setSelectedUsers] = useState<Array<{ id: number; name: string; email: string }>>([]);
+    const [selectedUsers, setSelectedUsers] = useState<UserOption[]>([]);
     const [openBatchAddDialog, setOpenBatchAddDialog] = useState(false);
 
     // Données des équipes et utilisateurs (initialisées vides, à remplir depuis l'API)
-    const [teams, setTeams] = useState<any[]>([]);
-    const [existingUsers, setExistingUsers] = useState<any[]>([]);
+    const [teams, setTeams] = useState<Team[]>([]);
+    // Supprimer cette variable non utilisée ou l'utiliser
+    // const [existingUsers, setExistingUsers] = useState<UserOption[]>([]);
 
     // Fonction pour charger les équipes depuis l'API
     const fetchTeams = async () => {
@@ -177,7 +221,7 @@ function Teambadi() {
             console.log('Chargement des utilisateurs...');
             const usersData = await userApi.getAllUsers();
             console.log('Utilisateurs chargés:', usersData);
-            setExistingUsers(usersData);
+            // setExistingUsers(usersData); // Commenté car non utilisé
             setAllUsers(usersData); // Stocker également dans allUsers pour l'autocomplete
         } catch (error) {
             console.error('Erreur lors du chargement des utilisateurs:', error);
@@ -228,14 +272,14 @@ function Teambadi() {
         try {
             console.log('Chargement des projets disponibles pour édition...');
             const availableProjects = await projectApi.getAvailableProjects();
-            
+
             // Si l'équipe a déjà un projet, nous devons également charger ce projet
             if (currentProjectId) {
                 try {
                     const currentProject = await projectApi.getProjectById(currentProjectId);
                     // Vérifier si le projet actuel n'est pas déjà dans la liste
-                    const projectExists = availableProjects.some(p => p.id === currentProjectId);
-                    
+                    const projectExists = availableProjects.some((p: { id: number }) => p.id === currentProjectId);
+
                     if (!projectExists && currentProject) {
                         // Ajouter le projet actuel à la liste des projets disponibles
                         setProjects([currentProject, ...availableProjects]);
@@ -246,7 +290,7 @@ function Teambadi() {
                     // Continuer avec les projets disponibles même si nous ne pouvons pas charger le projet actuel
                 }
             }
-            
+
             setProjects(availableProjects);
         } catch (error) {
             console.error('Erreur lors du chargement des projets disponibles:', error);
@@ -269,42 +313,41 @@ function Teambadi() {
     const filteredTeams = teams.filter((team) => team.name.toLowerCase().includes(searchTeamQuery.toLowerCase()));
 
     // Fonction pour obtenir tous les membres, y compris le chef d'équipe
-    const getAllTeamMembers = (teamData = selectedTeam) => {
+    const getAllTeamMembers = (teamData: Team | null = selectedTeam) => {
         if (!teamData) return [];
 
         // S'assurer que members est un tableau (protection contre undefined)
         const members = teamData.members || [];
-        
+
         // Créer une copie du tableau des membres
         const allMembers = [...members];
-        
+
         // Vérifier si le manager existe
         if (teamData.manager) {
             // Trouver si le manager est déjà dans la liste des membres
-            const managerIndex = allMembers.findIndex(member => member.id === teamData.manager.id);
-            
+            const managerIndex = allMembers.findIndex((member) => member.id === teamData.manager?.id);
+
             if (managerIndex >= 0) {
                 // Le manager est déjà dans la liste - mettre à jour son statut
                 allMembers[managerIndex] = {
                     ...allMembers[managerIndex],
-                    isManager: true
+                    isManager: true,
                 };
             } else {
                 // Le manager n'est pas dans la liste - l'ajouter au début
                 allMembers.unshift({
                     ...teamData.manager,
-                    isManager: true
+                    isManager: true,
                 });
             }
         }
-        
+
         return allMembers;
     };
 
     // Filtrage des membres par recherche
-    const filteredMembers = getAllTeamMembers().filter((member: any) => 
-        member.name.toLowerCase().includes(searchMemberQuery.toLowerCase())
-    ) || [];
+    const filteredMembers =
+        getAllTeamMembers().filter((member: TeamMember) => member.name.toLowerCase().includes(searchMemberQuery.toLowerCase())) || [];
 
     // Fonction pour filtrer les utilisateurs qui ne sont pas déjà membres de l'équipe et qui ne sont pas le manager
     const getAvailableUsers = () => {
@@ -313,7 +356,7 @@ function Teambadi() {
         }
 
         // Obtenir les IDs des membres déjà dans l'équipe
-        const existingMemberIds = selectedTeam.members?.map((member: any) => member.id) || [];
+        const existingMemberIds = selectedTeam.members?.map((member: TeamMember) => member.id) || [];
 
         // Obtenir l'ID du manager
         const managerId = selectedTeam.manager?.id;
@@ -329,7 +372,7 @@ function Teambadi() {
     );
 
     // Liste des projets disponibles pour l'ajout de membre
-    const availableProjects = selectedTeam?.projects?.map((project: any) => project.name) || [];
+    // const availableProjects = selectedTeam?.project ? [selectedTeam.project.title] : [];
 
     // Fermer le menu d'actions des équipes lorsqu'on navigue vers les détails d'une équipe
     useEffect(() => {
@@ -382,7 +425,7 @@ function Teambadi() {
         if (allUsers.length === 0) {
             fetchUsers();
         }
-        
+
         // Charger les projets disponibles pour la création d'équipe
         fetchAvailableProjects();
     };
@@ -422,7 +465,7 @@ function Teambadi() {
         }
     };
 
-    const handleLeaderChange = (_: React.SyntheticEvent, value: { id: number; name: string; email: string } | null) => {
+    const handleLeaderChange = (_: React.SyntheticEvent, value: UserOption | null) => {
         setSelectedLeader(value);
         if (value) {
             setNewTeamData({
@@ -446,7 +489,7 @@ function Teambadi() {
         }
     };
 
-    const handleProjectChange = (_: React.SyntheticEvent, value: { id: number; title: string } | null) => {
+    const handleProjectChange = (_: React.SyntheticEvent, value: ProjectOption | null) => {
         setSelectedProject(value);
         if (value) {
             setNewTeamData({
@@ -468,7 +511,7 @@ function Teambadi() {
         }
     };
 
-    const handleEditLeaderChange = (_: React.SyntheticEvent, value: { id: number; name: string; email: string } | null) => {
+    const handleEditLeaderChange = (_: React.SyntheticEvent, value: UserOption | null) => {
         setSelectedEditLeader(value);
         if (value) {
             setEditTeamData({
@@ -492,7 +535,7 @@ function Teambadi() {
         }
     };
 
-    const handleEditProjectChange = (_: React.SyntheticEvent, value: { id: number; title: string } | null) => {
+    const handleEditProjectChange = (_: React.SyntheticEvent, value: ProjectOption | null) => {
         setSelectedEditProject(value);
         if (value) {
             setEditTeamData({
@@ -514,17 +557,17 @@ function Teambadi() {
         }
     };
 
-    const handleNewMemberSelectChange = (e: SelectChangeEvent) => {
-        const { name, value } = e.target;
-        setNewMemberData({
-            ...newMemberData,
-            [name]: value,
-        });
-    };
+    // const handleNewMemberSelectChange = (e: SelectChangeEvent) => {
+    //     const { name, value } = e.target;
+    //     setNewMemberData({
+    //         ...newMemberData,
+    //         [name]: value,
+    //     });
+    // };
 
-    const handleSelectMultipleUsers = (user: { id: number; name: string; email: string }) => {
+    const handleSelectMultipleUsers = (user: UserOption) => {
         const isAlreadySelected = selectedUsers.some((selected) => selected.id === user.id);
-        const isExistingMember = selectedTeam?.members.some((member: any) => member.id === user.id);
+        const isExistingMember = selectedTeam?.members.some((member: TeamMember) => member.id === user.id);
         const isManager = selectedTeam?.manager?.id === user.id;
 
         if (isExistingMember || isManager) {
@@ -575,19 +618,7 @@ function Teambadi() {
             // Toujours recharger la liste complète des utilisateurs
             await fetchUsers();
 
-            if (selectedTeam) {
-                // Obtenir les IDs des membres déjà dans l'équipe
-                const existingMemberIds = selectedTeam.members?.map((member: any) => member.id) || [];
-
-                // Obtenir l'ID du manager
-                const managerId = selectedTeam.manager?.id;
-
-                // Filtrer la liste des utilisateurs pour exclure ceux déjà dans l'équipe et le manager
-                const availableUsers = allUsers.filter((user) => !existingMemberIds.includes(user.id) && user.id !== managerId);
-
-                // Mettre à jour la liste des utilisateurs disponibles pour l'ajout
-                setExistingUsers(availableUsers);
-            }
+            // Le reste du code peut rester tel quel car nous ne modifions pas existingUsers
         } catch (error) {
             console.error("Erreur lors de la préparation de l'ajout de membres:", error);
             setSnackbar({
@@ -612,19 +643,20 @@ function Teambadi() {
         try {
             setLoading(true);
             const userIds = selectedUsers.map((user) => user.id);
-            
+
             // Implémenter notre propre version de addMultipleMembers directement dans le composant
             const results = await Promise.all(
-                userIds.map(userId => 
-                    teamApi.addMember(selectedTeam.id, userId)
+                userIds.map((userId) =>
+                    teamApi
+                        .addMember(selectedTeam.id, userId)
                         .then(() => ({ status: 'fulfilled', userId }))
-                        .catch(error => ({ status: 'rejected', userId, error }))
-                )
+                        .catch((error) => ({ status: 'rejected', userId, error })),
+                ),
             );
-            
-            const successful = results.filter(result => result.status === 'fulfilled').length;
+
+            const successful = results.filter((result) => result.status === 'fulfilled').length;
             const failed = results.length - successful;
-            
+
             if (failed > 0) {
                 setSnackbar({
                     open: true,
@@ -638,7 +670,7 @@ function Teambadi() {
                     severity: 'success',
                 });
             }
-            
+
             handleBatchAddDialogClose();
             // Recharger les détails de l'équipe
             await handleViewTeamDetails(selectedTeam.id);
@@ -826,7 +858,7 @@ function Teambadi() {
             if (allUsers.length === 0) {
                 fetchUsers();
             }
-            
+
             // Charger les projets disponibles pour l'édition
             // Notez que nous incluons aussi le projet actuel de l'équipe
             fetchAvailableProjectsForEdit(team.project?.id);
@@ -882,35 +914,35 @@ function Teambadi() {
         if (!nameEmpty && !leaderEmpty && !descriptionEmpty && !projectEmpty) {
             try {
                 setLoading(true);
-                
+
                 // Déterminer si le nouveau chef d'équipe était un membre régulier
                 const currentMembers = selectedTeam?.members || [];
-                const newLeaderWasMember = currentMembers.some(member => member.id === editTeamData.leaderId);
-                
+                const newLeaderWasMember = currentMembers.some((member) => member.id === editTeamData.leaderId);
+
                 await teamApi.updateTeam(editTeamData.id, {
                     name: editTeamData.name,
                     leaderId: editTeamData.leaderId,
                     description: editTeamData.description,
                     projectId: editTeamData.projectId,
                 });
-                
+
                 setSnackbar({
                     open: true,
                     message: 'Équipe mise à jour avec succès',
                     severity: 'success',
                 });
-                
+
                 handleEditTeamDialogClose();
-                
+
                 // Recharger la liste des équipes
                 await fetchTeams();
-                
+
                 // Si nous sommes dans la vue détaillée de l'équipe modifiée, recharger les détails
                 if (showTeamDetails && selectedTeam?.id === editTeamData.id) {
                     // Force le rechargement complet pour s'assurer que les statuts de manager sont mis à jour
                     await handleViewTeamDetails(editTeamData.id);
                 }
-                
+
                 // Si nous avons changé le chef d'équipe, afficher une notification spécifique
                 if (newLeaderWasMember) {
                     setSnackbar({
@@ -1034,7 +1066,7 @@ function Teambadi() {
                 {showTeamDetails ? (
                     // Vue détaillée d'une équipe
                     <>
-                        {/* Fil d'Ariane */}
+                        {/* Fil d'Ariane
                         <Box sx={{ mb: 2 }}>
                             <Breadcrumbs aria-label="breadcrumb">
                                 <Typography
@@ -1057,9 +1089,9 @@ function Teambadi() {
                                 >
                                     Team
                                 </Typography>
-                                <Typography color="text.primary">{selectedTeam?.id}</Typography>
+                                <Typography color="inherit">Detaille de Team</Typography>
                             </Breadcrumbs>
-                        </Box>
+                        </Box> */}
 
                         {/* En-tête avec bouton retour */}
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
@@ -1077,18 +1109,18 @@ function Teambadi() {
                                     onClick={handleBatchAddDialogOpen}
                                     sx={{ textTransform: 'none', borderRadius: 1, px: 2, bgcolor: '#16A249' }}
                                 >
-                                    Ajouter plusieurs membres
+                                    Ajouter membres
                                 </Button>
                             </Box>
                         </Box>
 
                         {/* Badge et chef d'équipe */}
                         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-                            <Chip 
-                                icon={<Person />} 
-                                label={`Chef d'équipe: ${selectedTeam?.manager?.name}`} 
-                                variant="outlined" 
-                                sx={{ fontWeight: 'medium', bgcolor: 'rgba(255, 140, 0, 0.1)' }} 
+                            <Chip
+                                icon={<Person />}
+                                label={`Chef d'équipe: ${selectedTeam?.manager?.name}`}
+                                variant="outlined"
+                                sx={{ fontWeight: 'medium', bgcolor: 'rgba(255, 140, 0, 0.1)' }}
                             />
                         </Box>
 
@@ -1188,14 +1220,18 @@ function Teambadi() {
                                                     </TableHead>
                                                     <TableBody>
                                                         {filteredMembers && filteredMembers.length > 0 ? (
-                                                            filteredMembers.map((member: any) => (
-                                                                <TableRow 
-                                                                    key={member.id} 
-                                                                    hover 
-                                                                    sx={member.isManager ? { 
-                                                                        backgroundColor: 'rgba(255, 140, 0, 0.05)',
-                                                                        borderLeft: '4px solid #FF8C00'
-                                                                    } : {}}
+                                                            filteredMembers.map((member: TeamMember) => (
+                                                                <TableRow
+                                                                    key={member.id}
+                                                                    hover
+                                                                    sx={
+                                                                        member.isManager
+                                                                            ? {
+                                                                                  backgroundColor: 'rgba(255, 140, 0, 0.05)',
+                                                                                  borderLeft: '4px solid #FF8C00',
+                                                                              }
+                                                                            : {}
+                                                                    }
                                                                 >
                                                                     <TableCell>
                                                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -1227,7 +1263,7 @@ function Teambadi() {
                                                                                     )}
                                                                                 </Box>
                                                                                 <Typography variant="body2" color="text.secondary">
-                                                                                    {member.isManager ? 'Responsable de l\'équipe' : member.status}
+                                                                                    {member.isManager ? "Responsable de l'équipe" : member.status}
                                                                                 </Typography>
                                                                             </Box>
                                                                         </Box>
@@ -1314,7 +1350,7 @@ function Teambadi() {
                                                         Liste des projets sur lesquels travaille l'équipe {selectedTeam?.name}
                                                     </Typography>
                                                 </Box>
-                                                <Button variant="outlined">Voir tous les projets</Button>
+                                                {/* <Button variant="outlined">Voir tous les projets</Button> */}
                                             </Box>
 
                                             {selectedTeam?.project ? (
@@ -1463,7 +1499,7 @@ function Teambadi() {
                                                         </Avatar>
                                                         <Box>
                                                             <Typography variant="body2">{team.manager ? team.manager.name : ''}</Typography>
-                                                            {team.members?.some(member => member.id === team.manager?.id) && (
+                                                            {team.members?.some((member) => member.id === team.manager?.id) && (
                                                                 <Typography variant="caption" color="text.secondary">
                                                                     (également membre)
                                                                 </Typography>
@@ -1603,9 +1639,11 @@ function Teambadi() {
                             <li {...props}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                                     <Typography variant="body1">{option.title}</Typography>
-                                    <Typography variant="body2" color="text.secondary" noWrap>
-                                        {option.description || 'Description non disponible'}
-                                    </Typography>
+                                    {option.description && (
+                                        <Typography variant="body2" color="text.secondary" noWrap>
+                                            {option.description || 'Description non disponible'}
+                                        </Typography>
+                                    )}
                                 </Box>
                             </li>
                         )}
@@ -1629,7 +1667,14 @@ function Teambadi() {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleNewTeamDialogClose}>Annuler</Button>
-                    <Button onClick={handleCreateNewTeam} variant="contained" color="success" sx={{ bgcolor: '#16A249' }} disabled={loading}>
+                    <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<Add />}
+                        onClick={handleCreateNewTeam}
+                        sx={{ textTransform: 'none', borderRadius: 1, px: 2, bgcolor: '#16A249' }}
+                        disabled={loading}
+                    >
                         Créer
                     </Button>
                 </DialogActions>
@@ -1683,8 +1728,8 @@ function Teambadi() {
                         )}
                         renderOption={(props, option) => {
                             // Vérifier si cet utilisateur est déjà un membre de l'équipe
-                            const isExistingMember = selectedTeam?.members?.some(member => member.id === option.id);
-                            
+                            const isExistingMember = selectedTeam?.members?.some((member) => member.id === option.id);
+
                             return (
                                 <li {...props}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -1745,9 +1790,11 @@ function Teambadi() {
                             <li {...props}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                                     <Typography variant="body1">{option.title}</Typography>
-                                    <Typography variant="body2" color="text.secondary" noWrap>
-                                        {option.description || 'Description non disponible'}
-                                    </Typography>
+                                    {option.description && (
+                                        <Typography variant="body2" color="text.secondary" noWrap>
+                                            {option.description || 'Description non disponible'}
+                                        </Typography>
+                                    )}
                                 </Box>
                             </li>
                         )}
@@ -2004,7 +2051,7 @@ function Teambadi() {
                         </>
                     )}
 
-                    {availableProjects.length > 0 && (
+                    {/* {availableProjects.length > 0 && (
                         <Box sx={{ mt: 3 }}>
                             <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                                 Assigner à un projet (optionnel)
@@ -2030,7 +2077,7 @@ function Teambadi() {
                                 </Select>
                             </FormControl>
                         </Box>
-                    )}
+                    )} */}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleBatchAddDialogClose}>Annuler</Button>

@@ -59,6 +59,15 @@ Route::post('/projects', [ProjectController::class, 'store']);
 Route::get('/projects/{id}', [ProjectController::class, 'show']);
 Route::put('/projects/{id}', [ProjectController::class, 'update']);
 Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
+Route::get('/projects/{id}/teams', [ProjectController::class, 'getProjectTeams']);
+// Route pour mettre à jour la progression d'un projet
+Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgress']);
+
+// Route pour annuler un projet (admin uniquement)
+Route::post('/projects/{id}/cancel', [ProjectController::class, 'cancelProject']);
+
+// Route pour mettre à jour tous les statuts de projets (peut être protégée par un middleware admin)
+Route::get('/projects/update-all-statuses', [ProjectController::class, 'updateAllProjectsStatus']);
 
 
 //route team 

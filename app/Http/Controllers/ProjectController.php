@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProjectRequest;
 
 use App\Http\Resources\ProjectResource;
+use App\Http\Resources\TeamResource;
 use App\Models\Project;
 use App\Models\Team;
 use Illuminate\Http\Request;
@@ -111,4 +112,34 @@ class ProjectController extends Controller
             'message' => 'Projet supprimé avec succès'
         ]);
     }
+
+
+
+
+    public function getProjectTeams($id)
+    {
+        $project = Project::find($id);
+
+        if (!$project) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Projet non trouvé'
+            ], 404);
+        }
+
+        $teams = Team::with(['manager', 'members'])
+            ->where('project_id', $id)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => TeamResource::collection($teams)
+        ]);
+    }
+
+
+
+    
+
+
 }
