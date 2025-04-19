@@ -137,7 +137,6 @@ class TeamController extends Controller
     }
 
     // Ajouter un membre à l'équipe
-    // Ajouter un membre à l'équipe
     public function addMember($teamId, Request $request)
     {
         $request->validate([

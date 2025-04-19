@@ -2,106 +2,226 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\CommentsProjectRequest;
-use App\Http\Resources\CommentsProjectResource;
 use App\Models\Comment;
 use App\Models\CommentsProject;
-use App\Models\Project;
-use App\Utils\TeamUtils;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class CommentsProjetController extends Controller
 {
-
-
-    public function index(int $projectId): JsonResponse
+    /**
+     * Afficher tous les commentaires d'un projet
+     */
+    public function index($projectId)
     {
-        $project = Project::find($projectId);
+        try {
+            // Récupérer uniquement les commentaires de premier niveau (sans parent)
+            $comments = CommentsProject::with(['user', 'replies.user'])
+                ->where('project_id', $projectId)
+                ->whereNull('parent_id')
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-        if (!$project) {
-            return response()->json(['message' => 'Le projet n\'existe pas.'], 404);
+            return response()->json([
+                'success' => true,
+                'data' => $comments
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des commentaires: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des commentaires',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $comments = CommentsProject::with('user')
-            ->where('project_id', $projectId)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => CommentsProjectResource::collection($comments),
-        ], 200);
     }
 
-
-
-    public function store(CommentsProjectRequest $request): JsonResponse
+    /**
+     * Créer un nouveau commentaire
+     */
+    public function store(Request $request)
     {
-        $validated = $request->validated();
+        try {
+            // Validation
+            $validated = $request->validate([
+                'content' => 'required|string',
+                'user_id' => 'required|exists:users,id',
+                'project_id' => 'required|exists:projects,id',
+                'parent_id' => 'nullable|numeric'
+            ]);
 
-        $comment = CommentsProject::create($validated);
+            // Vérifier si parent_id existe s'il est fourni
+            if ($request->has('parent_id') && $request->parent_id) {
+                $parentExists = CommentsProject::where('id', $request->parent_id)->exists();
+                if (!$parentExists) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Le commentaire parent spécifié n\'existe pas'
+                    ], 400);
+                }
+            }
 
-        $comment->load('user');
+            // Créer le commentaire
+            $comment = CommentsProject::create([
+                'content' => $request->content,
+                'user_id' => $request->user_id,
+                'project_id' => $request->project_id,
+                'parent_id' => $request->parent_id ?: null,
+                'likes_count' => 0
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Commentaire ajouté avec succès',
-            'data' => new CommentsProjectResource($comment)
-        ], 201);
+            // Charger l'utilisateur pour le retourner avec le commentaire
+            $comment->load('user');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Commentaire créé avec succès',
+                'data' => $comment
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la création du commentaire: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la création du commentaire',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-
-
-
-
-    public function show(int $id): JsonResponse
+    /**
+     * Afficher un commentaire spécifique
+     */
+    public function show($id)
     {
-        $comment = CommentsProject::with('user')->findOrFail($id);
+        try {
+            $comment = CommentsProject::with(['user', 'replies.user'])->findOrFail($id);
 
-
-        return response()->json([
-            'success' => true,
-            'data' => CommentsProjectResource::make($comment)
-        ], 200);
+            return response()->json([
+                'success' => true,
+                'data' => $comment
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération du commentaire: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération du commentaire',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-
-
-
-
-    public function update(Request $request, int $id)
+    /**
+     * Mettre à jour un commentaire
+     */
+    public function update(Request $request, $id)
     {
-        $comment = CommentsProject::findOrFail($id);
+        try {
+            $request->validate([
+                'content' => 'required|string'
+            ]);
 
-        $validated = $request->validate([
-            'content' => 'required|string',
-        ]);
+            $comment = CommentsProject::findOrFail($id);
 
-        $comment->update([
-            'content' => $validated['content'],
-        ]);
+            $comment->update([
+                'content' => $request->content
+            ]);
 
-        $comment->load('user');
-
-        return response()->noContent();
+            return response()->json([
+                'success' => true,
+                'message' => 'Commentaire mis à jour avec succès',
+                'data' => $comment
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la mise à jour du commentaire: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du commentaire',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-
-
-
-    public function destroy(int $id): JsonResponse
+    /**
+     * Supprimer un commentaire
+     */
+    public function destroy($id)
     {
-        $comment = CommentsProject::findOrFail($id);
+        try {
+            $comment = CommentsProject::findOrFail($id);
+            $comment->delete();
 
+            return response()->json([
+                'success' => true,
+                'message' => 'Commentaire supprimé avec succès'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la suppression du commentaire: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression du commentaire',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
-        $comment->delete();
+    /**
+     * Incrémenter les likes d'un commentaire
+     */
+    /**
+     * Incrémenter les likes d'un commentaire
+     */
+    public function like($id)
+    {
+        try {
+            $comment = CommentsProject::findOrFail($id);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Commentaire supprimé avec succès'
-        ]);
+            // Incrémenter le compteur mais limiter à 1 like par utilisateur
+            // Comme nous n'utilisons pas de table pour les likes, on incrémente simplement
+            // et on se fie au frontend pour gérer l'état de like de l'utilisateur
+            $comment->likes_count = $comment->likes_count + 1;
+            $comment->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Commentaire liké avec succès',
+                'likes_count' => $comment->likes_count
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors du like du commentaire: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du like du commentaire',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Décrémenter les likes d'un commentaire
+     */
+    public function unlike($id)
+    {
+        try {
+            $comment = CommentsProject::findOrFail($id);
+
+            // Ne pas décrémenter en dessous de zéro
+            if ($comment->likes_count > 0) {
+                $comment->likes_count = $comment->likes_count - 1;
+                $comment->save();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Like retiré avec succès',
+                'likes_count' => $comment->likes_count
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors du unlike du commentaire: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du unlike du commentaire',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

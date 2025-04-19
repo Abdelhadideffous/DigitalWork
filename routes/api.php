@@ -60,6 +60,7 @@ Route::get('/projects/{id}', [ProjectController::class, 'show']);
 Route::put('/projects/{id}', [ProjectController::class, 'update']);
 Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
 Route::get('/projects/{id}/teams', [ProjectController::class, 'getProjectTeams']);
+
 // Route pour mettre à jour la progression d'un projet
 Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgress']);
 
@@ -91,17 +92,14 @@ Route::get('users/search', [UserController::class, 'searchUsers']);
 
 
 //Routes pour commentaire d'un projet
-// Routes qui nécessitent une authentification
 
+Route::get('/projects/{projectId}/comments', [CommentsProjetController::class, 'index']);
 Route::post('/comments', [CommentsProjetController::class, 'store']);
+Route::get('/comments/{id}', [CommentsProjetController::class, 'show']);
 Route::put('/comments/{id}', [CommentsProjetController::class, 'update']);
 Route::delete('/comments/{id}', [CommentsProjetController::class, 'destroy']);
-// Ajoutez d'autres routes protégées ici
-
-
-// Routes publiques
-Route::get('/projects/{projectId}/comments', [CommentsProjetController::class, 'index']);
-Route::get('/comments/{id}', [CommentsProjetController::class, 'show']);
+Route::post('/comments/{id}/like', [CommentsProjetController::class, 'like']);
+Route::post('/comments/{id}/unlike', [CommentsProjetController::class, 'unlike']);
 
 
 

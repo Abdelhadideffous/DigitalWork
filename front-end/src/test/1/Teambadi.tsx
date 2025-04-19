@@ -1435,7 +1435,7 @@ function Teambadi() {
                             <Table>
                                 <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
                                     <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Nom</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold' }}>Titre</TableCell>
                                         <TableCell sx={{ fontWeight: 'bold' }}>Membres</TableCell>
                                         <TableCell sx={{ fontWeight: 'bold' }}>Chef d'équipe</TableCell>
                                         <TableCell sx={{ fontWeight: 'bold' }}>Projet</TableCell>

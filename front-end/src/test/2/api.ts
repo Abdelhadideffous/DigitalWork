@@ -59,6 +59,8 @@ export interface Comment {
     content: string;
     user_id: number;
     project_id: number;
+    parent_id?: number | null; // Pour les réponses aux commentaires
+    likes_count: number; // Nombre de likes
     created_at: string;
     updated_at: string;
     user?: {
@@ -67,12 +69,14 @@ export interface Comment {
         email: string;
         avatar?: string;
     };
+    replies?: Comment[]; // Pour les commentaires imbriqués
 }
 
 export interface NewCommentData {
     content: string;
     user_id: number;
     project_id: number;
+    parent_id?: number | null; // Rendre parent_id optionnel
 }
 
 // API pour les projets
@@ -209,6 +213,29 @@ export const projectApi = {
             throw error;
         }
     },
+
+    // Méthode pour liker un commentaire
+    likeComment: async (commentId: number) => {
+        try {
+            const response = await api.post(`/comments/${commentId}/like`);
+            return response.data;
+        } catch (error) {
+            console.error(`Erreur lors du like du commentaire ${commentId}:`, error);
+            throw error;
+        }
+    },
+
+    // Méthode pour unliker un commentaire
+    unlikeComment: async (commentId: number) => {
+        try {
+            const response = await api.post(`/comments/${commentId}/unlike`);
+            return response.data;
+        } catch (error) {
+            console.error(`Erreur lors du unlike du commentaire ${commentId}:`, error);
+            throw error;
+        }
+    },
+
     // Mettre à jour la progression d'un projet
     updateProjectProgress: async (projectId: number) => {
         try {

@@ -12,8 +12,9 @@ import {
     // Person,
     Search as SearchIcon,
     Send as SendIcon,
+    ThumbUpAlt,
+    ThumbUpAltOutlined,
     Visibility as VisibilityIcon,
-    // MailOutline,
 } from '@mui/icons-material';
 import {
     Alert,
@@ -60,8 +61,8 @@ import {
 } from '@mui/material';
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { projectApi, teamApi, type Comment, type Priority, type Project, type Status } from './api';
 import AppLayout from '../1/AppLayout';
+import { projectApi, teamApi, type Comment, type Priority, type Project, type Status } from './api';
 
 function Projet() {
     // État pour le menu d'actions des projets
@@ -157,6 +158,30 @@ function Projet() {
     const [commentActionMenuAnchorEl, setCommentActionMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedCommentId, setSelectedCommentId] = useState<number | null>(null);
     const openCommentActionMenu = Boolean(commentActionMenuAnchorEl);
+
+    // État pour gérer les réponses aux commentaires
+    const [replyingToCommentId, setReplyingToCommentId] = useState<number | null>(null);
+    const [likedComments, setLikedComments] = useState<Record<number, boolean>>({});
+    const [likingCommentIds, setLikingCommentIds] = useState<number[]>([]);
+
+    // Fonction pour vérifier si un commentaire est déjà liké
+    const isCommentLiked = (commentId: number) => {
+        return likedComments[commentId] || false;
+    };
+
+    // Au chargement du composant, récupérer l'état des likes depuis le localStorage
+    useEffect(() => {
+        const savedLikes = localStorage.getItem('likedComments');
+        if (savedLikes) {
+            setLikedComments(JSON.parse(savedLikes));
+        }
+    }, []);
+
+    // Fonction pour sauvegarder l'état des likes dans le localStorage
+    const saveLikedState = (newLikedComments: Record<number, boolean>) => {
+        localStorage.setItem('likedComments', JSON.stringify(newLikedComments));
+        setLikedComments(newLikedComments);
+    };
 
     // État pour les équipes du projet
     const [projectTeams, setProjectTeams] = useState<any[]>([]);
@@ -268,6 +293,80 @@ function Projet() {
         }
     };
 
+    // Fonction pour gérer les likes des commentaires
+    const handleLikeComment = async (commentId: number) => {
+        // Vérifier si une action de like est déjà en cours pour ce commentaire
+        if (likingCommentIds.includes(commentId)) {
+            return; // Ignorer les clics multiples rapides
+        }
+
+        try {
+            // Marquer ce commentaire comme en cours de like/unlike
+            setLikingCommentIds((prev) => [...prev, commentId]);
+
+            // Vérifier si le commentaire est déjà liké
+            if (isCommentLiked(commentId)) {
+                // Si déjà liké, unlike
+                const response = await projectApi.unlikeComment(commentId);
+
+                // Mettre à jour le nombre de likes dans l'état local
+                setComments(
+                    comments.map((comment) => {
+                        if (comment.id === commentId) {
+                            return { ...comment, likes_count: response.likes_count };
+                        }
+                        // Vérifier aussi les réponses
+                        if (comment.replies) {
+                            comment.replies = comment.replies.map((reply) =>
+                                reply.id === commentId ? { ...reply, likes_count: response.likes_count } : reply,
+                            );
+                        }
+                        return comment;
+                    }),
+                );
+
+                // Mettre à jour l'état de like
+                const newLikedComments = { ...likedComments };
+                newLikedComments[commentId] = false;
+                saveLikedState(newLikedComments);
+            } else {
+                // Si pas liké, like
+                const response = await projectApi.likeComment(commentId);
+
+                // Mettre à jour le nombre de likes dans l'état local
+                setComments(
+                    comments.map((comment) => {
+                        if (comment.id === commentId) {
+                            return { ...comment, likes_count: response.likes_count };
+                        }
+                        // Vérifier aussi les réponses
+                        if (comment.replies) {
+                            comment.replies = comment.replies.map((reply) =>
+                                reply.id === commentId ? { ...reply, likes_count: response.likes_count } : reply,
+                            );
+                        }
+                        return comment;
+                    }),
+                );
+
+                // Mettre à jour l'état de like
+                const newLikedComments = { ...likedComments };
+                newLikedComments[commentId] = true;
+                saveLikedState(newLikedComments);
+            }
+        } catch (error) {
+            console.error(`Erreur lors de la gestion du like pour le commentaire ${commentId}:`, error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors de la gestion du like',
+                severity: 'error',
+            });
+        } finally {
+            // Retirer ce commentaire de la liste des commentaires en cours de like/unlike
+            setLikingCommentIds((prev) => prev.filter((id) => id !== commentId));
+        }
+    };
+
     // Fonction pour charger les équipes d'un projet
     const fetchProjectTeams = async (projectId: number) => {
         try {
@@ -308,14 +407,12 @@ function Projet() {
         }
     }, [showProjectDetails, selectedProject?.id, tabValue]);
 
-    // 3. Modifier les filtres pour qu'ils fonctionnent correctement
     // Ajouter des états pour les filtres de priorité, date de début et date de fin
     const [priorityFilter, setPriorityFilter] = useState('Toutes les priorités');
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
 
     // Filtrage des projets par recherche et statut
-    // Modifier la fonction de filtrage des projets pour inclure tous les filtres
     const filteredProjects = projects.filter((project) => {
         // Filtre par recherche
         const matchesSearch = project.title.toLowerCase().includes(searchProjectQuery.toLowerCase());
@@ -782,27 +879,38 @@ function Projet() {
         }
     };
 
-    // Fonctions pour gérer les commentaires
+    // Fonction pour ajouter des commentaires (version améliorée)
     const handleAddComment = async () => {
         if (!newComment.trim() || !selectedProject?.id) return;
 
         try {
             setLoading(true);
-            await projectApi.addComment({
+
+            // Construire l'objet commentaire
+            const commentData = {
                 content: newComment,
                 user_id: currentUser.id,
                 project_id: selectedProject.id,
-            });
+            };
 
-            // Réinitialiser le champ de commentaire
+            // Ajouter parent_id seulement s'il existe
+            if (replyingToCommentId) {
+                // @ts-ignore - Ajout dynamique de propriété
+                commentData.parent_id = replyingToCommentId;
+            }
+
+            await projectApi.addComment(commentData);
+
+            // Réinitialiser le champ de commentaire et l'état de réponse
             setNewComment('');
+            setReplyingToCommentId(null);
 
             // Recharger les commentaires
             await fetchComments(selectedProject.id);
 
             setSnackbar({
                 open: true,
-                message: 'Commentaire ajouté avec succès',
+                message: replyingToCommentId ? 'Réponse ajoutée avec succès' : 'Commentaire ajouté avec succès',
                 severity: 'success',
             });
             setLoading(false);
@@ -818,7 +926,21 @@ function Projet() {
     };
 
     const handleEditComment = (commentId: number) => {
-        const comment = comments.find((c) => c.id === commentId);
+        // Trouver le commentaire (dans les commentaires principaux ou les réponses)
+        let comment = comments.find((c) => c.id === commentId);
+        if (!comment && comments) {
+            // Chercher dans les réponses si pas trouvé dans les commentaires principaux
+            for (const mainComment of comments) {
+                if (mainComment.replies) {
+                    const reply = mainComment.replies.find((r) => r.id === commentId);
+                    if (reply) {
+                        comment = reply;
+                        break;
+                    }
+                }
+            }
+        }
+
         if (comment) {
             setEditingCommentId(commentId);
             setEditCommentContent(comment.content);
@@ -1008,8 +1130,6 @@ function Projet() {
                                 <Typography color="text.primary">{selectedProject?.id}</Typography>
                             </Breadcrumbs>
 
-                            {/* 6. Supprimer les boutons "Voir les commentaires" et "Commenter" de l'en-tête du projet */}
-                            {/* Remplacer cette section dans la vue détaillée d'un projet */}
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <IconButton onClick={handleBackToProjectsList} sx={{ mr: 1, p: 0 }}>
                                     <ArrowBackIcon />
@@ -1237,7 +1357,7 @@ function Projet() {
                                                     <CircularProgress size={30} />
                                                 </Box>
                                             ) : projectTeams && projectTeams.length > 0 ? (
-                                                projectTeams.map(team => (
+                                                projectTeams.map((team) => (
                                                     <Paper
                                                         key={team.id}
                                                         elevation={1}
@@ -1251,7 +1371,9 @@ function Projet() {
                                                             },
                                                         }}
                                                     >
-                                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                                                        <Box
+                                                            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}
+                                                        >
                                                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                                                 <Avatar
                                                                     sx={{
@@ -1275,8 +1397,8 @@ function Projet() {
                                                                     </Typography>
                                                                 </Box>
                                                             </Box>
-                                                            <Button 
-                                                                variant="outlined" 
+                                                            <Button
+                                                                variant="outlined"
                                                                 size="small"
                                                                 component={Link}
                                                                 href={`/teams/${team.id}`}
@@ -1338,9 +1460,9 @@ function Projet() {
                                                                             }
                                                                             label={member.name}
                                                                             variant="outlined"
-                                                                            sx={{ 
+                                                                            sx={{
                                                                                 p: 0.5,
-                                                                                '& .MuiChip-label': { fontWeight: 'medium' } 
+                                                                                '& .MuiChip-label': { fontWeight: 'medium' },
                                                                             }}
                                                                         />
                                                                     ))
@@ -1376,131 +1498,33 @@ function Projet() {
                                     )}
                                 </Box>
 
-                                {/* 7. Améliorer le design de la fenêtre Commentaires */}
-                                {/* Remplacer tout le contenu de l'onglet Commentaires */}
+                                {/* Contenu de l'onglet Commentaires (version améliorée) */}
                                 <Box role="tabpanel" hidden={tabValue !== 3} sx={{ p: 3 }}>
                                     {tabValue === 3 && (
                                         <>
-                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                                                <Typography variant="h6" component="h2" fontWeight="bold">
-                                                    Commentaires du projet
-                                                </Typography>
-                                            </Box>
-
-                                            {/* Liste des commentaires */}
-                                            <Box sx={{ mt: 2, mb: 4 }}>
-                                                {loadingComments ? (
-                                                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                                                        <CircularProgress size={30} />
-                                                    </Box>
-                                                ) : comments.length > 0 ? (
-                                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                                        {comments.map((comment) => (
-                                                            <Paper key={comment.id} elevation={1} sx={{ p: 2, borderRadius: 2, bgcolor: '#f9f9f9' }}>
-                                                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                                                                            {comment.user?.avatar ? (
-                                                                                <img
-                                                                                    src={comment.user.avatar || '/placeholder.svg'}
-                                                                                    alt={comment.user.name}
-                                                                                    width="32"
-                                                                                    height="32"
-                                                                                />
-                                                                            ) : (
-                                                                                getInitials(comment.user?.name || 'Utilisateur')
-                                                                            )}
-                                                                        </Avatar>
-                                                                        <Typography variant="subtitle2" fontWeight="bold">
-                                                                            {comment.user?.name || 'Utilisateur'}
-                                                                        </Typography>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            {formatDateTime(comment.created_at)}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                    {comment.user_id === currentUser.id && (
-                                                                        <Box>
-                                                                            <IconButton
-                                                                                size="small"
-                                                                                onClick={(e) => handleCommentActionMenuOpen(e, comment.id)}
-                                                                            >
-                                                                                <MoreVert fontSize="small" />
-                                                                            </IconButton>
-                                                                        </Box>
-                                                                    )}
-                                                                </Box>
-                                                                {editingCommentId === comment.id ? (
-                                                                    <Box sx={{ mt: 1 }}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            multiline
-                                                                            rows={2}
-                                                                            value={editCommentContent}
-                                                                            onChange={(e) => setEditCommentContent(e.target.value)}
-                                                                            sx={{ mb: 1 }}
-                                                                        />
-                                                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                                                            <Button size="small" variant="outlined" onClick={handleCancelEditComment}>
-                                                                                Annuler
-                                                                            </Button>
-                                                                            <Button
-                                                                                size="small"
-                                                                                variant="contained"
-                                                                                onClick={handleUpdateComment}
-                                                                                disabled={!editCommentContent.trim()}
-                                                                            >
-                                                                                Enregistrer
-                                                                            </Button>
-                                                                        </Box>
-                                                                    </Box>
-                                                                ) : (
-                                                                    <Box>
-                                                                        <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
-                                                                            {comment.content}
-                                                                        </Typography>
-                                                                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                                                                            <Button
-                                                                                size="small"
-                                                                                startIcon={<CommentIcon fontSize="small" />}
-                                                                                onClick={() => {
-                                                                                    setNewComment(`@${comment.user?.name || 'Utilisateur'} `);
-                                                                                    // Faire défiler jusqu'au formulaire de commentaire
-                                                                                    document
-                                                                                        .getElementById('comment-form')
-                                                                                        ?.scrollIntoView({ behavior: 'smooth' });
-                                                                                }}
-                                                                            >
-                                                                                Répondre
-                                                                            </Button>
-                                                                        </Box>
-                                                                    </Box>
-                                                                )}
-                                                            </Paper>
-                                                        ))}
-                                                    </Box>
-                                                ) : (
-                                                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                                                        Aucun commentaire pour ce projet
-                                                    </Typography>
-                                                )}
-                                            </Box>
-
-                                            {/* Séparateur */}
-                                            <Divider sx={{ my: 3 }} />
-
-                                            {/* Formulaire d'ajout de commentaire en bas de la page */}
-                                            <Box id="comment-form" sx={{ mt: 4, p: 3, bgcolor: '#f5f5f5', borderRadius: 2 }}>
-                                                <Typography variant="h6" component="h3" fontWeight="bold" sx={{ mb: 2 }}>
-                                                    Ajouter un commentaire
-                                                </Typography>
+                                            {/* Formulaire d'ajout de commentaire principal - en haut */}
+                                            <Paper elevation={1} sx={{ p: 3, mb: 4, borderRadius: 2, bgcolor: '#fff', border: '1px solid #e8f5e9' }}>
                                                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                                                    <Avatar sx={{ bgcolor: 'primary.main' }}>
+                                                    <Avatar
+                                                        sx={{
+                                                            bgcolor: '#16A249',
+                                                            color: 'white',
+                                                            width: 48,
+                                                            height: 48,
+                                                            fontWeight: 'medium',
+                                                            fontSize: '1rem',
+                                                            display: 'flex',
+                                                            justifyContent: 'center',
+                                                            alignItems: 'center',
+                                                        }}
+                                                    >
                                                         {currentUser.avatar ? (
                                                             <img
-                                                                src={currentUser.avatar || '/placeholder.svg'}
+                                                                src={currentUser.avatar}
                                                                 alt={currentUser.name}
-                                                                width="40"
-                                                                height="40"
+                                                                width="48"
+                                                                height="48"
+                                                                style={{ objectFit: 'cover' }}
                                                             />
                                                         ) : (
                                                             getInitials(currentUser.name)
@@ -1513,20 +1537,581 @@ function Projet() {
                                                         placeholder="Ajouter un commentaire..."
                                                         value={newComment}
                                                         onChange={(e) => setNewComment(e.target.value)}
-                                                        sx={{ flex: 1 }}
+                                                        variant="outlined"
+                                                        InputProps={{
+                                                            sx: {
+                                                                borderRadius: 2,
+                                                                bgcolor: '#f8f8f8',
+                                                                '& fieldset': {
+                                                                    borderColor: 'rgba(22, 162, 73, 0.1)',
+                                                                },
+                                                                '&:hover fieldset': {
+                                                                    borderColor: 'rgba(22, 162, 73, 0.3) !important',
+                                                                },
+                                                                '&.Mui-focused fieldset': {
+                                                                    borderColor: '#16A249 !important',
+                                                                    borderWidth: '1px !important',
+                                                                },
+                                                            },
+                                                        }}
                                                     />
+                                                </Box>
+                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
                                                     <Button
                                                         variant="contained"
-                                                        color="primary"
-                                                        endIcon={<SendIcon />}
-                                                        onClick={handleAddComment}
+                                                        startIcon={<SendIcon />}
+                                                        onClick={() => {
+                                                            // Réinitialiser replyingToCommentId pour s'assurer qu'on ajoute un commentaire principal
+                                                            setReplyingToCommentId(null);
+                                                            handleAddComment();
+                                                        }}
                                                         disabled={!newComment.trim()}
-                                                        sx={{ mt: 1 }}
+                                                        sx={{
+                                                            borderRadius: 6,
+                                                            textTransform: 'none',
+                                                            px: 3,
+                                                            bgcolor: '#16A249',
+                                                            '&:hover': {
+                                                                bgcolor: '#118C3E',
+                                                            },
+                                                        }}
                                                     >
-                                                        Envoyer
+                                                        Commenter
                                                     </Button>
                                                 </Box>
-                                            </Box>
+                                            </Paper>
+
+                                            {/* Liste des commentaires */}
+                                            <Typography variant="h6" fontWeight="bold" gutterBottom color="#333">
+                                                Commentaires
+                                            </Typography>
+
+                                            {loadingComments ? (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                                                    <CircularProgress sx={{ color: '#16A249' }} size={30} />
+                                                </Box>
+                                            ) : comments.length > 0 ? (
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                    {comments.map((comment) => (
+                                                        <Paper
+                                                            key={comment.id}
+                                                            elevation={0}
+                                                            sx={{
+                                                                p: 3,
+                                                                borderRadius: 2,
+                                                                bgcolor: '#fff',
+                                                                border: '1px solid #e8f5e9',
+                                                                mb: 2,
+                                                                position: 'relative',
+                                                                '&::before': {
+                                                                    content: '""',
+                                                                    position: 'absolute',
+                                                                    left: 0,
+                                                                    top: 0,
+                                                                    bottom: 0,
+                                                                    width: '4px',
+                                                                    bgcolor: '#16A249',
+                                                                    borderTopLeftRadius: 2,
+                                                                    borderBottomLeftRadius: 2,
+                                                                    opacity: 0.7,
+                                                                },
+                                                            }}
+                                                        >
+                                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                                    <Avatar
+                                                                        sx={{
+                                                                            bgcolor: '#16A249',
+                                                                            color: 'white',
+                                                                            width: 48,
+                                                                            height: 48,
+                                                                            fontWeight: 'medium',
+                                                                            fontSize: '1rem',
+                                                                            display: 'flex',
+                                                                            justifyContent: 'center',
+                                                                            alignItems: 'center',
+                                                                        }}
+                                                                    >
+                                                                        {comment.user?.avatar ? (
+                                                                            <img
+                                                                                src={comment.user.avatar}
+                                                                                alt={comment.user.name}
+                                                                                width="48"
+                                                                                height="48"
+                                                                                style={{ objectFit: 'cover' }}
+                                                                            />
+                                                                        ) : (
+                                                                            getInitials(comment.user?.name || 'Utilisateur')
+                                                                        )}
+                                                                    </Avatar>
+                                                                    <Box>
+                                                                        <Typography variant="subtitle1" fontWeight="bold">
+                                                                            {comment.user?.name || 'Utilisateur'}
+                                                                        </Typography>
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            {formatDateTime(comment.created_at)}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                </Box>
+                                                                {comment.user_id === currentUser.id && (
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        onClick={(e) => handleCommentActionMenuOpen(e, comment.id)}
+                                                                        sx={{ color: '#757575', '&:hover': { color: '#16A249' } }}
+                                                                    >
+                                                                        <MoreVert fontSize="small" />
+                                                                    </IconButton>
+                                                                )}
+                                                            </Box>
+
+                                                            {editingCommentId === comment.id ? (
+                                                                <Box sx={{ mt: 2 }}>
+                                                                    <TextField
+                                                                        fullWidth
+                                                                        multiline
+                                                                        rows={3}
+                                                                        value={editCommentContent}
+                                                                        onChange={(e) => setEditCommentContent(e.target.value)}
+                                                                        sx={{ mb: 2 }}
+                                                                        variant="outlined"
+                                                                        InputProps={{
+                                                                            sx: {
+                                                                                borderRadius: 2,
+                                                                                bgcolor: '#f8f8f8',
+                                                                                '& fieldset': {
+                                                                                    borderColor: 'rgba(22, 162, 73, 0.1)',
+                                                                                },
+                                                                                '&:hover fieldset': {
+                                                                                    borderColor: 'rgba(22, 162, 73, 0.3) !important',
+                                                                                },
+                                                                                '&.Mui-focused fieldset': {
+                                                                                    borderColor: '#16A249 !important',
+                                                                                    borderWidth: '1px !important',
+                                                                                },
+                                                                            },
+                                                                        }}
+                                                                    />
+                                                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                                                        <Button
+                                                                            variant="text"
+                                                                            onClick={handleCancelEditComment}
+                                                                            sx={{ textTransform: 'none', color: '#757575' }}
+                                                                        >
+                                                                            Annuler
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="contained"
+                                                                            onClick={handleUpdateComment}
+                                                                            disabled={!editCommentContent.trim()}
+                                                                            sx={{
+                                                                                textTransform: 'none',
+                                                                                bgcolor: '#16A249',
+                                                                                '&:hover': {
+                                                                                    bgcolor: '#118C3E',
+                                                                                },
+                                                                            }}
+                                                                        >
+                                                                            Enregistrer
+                                                                        </Button>
+                                                                    </Box>
+                                                                </Box>
+                                                            ) : (
+                                                                <>
+                                                                    <Typography
+                                                                        variant="body1"
+                                                                        sx={{
+                                                                            mt: 2,
+                                                                            mb: 2,
+                                                                            whiteSpace: 'pre-wrap',
+                                                                            lineHeight: 1.6,
+                                                                            color: '#333',
+                                                                        }}
+                                                                    >
+                                                                        {comment.content}
+                                                                    </Typography>
+
+                                                                    <Box
+                                                                        sx={{
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            borderTop: '1px solid #e8f5e9',
+                                                                            pt: 2,
+                                                                            mt: 2,
+                                                                        }}
+                                                                    >
+                                                                        <Button
+                                                                            startIcon={
+                                                                                isCommentLiked(comment.id) ? <ThumbUpAlt /> : <ThumbUpAltOutlined />
+                                                                            }
+                                                                            onClick={() => handleLikeComment(comment.id)}
+                                                                            disabled={likingCommentIds.includes(comment.id)}
+                                                                            sx={{
+                                                                                textTransform: 'none',
+                                                                                color: isCommentLiked(comment.id) ? '#16A249' : '#757575',
+                                                                                mr: 2,
+                                                                                fontWeight: 'medium',
+                                                                                '&:hover': {
+                                                                                    color: '#16A249',
+                                                                                    bgcolor: 'rgba(22, 162, 73, 0.08)',
+                                                                                },
+                                                                                '&.Mui-disabled': {
+                                                                                    opacity: 0.6,
+                                                                                    color: isCommentLiked(comment.id) ? '#16A249' : '#757575',
+                                                                                },
+                                                                            }}
+                                                                        >
+                                                                            {comment.likes_count || 0}
+                                                                        </Button>
+                                                                        <Button
+                                                                            startIcon={<CommentIcon />}
+                                                                            sx={{
+                                                                                textTransform: 'none',
+                                                                                color: replyingToCommentId === comment.id ? '#16A249' : '#757575',
+                                                                                fontWeight: 'medium',
+                                                                                '&:hover': {
+                                                                                    color: '#16A249',
+                                                                                    bgcolor: 'rgba(22, 162, 73, 0.08)',
+                                                                                },
+                                                                            }}
+                                                                            onClick={() => {
+                                                                                // Toggle le formulaire de réponse
+                                                                                if (replyingToCommentId === comment.id) {
+                                                                                    setReplyingToCommentId(null);
+                                                                                    setNewComment('');
+                                                                                } else {
+                                                                                    setReplyingToCommentId(comment.id);
+                                                                                    setNewComment('');
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            Répondre
+                                                                        </Button>
+                                                                    </Box>
+                                                                </>
+                                                            )}
+
+                                                            {/* Formulaire de réponse inline */}
+                                                            {replyingToCommentId === comment.id && (
+                                                                <Box sx={{ mt: 3, mb: 2, ml: 6, borderLeft: '2px solid #e8f5e9', pl: 2 }}>
+                                                                    <Paper
+                                                                        elevation={0}
+                                                                        sx={{
+                                                                            p: 2,
+                                                                            bgcolor: '#f8f8f8',
+                                                                            borderRadius: 2,
+                                                                            border: '1px solid rgba(22, 162, 73, 0.1)',
+                                                                        }}
+                                                                    >
+                                                                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                                                                            <Avatar
+                                                                                sx={{
+                                                                                    bgcolor: '#16A249',
+                                                                                    color: 'white',
+                                                                                    width: 36,
+                                                                                    height: 36,
+                                                                                    fontWeight: 'medium',
+                                                                                    fontSize: '0.9rem',
+                                                                                }}
+                                                                            >
+                                                                                {getInitials(currentUser.name)}
+                                                                            </Avatar>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                multiline
+                                                                                rows={2}
+                                                                                placeholder={`Répondre à ${comment.user?.name || 'Utilisateur'}...`}
+                                                                                value={newComment}
+                                                                                onChange={(e) => setNewComment(e.target.value)}
+                                                                                variant="outlined"
+                                                                                autoFocus
+                                                                                InputProps={{
+                                                                                    sx: {
+                                                                                        borderRadius: 2,
+                                                                                        bgcolor: '#fff',
+                                                                                        '& fieldset': {
+                                                                                            borderColor: 'rgba(22, 162, 73, 0.1)',
+                                                                                        },
+                                                                                        '&:hover fieldset': {
+                                                                                            borderColor: 'rgba(22, 162, 73, 0.3) !important',
+                                                                                        },
+                                                                                        '&.Mui-focused fieldset': {
+                                                                                            borderColor: '#16A249 !important',
+                                                                                            borderWidth: '1px !important',
+                                                                                        },
+                                                                                    },
+                                                                                }}
+                                                                            />
+                                                                        </Box>
+                                                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, gap: 1 }}>
+                                                                            <Button
+                                                                                variant="text"
+                                                                                onClick={() => {
+                                                                                    setReplyingToCommentId(null);
+                                                                                    setNewComment('');
+                                                                                }}
+                                                                                sx={{ textTransform: 'none', color: '#757575' }}
+                                                                            >
+                                                                                Annuler
+                                                                            </Button>
+                                                                            <Button
+                                                                                variant="contained"
+                                                                                startIcon={<SendIcon />}
+                                                                                onClick={handleAddComment}
+                                                                                disabled={!newComment.trim()}
+                                                                                sx={{
+                                                                                    borderRadius: 6,
+                                                                                    textTransform: 'none',
+                                                                                    px: 2,
+                                                                                    bgcolor: '#16A249',
+                                                                                    '&:hover': {
+                                                                                        bgcolor: '#118C3E',
+                                                                                    },
+                                                                                }}
+                                                                            >
+                                                                                Répondre
+                                                                            </Button>
+                                                                        </Box>
+                                                                    </Paper>
+                                                                </Box>
+                                                            )}
+
+                                                            {/* Afficher les réponses au commentaire */}
+                                                            {comment.replies && comment.replies.length > 0 && (
+                                                                <Box sx={{ mt: 3, ml: 6 }}>
+                                                                    {comment.replies.map((reply) => (
+                                                                        <Box
+                                                                            key={reply.id}
+                                                                            sx={{
+                                                                                pt: 3,
+                                                                                borderTop: '1px solid #e8f5e9',
+                                                                                position: 'relative',
+                                                                                '&::before': {
+                                                                                    content: '""',
+                                                                                    position: 'absolute',
+                                                                                    left: -16,
+                                                                                    top: 28,
+                                                                                    bottom: 0,
+                                                                                    width: '2px',
+                                                                                    height: 'calc(100% - 28px)',
+                                                                                    bgcolor: '#e8f5e9',
+                                                                                },
+                                                                                mb: 3,
+                                                                            }}
+                                                                        >
+                                                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                                                                <Avatar
+                                                                                    sx={{
+                                                                                        bgcolor: '#16A249',
+                                                                                        color: 'white',
+                                                                                        width: 40,
+                                                                                        height: 40,
+                                                                                        fontWeight: 'medium',
+                                                                                        fontSize: '0.9rem',
+                                                                                        display: 'flex',
+                                                                                        justifyContent: 'center',
+                                                                                        alignItems: 'center',
+                                                                                    }}
+                                                                                >
+                                                                                    {reply.user?.avatar ? (
+                                                                                        <img
+                                                                                            src={reply.user.avatar}
+                                                                                            alt={reply.user.name}
+                                                                                            width="40"
+                                                                                            height="40"
+                                                                                            style={{ objectFit: 'cover' }}
+                                                                                        />
+                                                                                    ) : (
+                                                                                        getInitials(reply.user?.name || 'Utilisateur')
+                                                                                    )}
+                                                                                </Avatar>
+                                                                                <Box sx={{ flex: 1 }}>
+                                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                                        <Box>
+                                                                                            <Typography variant="subtitle1" fontWeight="bold">
+                                                                                                {reply.user?.name || 'Utilisateur'}
+                                                                                            </Typography>
+                                                                                            <Typography variant="body2" color="text.secondary">
+                                                                                                {formatDateTime(reply.created_at)}
+                                                                                            </Typography>
+                                                                                        </Box>
+                                                                                        {reply.user_id === currentUser.id && (
+                                                                                            <IconButton
+                                                                                                size="small"
+                                                                                                onClick={(e) =>
+                                                                                                    handleCommentActionMenuOpen(e, reply.id)
+                                                                                                }
+                                                                                                sx={{
+                                                                                                    color: '#757575',
+                                                                                                    '&:hover': { color: '#16A249' },
+                                                                                                }}
+                                                                                            >
+                                                                                                <MoreVert fontSize="small" />
+                                                                                            </IconButton>
+                                                                                        )}
+                                                                                    </Box>
+                                                                                    {editingCommentId === reply.id ? (
+                                                                                        <Box sx={{ mt: 2 }}>
+                                                                                            <TextField
+                                                                                                fullWidth
+                                                                                                multiline
+                                                                                                rows={2}
+                                                                                                value={editCommentContent}
+                                                                                                onChange={(e) =>
+                                                                                                    setEditCommentContent(e.target.value)
+                                                                                                }
+                                                                                                sx={{ mb: 2 }}
+                                                                                                variant="outlined"
+                                                                                                InputProps={{
+                                                                                                    sx: {
+                                                                                                        borderRadius: 2,
+                                                                                                        bgcolor: '#f8f8f8',
+                                                                                                        '& fieldset': {
+                                                                                                            borderColor: 'rgba(22, 162, 73, 0.1)',
+                                                                                                        },
+                                                                                                        '&:hover fieldset': {
+                                                                                                            borderColor:
+                                                                                                                'rgba(22, 162, 73, 0.3) !important',
+                                                                                                        },
+                                                                                                        '&.Mui-focused fieldset': {
+                                                                                                            borderColor: '#16A249 !important',
+                                                                                                            borderWidth: '1px !important',
+                                                                                                        },
+                                                                                                    },
+                                                                                                }}
+                                                                                            />
+                                                                                            <Box
+                                                                                                sx={{
+                                                                                                    display: 'flex',
+                                                                                                    justifyContent: 'flex-end',
+                                                                                                    gap: 1,
+                                                                                                }}
+                                                                                            >
+                                                                                                <Button
+                                                                                                    variant="text"
+                                                                                                    onClick={handleCancelEditComment}
+                                                                                                    sx={{ textTransform: 'none', color: '#757575' }}
+                                                                                                >
+                                                                                                    Annuler
+                                                                                                </Button>
+                                                                                                <Button
+                                                                                                    variant="contained"
+                                                                                                    onClick={handleUpdateComment}
+                                                                                                    disabled={!editCommentContent.trim()}
+                                                                                                    sx={{
+                                                                                                        textTransform: 'none',
+                                                                                                        bgcolor: '#16A249',
+                                                                                                        '&:hover': {
+                                                                                                            bgcolor: '#118C3E',
+                                                                                                        },
+                                                                                                    }}
+                                                                                                >
+                                                                                                    Enregistrer
+                                                                                                </Button>
+                                                                                            </Box>
+                                                                                        </Box>
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            <Typography
+                                                                                                variant="body1"
+                                                                                                sx={{
+                                                                                                    mt: 1,
+                                                                                                    whiteSpace: 'pre-wrap',
+                                                                                                    lineHeight: 1.6,
+                                                                                                    color: '#333',
+                                                                                                }}
+                                                                                            >
+                                                                                                {reply.content}
+                                                                                            </Typography>
+                                                                                            <Box
+                                                                                                sx={{
+                                                                                                    display: 'flex',
+                                                                                                    alignItems: 'center',
+                                                                                                    mt: 2,
+                                                                                                }}
+                                                                                            >
+                                                                                                <Button
+                                                                                                    startIcon={
+                                                                                                        isCommentLiked(reply.id) ? (
+                                                                                                            <ThumbUpAlt />
+                                                                                                        ) : (
+                                                                                                            <ThumbUpAltOutlined />
+                                                                                                        )
+                                                                                                    }
+                                                                                                    onClick={() => handleLikeComment(reply.id)}
+                                                                                                    disabled={likingCommentIds.includes(reply.id)}
+                                                                                                    sx={{
+                                                                                                        textTransform: 'none',
+                                                                                                        color: isCommentLiked(reply.id)
+                                                                                                            ? '#16A249'
+                                                                                                            : '#757575',
+                                                                                                        mr: 2,
+                                                                                                        fontWeight: 'medium',
+                                                                                                        '&:hover': {
+                                                                                                            color: '#16A249',
+                                                                                                            bgcolor: 'rgba(22, 162, 73, 0.08)',
+                                                                                                        },
+                                                                                                        '&.Mui-disabled': {
+                                                                                                            opacity: 0.6,
+                                                                                                            color: isCommentLiked(reply.id)
+                                                                                                                ? '#16A249'
+                                                                                                                : '#757575',
+                                                                                                        },
+                                                                                                    }}
+                                                                                                >
+                                                                                                    {reply.likes_count || 0}
+                                                                                                </Button>
+                                                                                                <Button
+                                                                                                    startIcon={<CommentIcon />}
+                                                                                                    sx={{
+                                                                                                        textTransform: 'none',
+                                                                                                        color: '#757575',
+                                                                                                        fontWeight: 'medium',
+                                                                                                        '&:hover': {
+                                                                                                            color: '#16A249',
+                                                                                                            bgcolor: 'rgba(22, 162, 73, 0.08)',
+                                                                                                        },
+                                                                                                    }}
+                                                                                                    onClick={() => {
+                                                                                                        // Répondre au commentaire parent
+                                                                                                        setReplyingToCommentId(comment.id);
+                                                                                                        setNewComment(
+                                                                                                            `@${reply.user?.name || 'Utilisateur'} `,
+                                                                                                        );
+                                                                                                    }}
+                                                                                                >
+                                                                                                    Répondre
+                                                                                                </Button>
+                                                                                            </Box>
+                                                                                        </>
+                                                                                    )}
+                                                                                </Box>
+                                                                            </Box>
+                                                                        </Box>
+                                                                    ))}
+                                                                </Box>
+                                                            )}
+                                                        </Paper>
+                                                    ))}
+                                                </Box>
+                                            ) : (
+                                                <Paper
+                                                    elevation={0}
+                                                    sx={{
+                                                        p: 4,
+                                                        borderRadius: 2,
+                                                        bgcolor: '#fff',
+                                                        border: '1px solid #e8f5e9',
+                                                        textAlign: 'center',
+                                                    }}
+                                                >
+                                                    <Typography variant="body1" color="text.secondary">
+                                                        Aucun commentaire pour ce projet
+                                                    </Typography>
+                                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                                        Soyez le premier à commenter !
+                                                    </Typography>
+                                                </Paper>
+                                            )}
                                         </>
                                     )}
                                 </Box>
@@ -1629,7 +2214,6 @@ function Projet() {
                                             ))}
                                         </Select>
                                     </FormControl>
-                                    {/* 4. Mettre à jour le panneau de filtres avec les nouveaux gestionnaires d'événements */}
                                     <FormControl sx={{ minWidth: 200, flex: 1 }}>
                                         <InputLabel id="priorites-label">Priorités</InputLabel>
                                         <Select
@@ -1672,8 +2256,6 @@ function Projet() {
                         {/* Liste des projets */}
                         <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2, boxShadow: 3, mb: 4 }}>
                             <Table>
-                                {/* 1. Ajouter une colonne Progression dans le tableau des projets après la colonne Priorité */}
-                                {/* Modifier la section TableHead dans la liste des projets */}
                                 <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
                                     <TableRow>
                                         <TableCell sx={{ fontWeight: 'bold' }}>Nom</TableCell>
@@ -1686,8 +2268,6 @@ function Projet() {
                                         </TableCell>
                                     </TableRow>
                                 </TableHead>
-                                {/* 2. Ajouter la colonne Progression dans le TableBody pour chaque projet */}
-                                {/* Modifier la section TableBody dans la liste des projets */}
                                 <TableBody>
                                     {filteredProjects.length > 0 ? (
                                         filteredProjects.map((project) => (
@@ -2247,7 +2827,6 @@ function Projet() {
                     </ListItemIcon>
                     <ListItemText primary="Détails" />
                 </MenuItem>
-                {/* 5. Modifier le menu d'actions pour que le bouton Commentaires redirige vers la fenêtre Commentaires */}
                 <MenuItem
                     onClick={() => {
                         handleProjectActionMenuClose();

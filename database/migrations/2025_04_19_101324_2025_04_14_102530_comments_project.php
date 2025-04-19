@@ -15,6 +15,9 @@ return new class extends Migration {
             $table->text('content');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('project_id');
+            $table->unsignedBigInteger( 'parent_id')->nullable(); // Pour les réponses aux commentaires
+            $table->integer('likes_count')->default(0); // Compteur de likes
+
             $table->timestamps();
 
 
