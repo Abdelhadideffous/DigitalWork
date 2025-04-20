@@ -2,10 +2,12 @@ import { Route } from 'react-router-dom';
 // import Mypagetest1 from '../test/1';
 // import Mypagetest1 from '../test/1';
 import ProjetDetail from '../test/1/ProjetDetail';
+import TaskOverview from '../test/1/TaskOverview';
 import Teambadi from '../test/1/Teambadi';
 import TestTeam from '../test/1/TestTeam';
 import Projet from '../test/2/Projet';
-import TaskOverview from '../test/1/TaskOverview';
+import EDBDetail from '../test/EDBDetail';
+import Login from '../test/Login/Login';
 
 export const testsRoutes = (
     <Route path="/test">
@@ -15,5 +17,7 @@ export const testsRoutes = (
         <Route path="3" element={<Projet />} />
         <Route path="3/:id" element={<ProjetDetail />} />
         <Route path="4" element={<TaskOverview />} />
+        <Route path="5" element={<Login />} />
+        <Route path="6" element={<EDBDetail edbId={1} />} />
     </Route>
 );

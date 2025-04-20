@@ -4,6 +4,7 @@
 use App\Http\Controllers\ApiBridgeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentsProjetController;
+use App\Http\Controllers\EdbController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\StatusController;
@@ -60,6 +61,11 @@ Route::get('/projects/{id}', [ProjectController::class, 'show']);
 Route::put('/projects/{id}', [ProjectController::class, 'update']);
 Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
 Route::get('/projects/{id}/teams', [ProjectController::class, 'getProjectTeams']);
+Route::patch('/edbs/{id}/annuler', [ProjectController::class, 'projetanuule']);
+Route::patch('/edbs/{id}/teminer', [ProjectController::class, 'projetterminer']);
+
+
+
 
 // Route pour mettre à jour la progression d'un projet
 Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgress']);
@@ -110,6 +116,36 @@ Route::post('/tasks', [TaskController::class, 'store']);
 Route::get('/tasks/{task}', [TaskController::class, 'show']);
 Route::put('/tasks/{task}', [TaskController::class, 'update']);
 Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+
+
+// route pour edb 
+
+Route::get('/edbs', [EdbController::class, 'index']);
+
+// Route alternative pour obtenir tous les Edbs (getAllEdbs)
+Route::get('/all-edbs', [EdbController::class, 'getAllEdbs']);
+
+// Route pour créer un nouveau Edb
+Route::post('/edbs', [EdbController::class, 'store']);
+
+// Route pour afficher un Edb spécifique
+Route::get('/edbs/{id}', [EdbController::class, 'show']);
+
+// Route pour mettre à jour un Edb
+Route::put('/edbs/{id}', [EdbController::class, 'update']);
+
+// Route pour supprimer un Edb
+Route::delete('/edbs/{id}', [EdbController::class, 'destroy']);
+
+// Routes pour approuver/rejeter un Edb
+Route::patch('/edbs/{id}/approve', [EdbController::class, 'approveEdb']);
+Route::patch('/edbs/{id}/reject', [EdbController::class, 'rejectEdb']);
+Route::post('/edbs/{id}/attachments', [EDBController::class, 'uploadMultipleAttachments']);
+Route::get('edbs/{id}/attachments', [EdbController::class, 'getAttachments']);
+Route::delete('edbs/{id}/attachments/{attachmentId}', [EdbController::class, 'deleteAttachment']);
+
+
+
 
 
 Route::get('/test-api', function () {

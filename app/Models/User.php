@@ -45,29 +45,37 @@ class User extends Authenticatable
 
 
 
-     // Équipes que l'utilisateur gère
-     public function managedTeams()
-     {
-         return $this->hasMany(Team::class, 'manager_id');
-     }
-     
-     // Équipes dont l'utilisateur est membre
-     public function teams()
-     {
-         return $this->belongsToMany(Team::class, 'team_user');
-                    
-                     
-     }
-     
-     // Projets auxquels l'utilisateur participe (via les équipes)
-     public function projects()
-     {
-         return $this->belongsToMany(Project::class, 'project_teams', 'user_id', 'project_id');
-     }
+    // Équipes que l'utilisateur gère
+    public function managedTeams()
+    {
+        return $this->hasMany(Team::class, 'manager_id');
+    }
 
-     public function comments(): HasMany
-     {
-         return $this->hasMany(CommentsProject::class);
-     }
+    // Équipes dont l'utilisateur est membre
+    public function teams()
+    {
+        return $this->belongsToMany(Team::class, 'team_user');
+
+
+    }
+
+    // Projets auxquels l'utilisateur participe (via les équipes)
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class, 'project_teams', 'user_id', 'project_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(CommentsProject::class);
+    }
+
+
+
+    public function edbs()
+    {
+        return $this->hasMany(Edb::class);
+    }
+
 
 }

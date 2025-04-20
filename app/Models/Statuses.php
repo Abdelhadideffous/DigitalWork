@@ -10,15 +10,24 @@ class Statuses extends Model
 {
     protected $fillable = ['name'];
 
-    // public function projects()
-    // {
-    //     return $this->hasMany(Project::class);
-    // }
 
-    // public function tasks()
-    // {
-    //     return $this->hasMany(Task::class);
-    // }
+
+    public function edbs()
+{
+    return $this->hasMany(Edb::class);
+}
+
+
+
+    public function projects()
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
 
     // public function subtasks()
     // {

@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             PrioritySeeder::class,
             UserSeeder::class,
             TaskSeeder::class,
+            EdbSeeder::class,
 
         ]);
     }

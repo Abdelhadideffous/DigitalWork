@@ -138,8 +138,33 @@ class ProjectController extends Controller
     }
 
 
+    public function projetterminer($id)
+    {
+        $projet = Project::findOrFail($id);
+        $projet->status_id = 3; // ID du statut "approuvé"
+        $projet->save();
 
-    
+        return response()->json([
+            'success' => true,
+            'message' => 'projet teminer'
+        ], 200); // OK - Ajouté
+    }
+
+
+    public function projetanuule($id)
+    {
+        $projet = Project::findOrFail($id);
+        $projet->status_id = 4; // ID du statut "approuvé"
+        $projet->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'projet teminer'
+        ], 200); // OK - Ajouté
+    }
+
+
+
 
 
 }
