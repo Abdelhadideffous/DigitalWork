@@ -5,20 +5,22 @@ import {
     ArrowBack as ArrowBackIcon,
     Assignment as AssignmentIcon,
     CalendarToday as CalendarIcon,
+    ChatBubbleOutline,
     Comment as CommentIcon,
+    Delete,
     Delete as DeleteIcon,
+    Edit,
     Edit as EditIcon,
     MoreVert,
-    // Person,
     Search as SearchIcon,
     Send as SendIcon,
-    ThumbUpAlt,
+    ThumbUp,
     ThumbUpAltOutlined,
-    Visibility as VisibilityIcon,
 } from '@mui/icons-material';
+import InsertCommentOutlinedIcon from '@mui/icons-material/InsertCommentOutlined';
+
 import {
     Alert,
-    Autocomplete,
     Avatar,
     Box,
     Breadcrumbs,
@@ -62,13 +64,18 @@ import {
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import AppLayout from '../1/AppLayout';
-import { projectApi, teamApi, type Comment, type Priority, type Project, type Status } from './api';
+import { projectApi, type Comment, type Priority, type Project, type Status } from './api';
 
 function Projet() {
     // État pour le menu d'actions des projets
+    const [projectTasks, setProjectTasks] = useState<Task[]>([]);
+    const [loadingTasks, setLoadingTasks] = useState(false);
     const [projectActionMenuAnchorEl, setProjectActionMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
     const openProjectActionMenu = Boolean(projectActionMenuAnchorEl);
+
+    // État pour suivre les commentaires aimés
+    const [likedComments, setLikedComments] = useState<Set<number>>(new Set());
 
     // Fonction pour obtenir la date actuelle au format YYYY-MM-DD
     const getCurrentDate = () => {
@@ -104,13 +111,8 @@ function Projet() {
         description: false,
         start_date: false,
         end_date: false,
-        status_id: false,
         priority_id: false,
-        teamId: false,
     });
-
-    // État pour l'autocomplétion de l'équipe
-    const [selectedTeam, setSelectedTeam] = useState<{ id: number; name: string } | null>(null);
 
     // État pour la vue détaillée d'un projet
     const [showProjectDetails, setShowProjectDetails] = useState(false);
@@ -145,9 +147,7 @@ function Projet() {
         end_date: false,
         status_id: false,
         priority_id: false,
-        teamId: false,
     });
-    const [selectedEditTeam, setSelectedEditTeam] = useState<{ id: number; name: string } | null>(null);
 
     // État pour les commentaires
     const [comments, setComments] = useState<Comment[]>([]);
@@ -159,29 +159,9 @@ function Projet() {
     const [selectedCommentId, setSelectedCommentId] = useState<number | null>(null);
     const openCommentActionMenu = Boolean(commentActionMenuAnchorEl);
 
-    // État pour gérer les réponses aux commentaires
+    // État pour les réponses aux commentaires
     const [replyingToCommentId, setReplyingToCommentId] = useState<number | null>(null);
-    const [likedComments, setLikedComments] = useState<Record<number, boolean>>({});
-    const [likingCommentIds, setLikingCommentIds] = useState<number[]>([]);
-
-    // Fonction pour vérifier si un commentaire est déjà liké
-    const isCommentLiked = (commentId: number) => {
-        return likedComments[commentId] || false;
-    };
-
-    // Au chargement du composant, récupérer l'état des likes depuis le localStorage
-    useEffect(() => {
-        const savedLikes = localStorage.getItem('likedComments');
-        if (savedLikes) {
-            setLikedComments(JSON.parse(savedLikes));
-        }
-    }, []);
-
-    // Fonction pour sauvegarder l'état des likes dans le localStorage
-    const saveLikedState = (newLikedComments: Record<number, boolean>) => {
-        localStorage.setItem('likedComments', JSON.stringify(newLikedComments));
-        setLikedComments(newLikedComments);
-    };
+    const [replyContent, setReplyContent] = useState('');
 
     // État pour les équipes du projet
     const [projectTeams, setProjectTeams] = useState<any[]>([]);
@@ -200,7 +180,6 @@ function Projet() {
 
     // Données des projets, équipes, statuts et priorités
     const [projects, setProjects] = useState<Project[]>([]);
-    const [teams, setTeams] = useState<any[]>([]);
     const [statuses, setStatuses] = useState<Status[]>([]);
     const [priorities, setPriorities] = useState<Priority[]>([]);
 
@@ -227,21 +206,6 @@ function Projet() {
                 severity: 'error',
             });
             setInitialLoading(false);
-        }
-    };
-
-    // Fonction pour charger les équipes depuis l'API
-    const fetchTeams = async () => {
-        try {
-            const teamsData = await teamApi.getAllTeams();
-            setTeams(teamsData);
-        } catch (error) {
-            console.error('Erreur lors du chargement des équipes:', error);
-            setSnackbar({
-                open: true,
-                message: 'Erreur lors du chargement des équipes',
-                severity: 'error',
-            });
         }
     };
 
@@ -275,11 +239,32 @@ function Projet() {
         }
     };
 
+    // Fonction pour analyser la structure des commentaires
+    const analyzeComments = (commentsData: Comment[]) => {
+        console.log('Analyse des commentaires:');
+        console.log('Total des commentaires:', commentsData.length);
+
+        const parentComments = commentsData.filter((c) => !c.parent_id);
+        console.log('Commentaires parents:', parentComments.length, parentComments);
+
+        const replies = commentsData.filter((c) => c.parent_id);
+        console.log('Réponses:', replies.length, replies);
+
+        // Vérifier les valeurs possibles de parent_id
+        const parentIdValues = new Set(commentsData.map((c) => c.parent_id));
+        console.log('Valeurs de parent_id:', [...parentIdValues]);
+    };
+
     // Fonction pour charger les commentaires d'un projet
     const fetchComments = async (projectId: number) => {
         try {
             setLoadingComments(true);
             const commentsData = await projectApi.getProjectComments(projectId);
+            console.log('Commentaires chargés:', commentsData);
+
+            // Analyser la structure des commentaires
+            analyzeComments(commentsData);
+
             setComments(commentsData);
             setLoadingComments(false);
         } catch (error) {
@@ -290,80 +275,6 @@ function Projet() {
                 severity: 'error',
             });
             setLoadingComments(false);
-        }
-    };
-
-    // Fonction pour gérer les likes des commentaires
-    const handleLikeComment = async (commentId: number) => {
-        // Vérifier si une action de like est déjà en cours pour ce commentaire
-        if (likingCommentIds.includes(commentId)) {
-            return; // Ignorer les clics multiples rapides
-        }
-
-        try {
-            // Marquer ce commentaire comme en cours de like/unlike
-            setLikingCommentIds((prev) => [...prev, commentId]);
-
-            // Vérifier si le commentaire est déjà liké
-            if (isCommentLiked(commentId)) {
-                // Si déjà liké, unlike
-                const response = await projectApi.unlikeComment(commentId);
-
-                // Mettre à jour le nombre de likes dans l'état local
-                setComments(
-                    comments.map((comment) => {
-                        if (comment.id === commentId) {
-                            return { ...comment, likes_count: response.likes_count };
-                        }
-                        // Vérifier aussi les réponses
-                        if (comment.replies) {
-                            comment.replies = comment.replies.map((reply) =>
-                                reply.id === commentId ? { ...reply, likes_count: response.likes_count } : reply,
-                            );
-                        }
-                        return comment;
-                    }),
-                );
-
-                // Mettre à jour l'état de like
-                const newLikedComments = { ...likedComments };
-                newLikedComments[commentId] = false;
-                saveLikedState(newLikedComments);
-            } else {
-                // Si pas liké, like
-                const response = await projectApi.likeComment(commentId);
-
-                // Mettre à jour le nombre de likes dans l'état local
-                setComments(
-                    comments.map((comment) => {
-                        if (comment.id === commentId) {
-                            return { ...comment, likes_count: response.likes_count };
-                        }
-                        // Vérifier aussi les réponses
-                        if (comment.replies) {
-                            comment.replies = comment.replies.map((reply) =>
-                                reply.id === commentId ? { ...reply, likes_count: response.likes_count } : reply,
-                            );
-                        }
-                        return comment;
-                    }),
-                );
-
-                // Mettre à jour l'état de like
-                const newLikedComments = { ...likedComments };
-                newLikedComments[commentId] = true;
-                saveLikedState(newLikedComments);
-            }
-        } catch (error) {
-            console.error(`Erreur lors de la gestion du like pour le commentaire ${commentId}:`, error);
-            setSnackbar({
-                open: true,
-                message: 'Erreur lors de la gestion du like',
-                severity: 'error',
-            });
-        } finally {
-            // Retirer ce commentaire de la liste des commentaires en cours de like/unlike
-            setLikingCommentIds((prev) => prev.filter((id) => id !== commentId));
         }
     };
 
@@ -384,11 +295,42 @@ function Projet() {
             setLoadingTeams(false);
         }
     };
+    interface Task {
+        id: number;
+        title: string;
+        description: string;
+        start_date: string;
+        end_date: string;
+        status_id: number;
+        priority_id: number;
+        project_id: number;
+        assigned_to: number;
+        status?: { id: number; name: string };
+        priority?: { id: number; name: string };
+        assignedUser?: { id: number; name: string; email: string };
+        progress?: number;
+    }
+
+    const fetchProjectTasks = async (projectId: number) => {
+        try {
+            setLoadingTasks(true);
+            const tasksData = await projectApi.getProjectTasks(projectId);
+            setProjectTasks(tasksData);
+            setLoadingTasks(false);
+        } catch (error) {
+            console.error(`Erreur lors du chargement des tâches du projet ${projectId}:`, error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors du chargement des tâches du projet',
+                severity: 'error',
+            });
+            setLoadingTasks(false);
+        }
+    };
 
     // Charger les projets, équipes, statuts et priorités au chargement du composant
     useEffect(() => {
         fetchProjects();
-        fetchTeams();
         fetchStatuses();
         fetchPriorities();
     }, []);
@@ -404,6 +346,11 @@ function Projet() {
     useEffect(() => {
         if (showProjectDetails && selectedProject?.id && tabValue === 2) {
             fetchProjectTeams(selectedProject.id);
+        }
+    }, [showProjectDetails, selectedProject?.id, tabValue]);
+    useEffect(() => {
+        if (showProjectDetails && selectedProject?.id && tabValue === 1) {
+            fetchProjectTasks(selectedProject.id);
         }
     }, [showProjectDetails, selectedProject?.id, tabValue]);
 
@@ -475,11 +422,8 @@ function Projet() {
             description: false,
             start_date: false,
             end_date: false,
-            status_id: false,
             priority_id: false,
-            teamId: false,
         });
-        setSelectedTeam(null);
     };
 
     const handleNewProjectDialogClose = () => {
@@ -497,11 +441,8 @@ function Projet() {
             description: false,
             start_date: false,
             end_date: false,
-            status_id: false,
             priority_id: false,
-            teamId: false,
         });
-        setSelectedTeam(null);
     };
 
     const handleNewProjectInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -520,22 +461,7 @@ function Projet() {
         }
     };
 
-    const handleNewProjectStatusChange = (e: SelectChangeEvent) => {
-        setNewProjectData({
-            ...newProjectData,
-            status_id: Number(e.target.value),
-        });
-
-        // Réinitialiser l'erreur si un statut est sélectionné
-        if (newProjectErrors.status_id) {
-            setNewProjectErrors({
-                ...newProjectErrors,
-                status_id: false,
-            });
-        }
-    };
-
-    const handleNewProjectPriorityChange = (e: SelectChangeEvent) => {
+    const handleNewProjectPriorityChange = (e: SelectChangeEvent<string>) => {
         setNewProjectData({
             ...newProjectData,
             priority_id: Number(e.target.value),
@@ -550,34 +476,8 @@ function Projet() {
         }
     };
 
-    const handleTeamChange = (_: React.SyntheticEvent, value: { id: number; name: string } | null) => {
-        setSelectedTeam(value);
-        if (value) {
-            // Réinitialiser l'erreur si une équipe est sélectionnée
-            if (newProjectErrors.teamId) {
-                setNewProjectErrors({
-                    ...newProjectErrors,
-                    teamId: false,
-                });
-            }
-        }
-    };
-
-    const handleEditTeamChange = (_: React.SyntheticEvent, value: { id: number; name: string } | null) => {
-        setSelectedEditTeam(value);
-        if (value) {
-            // Réinitialiser l'erreur si une équipe est sélectionnée
-            if (editProjectErrors.teamId) {
-                setEditProjectErrors({
-                    ...editProjectErrors,
-                    teamId: false,
-                });
-            }
-        }
-    };
-
     // Ajouter les gestionnaires d'événements pour les filtres
-    const handlePriorityFilterChange = (e: SelectChangeEvent) => {
+    const handlePriorityFilterChange = (e: SelectChangeEvent<string>) => {
         setPriorityFilter(e.target.value);
     };
 
@@ -589,7 +489,7 @@ function Projet() {
         setEndDateFilter(e.target.value);
     };
 
-    const handleStatusFilterChange = (e: SelectChangeEvent) => {
+    const handleStatusFilterChange = (e: SelectChangeEvent<string>) => {
         setStatusFilter(e.target.value);
     };
 
@@ -652,12 +552,7 @@ function Projet() {
                 end_date: false,
                 status_id: false,
                 priority_id: false,
-                teamId: false,
             });
-
-            // Trouver l'équipe associée au projet
-            const projectTeam = teams.find((team) => team.project_id === project.id);
-            setSelectedEditTeam(projectTeam || null);
 
             setOpenEditProjectDialog(true);
         }
@@ -673,9 +568,7 @@ function Projet() {
             end_date: false,
             status_id: false,
             priority_id: false,
-            teamId: false,
         });
-        setSelectedEditTeam(null);
     };
 
     const handleEditProjectInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -694,7 +587,7 @@ function Projet() {
         }
     };
 
-    const handleEditProjectStatusChange = (e: SelectChangeEvent) => {
+    const handleEditProjectStatusChange = (e: SelectChangeEvent<string>) => {
         setEditProjectData({
             ...editProjectData,
             status_id: Number(e.target.value),
@@ -709,7 +602,7 @@ function Projet() {
         }
     };
 
-    const handleEditProjectPriorityChange = (e: SelectChangeEvent) => {
+    const handleEditProjectPriorityChange = (e: SelectChangeEvent<string>) => {
         setEditProjectData({
             ...editProjectData,
             priority_id: Number(e.target.value),
@@ -837,7 +730,6 @@ function Projet() {
         const descriptionEmpty = newProjectData.description.trim() === '';
         const startDateInvalid = !newProjectData.start_date;
         const endDateInvalid = !newProjectData.end_date;
-        const statusEmpty = !newProjectData.status_id;
         const priorityEmpty = !newProjectData.priority_id;
 
         setNewProjectErrors({
@@ -846,12 +738,11 @@ function Projet() {
             description: descriptionEmpty,
             start_date: startDateInvalid,
             end_date: endDateInvalid,
-            status_id: statusEmpty,
             priority_id: priorityEmpty,
         });
 
         // Si tous les champs sont remplis, procéder à la création
-        if (!titleEmpty && !descriptionEmpty && !startDateInvalid && !endDateInvalid && !statusEmpty && !priorityEmpty) {
+        if (!titleEmpty && !descriptionEmpty && !startDateInvalid && !endDateInvalid && !priorityEmpty) {
             try {
                 setLoading(true);
                 await projectApi.createProject(newProjectData);
@@ -879,38 +770,27 @@ function Projet() {
         }
     };
 
-    // Fonction pour ajouter des commentaires (version améliorée)
+    // Fonctions pour gérer les commentaires
     const handleAddComment = async () => {
         if (!newComment.trim() || !selectedProject?.id) return;
 
         try {
             setLoading(true);
-
-            // Construire l'objet commentaire
-            const commentData = {
+            await projectApi.addComment({
                 content: newComment,
                 user_id: currentUser.id,
                 project_id: selectedProject.id,
-            };
+            });
 
-            // Ajouter parent_id seulement s'il existe
-            if (replyingToCommentId) {
-                // @ts-ignore - Ajout dynamique de propriété
-                commentData.parent_id = replyingToCommentId;
-            }
-
-            await projectApi.addComment(commentData);
-
-            // Réinitialiser le champ de commentaire et l'état de réponse
+            // Réinitialiser le champ de commentaire
             setNewComment('');
-            setReplyingToCommentId(null);
 
             // Recharger les commentaires
             await fetchComments(selectedProject.id);
 
             setSnackbar({
                 open: true,
-                message: replyingToCommentId ? 'Réponse ajoutée avec succès' : 'Commentaire ajouté avec succès',
+                message: 'Commentaire ajouté avec succès',
                 severity: 'success',
             });
             setLoading(false);
@@ -926,21 +806,7 @@ function Projet() {
     };
 
     const handleEditComment = (commentId: number) => {
-        // Trouver le commentaire (dans les commentaires principaux ou les réponses)
-        let comment = comments.find((c) => c.id === commentId);
-        if (!comment && comments) {
-            // Chercher dans les réponses si pas trouvé dans les commentaires principaux
-            for (const mainComment of comments) {
-                if (mainComment.replies) {
-                    const reply = mainComment.replies.find((r) => r.id === commentId);
-                    if (reply) {
-                        comment = reply;
-                        break;
-                    }
-                }
-            }
-        }
-
+        const comment = comments.find((c) => c.id === commentId);
         if (comment) {
             setEditingCommentId(commentId);
             setEditCommentContent(comment.content);
@@ -1014,6 +880,53 @@ function Projet() {
         handleCommentActionMenuClose();
     };
 
+    // Fonctions pour gérer les réponses aux commentaires
+    const handleReplyToComment = (commentId: number) => {
+        setReplyingToCommentId(commentId);
+        setReplyContent('');
+    };
+
+    const handleCancelReply = () => {
+        setReplyingToCommentId(null);
+        setReplyContent('');
+    };
+
+    const handleSubmitReply = async () => {
+        if (!replyingToCommentId || !replyContent.trim() || !selectedProject?.id) return;
+
+        try {
+            setLoading(true);
+            await projectApi.addComment({
+                content: replyContent,
+                user_id: currentUser.id,
+                project_id: selectedProject.id,
+                parent_id: replyingToCommentId, // Ajouter l'ID du commentaire parent
+            });
+
+            // Réinitialiser l'état de réponse
+            setReplyingToCommentId(null);
+            setReplyContent('');
+
+            // Recharger les commentaires
+            await fetchComments(selectedProject.id);
+
+            setSnackbar({
+                open: true,
+                message: 'Réponse ajoutée avec succès',
+                severity: 'success',
+            });
+            setLoading(false);
+        } catch (error) {
+            console.error("Erreur lors de l'ajout de la réponse:", error);
+            setSnackbar({
+                open: true,
+                message: "Erreur lors de l'ajout de la réponse",
+                severity: 'error',
+            });
+            setLoading(false);
+        }
+    };
+
     // Fonction pour fermer la notification
     const handleSnackbarClose = (_?: React.SyntheticEvent | Event, reason?: string) => {
         // Ne pas fermer le Snackbar si l'utilisateur clique en dehors
@@ -1067,6 +980,49 @@ function Projet() {
             .map((n) => n[0])
             .join('')
             .toUpperCase();
+    };
+
+    // Fonction pour gérer les "j'aime" sur les commentaires
+    const handleToggleLike = async (commentId: number) => {
+        try {
+            setLoading(true);
+
+            // Vérifier si le commentaire est déjà aimé
+            const isLiked = likedComments.has(commentId);
+
+            if (isLiked) {
+                // Si déjà aimé, retirer le like
+                await projectApi.unlikeComment(commentId);
+
+                // Mettre à jour l'état local
+                const newLikedComments = new Set(likedComments);
+                newLikedComments.delete(commentId);
+                setLikedComments(newLikedComments);
+            } else {
+                // Sinon, ajouter un like
+                await projectApi.likeComment(commentId);
+
+                // Mettre à jour l'état local
+                const newLikedComments = new Set(likedComments);
+                newLikedComments.add(commentId);
+                setLikedComments(newLikedComments);
+            }
+
+            // Recharger les commentaires pour mettre à jour le compteur de likes
+            if (selectedProject?.id) {
+                await fetchComments(selectedProject.id);
+            }
+
+            setLoading(false);
+        } catch (error) {
+            console.error('Erreur lors de la gestion du like du commentaire:', error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors de la gestion du like',
+                severity: 'error',
+            });
+            setLoading(false);
+        }
     };
 
     // Afficher un indicateur de chargement pendant le chargement initial
@@ -1130,6 +1086,7 @@ function Projet() {
                                 <Typography color="text.primary">{selectedProject?.id}</Typography>
                             </Breadcrumbs>
 
+                            {/* Remplacer cette section dans la vue détaillée d'un projet */}
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <IconButton onClick={handleBackToProjectsList} sx={{ mr: 1, p: 0 }}>
                                     <ArrowBackIcon />
@@ -1173,7 +1130,11 @@ function Projet() {
                                             py: 2,
                                         },
                                         '& .Mui-selected': {
+                                            color: '#16A249 !important',
                                             fontWeight: 'bold',
+                                        },
+                                        '& .MuiTabs-indicator': {
+                                            backgroundColor: '#16A249', // green underline
                                         },
                                     }}
                                 >
@@ -1195,36 +1156,86 @@ function Projet() {
                                                             Informations du projet
                                                         </Typography>
                                                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                            <Box>
-                                                                <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" gutterBottom>
+                                                            <Box
+                                                                sx={{
+                                                                    backgroundColor: '#f5f7fa',
+                                                                    p: 2,
+                                                                    borderRadius: 1,
+                                                                    borderLeft: '4px solid #16A249',
+                                                                }}
+                                                            >
+                                                                <Typography variant="subtitle1" fontWeight="bold" color="#16A249" gutterBottom>
                                                                     Statut
                                                                 </Typography>
                                                                 <Typography variant="body1">
                                                                     {selectedProject?.status?.name || getStatusName(selectedProject?.status_id)}
                                                                 </Typography>
                                                             </Box>
-                                                            <Box>
-                                                                <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" gutterBottom>
+                                                            <Box
+                                                                sx={{
+                                                                    backgroundColor: '#f5f7fa',
+                                                                    p: 2,
+                                                                    borderRadius: 1,
+                                                                    borderLeft: '4px solid #FF8C00',
+                                                                }}
+                                                            >
+                                                                <Typography variant="subtitle1" fontWeight="bold" color="#FF8C00" gutterBottom>
                                                                     Priorité
                                                                 </Typography>
                                                                 <Typography variant="body1">
                                                                     {selectedProject?.priority?.name || getPriorityName(selectedProject?.priority_id)}
                                                                 </Typography>
                                                             </Box>
-                                                            <Box>
-                                                                <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" gutterBottom>
+                                                            <Box
+                                                                sx={{
+                                                                    backgroundColor: '#f5f7fa',
+                                                                    p: 2,
+                                                                    borderRadius: 1,
+                                                                    borderLeft: '4px solid #3f51b5',
+                                                                }}
+                                                            >
+                                                                <Typography variant="subtitle1" fontWeight="bold" color="#3f51b5" gutterBottom>
                                                                     Date de début
                                                                 </Typography>
                                                                 <Typography variant="body1">{formatDate(selectedProject?.start_date)}</Typography>
                                                             </Box>
-                                                            <Box>
-                                                                <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" gutterBottom>
+                                                            <Box
+                                                                sx={{
+                                                                    backgroundColor: '#f5f7fa',
+                                                                    p: 2,
+                                                                    borderRadius: 1,
+                                                                    borderLeft: '4px solid #f44336',
+                                                                }}
+                                                            >
+                                                                <Typography variant="subtitle1" fontWeight="bold" color="#f44336" gutterBottom>
                                                                     Date d'échéance
                                                                 </Typography>
                                                                 <Typography variant="body1">{formatDate(selectedProject?.end_date)}</Typography>
                                                             </Box>
-                                                            <Box>
-                                                                <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" gutterBottom>
+                                                            <Box
+                                                                sx={{
+                                                                    backgroundColor: '#f5f7fa',
+                                                                    p: 2,
+                                                                    borderRadius: 1,
+                                                                    borderLeft: '4px solid #9c27b0',
+                                                                }}
+                                                            >
+                                                                <Typography variant="subtitle1" fontWeight="bold" color="#9c27b0" gutterBottom>
+                                                                    Date de création
+                                                                </Typography>
+                                                                <Typography variant="body1">
+                                                                    {formatDateTime(selectedProject?.created_at || '')}
+                                                                </Typography>
+                                                            </Box>
+                                                            <Box
+                                                                sx={{
+                                                                    backgroundColor: '#f5f7fa',
+                                                                    p: 2,
+                                                                    borderRadius: 1,
+                                                                    borderLeft: '4px solid #607d8b',
+                                                                }}
+                                                            >
+                                                                <Typography variant="subtitle1" fontWeight="bold" color="#607d8b" gutterBottom>
                                                                     Description
                                                                 </Typography>
                                                                 <Typography variant="body1">{selectedProject?.description}</Typography>
@@ -1280,45 +1291,263 @@ function Projet() {
                                     {tabValue === 1 && (
                                         <>
                                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                                                <Typography variant="h6" component="h2" fontWeight="bold">
+                                                <Typography variant="h6" fontWeight="bold" sx={{ color: '#333' }}>
                                                     Tâches du projet
                                                 </Typography>
+
                                                 <Button
-                                                    variant="contained"
-                                                    color="success"
                                                     startIcon={<Add />}
-                                                    sx={{ textTransform: 'none', borderRadius: 1, px: 2, bgcolor: '#16A249' }}
+                                                    sx={{
+                                                        textTransform: 'none',
+                                                        borderRadius: '8px',
+                                                        px: 2,
+                                                        py: 1,
+                                                        bgcolor: '#16A249',
+                                                        boxShadow: '0 4px 6px rgba(22, 162, 73, 0.2)',
+                                                        '&:hover': {
+                                                            bgcolor: '#138a3c',
+                                                            boxShadow: '0 6px 8px rgba(22, 162, 73, 0.3)',
+                                                        },
+                                                        transition: 'all 0.3s ease',
+                                                    }}
+                                                    variant="contained"
                                                 >
                                                     Ajouter une tâche
                                                 </Button>
                                             </Box>
 
-                                            <TableContainer sx={{ borderRadius: 2, boxShadow: 1, mb: 4 }}>
-                                                <Table>
-                                                    <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
-                                                        <TableRow>
-                                                            <TableCell sx={{ fontWeight: 'bold' }}>Nom</TableCell>
-                                                            <TableCell sx={{ fontWeight: 'bold' }}>Statut</TableCell>
-                                                            <TableCell sx={{ fontWeight: 'bold' }}>Priorité</TableCell>
-                                                            <TableCell sx={{ fontWeight: 'bold' }}>Assigné à</TableCell>
-                                                            <TableCell sx={{ fontWeight: 'bold' }}>Échéance</TableCell>
-                                                            <TableCell sx={{ fontWeight: 'bold' }}>Progression</TableCell>
-                                                            <TableCell sx={{ fontWeight: 'bold' }} align="right">
-                                                                Actions
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        <TableRow>
-                                                            <TableCell colSpan={7} align="center">
-                                                                <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                                                                    Aucune tâche trouvée
-                                                                </Typography>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    </TableBody>
-                                                </Table>
-                                            </TableContainer>
+                                            {loadingTasks ? (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                                                    <CircularProgress sx={{ color: '#16A249' }} />
+                                                </Box>
+                                            ) : (
+                                                <Box sx={{ overflowX: 'auto' }}>
+                                                    <TableContainer
+                                                        component={Paper}
+                                                        elevation={3}
+                                                        sx={{
+                                                            borderRadius: '12px',
+                                                            overflow: 'hidden',
+                                                            border: '1px solid #f0f0f0',
+                                                        }}
+                                                    >
+                                                        <Table>
+                                                            <TableHead>
+                                                                <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                                                                    <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Nom</TableCell>
+                                                                    <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Statut</TableCell>
+                                                                    <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Priorité</TableCell>
+                                                                    <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Assigné à</TableCell>
+                                                                    <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Échéance</TableCell>
+                                                                    <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Progression</TableCell>
+                                                                    <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Actions</TableCell>
+                                                                </TableRow>
+                                                            </TableHead>
+                                                            <TableBody>
+                                                                {projectTasks.length > 0 ? (
+                                                                    projectTasks.map((task) => (
+                                                                        <TableRow
+                                                                            key={task.id}
+                                                                            sx={{
+                                                                                '&:hover': {
+                                                                                    bgcolor: 'rgba(22, 162, 73, 0.04)',
+                                                                                },
+                                                                                cursor: 'pointer',
+                                                                                transition: 'background-color 0.2s',
+                                                                            }}
+                                                                        >
+                                                                            <TableCell sx={{ py: 2 }}>
+                                                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                                                    <AssignmentIcon
+                                                                                        fontSize="small"
+                                                                                        sx={{
+                                                                                            color: '#16A249',
+                                                                                            mr: 1,
+                                                                                            opacity: 0.8,
+                                                                                        }}
+                                                                                    />
+                                                                                    <Typography fontWeight="medium">{task.title}</Typography>
+                                                                                </Box>
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Chip
+                                                                                    label={task.status?.name}
+                                                                                    color={
+                                                                                        task.status?.name === 'Terminé'
+                                                                                            ? 'success'
+                                                                                            : task.status?.name === 'En cours'
+                                                                                              ? 'primary'
+                                                                                              : task.status?.name === 'En attente'
+                                                                                                ? 'warning'
+                                                                                                : 'error'
+                                                                                    }
+                                                                                    size="small"
+                                                                                    sx={{
+                                                                                        fontWeight: 500,
+                                                                                        px: 1,
+                                                                                        borderRadius: '6px',
+                                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                                                                    }}
+                                                                                />
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Chip
+                                                                                    label={task.priority?.name}
+                                                                                    color={
+                                                                                        task.priority?.name === 'Haute'
+                                                                                            ? 'error'
+                                                                                            : task.priority?.name === 'Moyenne'
+                                                                                              ? 'warning'
+                                                                                              : 'info'
+                                                                                    }
+                                                                                    size="small"
+                                                                                    sx={{
+                                                                                        fontWeight: 500,
+                                                                                        px: 1,
+                                                                                        borderRadius: '6px',
+                                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                                                                    }}
+                                                                                />
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                                                    <Avatar
+                                                                                        sx={{
+                                                                                            width: 28,
+                                                                                            height: 28,
+                                                                                            fontSize: '0.8rem',
+                                                                                            bgcolor: '#16A249',
+                                                                                            mr: 1,
+                                                                                        }}
+                                                                                    >
+                                                                                        {task.assignedUser?.name
+                                                                                            ? task.assignedUser.name
+                                                                                                  .split(' ')
+                                                                                                  .map((n) => n[0])
+                                                                                                  .join('')
+                                                                                                  .toUpperCase()
+                                                                                            : 'NA'}
+                                                                                    </Avatar>
+                                                                                    <Typography variant="body2">
+                                                                                        {task.assignedUser?.name || 'Non assigné'}
+                                                                                    </Typography>
+                                                                                </Box>
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Box
+                                                                                    sx={{
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                    }}
+                                                                                >
+                                                                                    <CalendarIcon
+                                                                                        fontSize="small"
+                                                                                        sx={{
+                                                                                            color: '#666',
+                                                                                            mr: 1,
+                                                                                            opacity: 0.7,
+                                                                                        }}
+                                                                                    />
+                                                                                    <Typography variant="body2">
+                                                                                        {formatDate(task.end_date)}
+                                                                                    </Typography>
+                                                                                </Box>
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Box sx={{ width: '100%', maxWidth: 120 }}>
+                                                                                    <Box
+                                                                                        sx={{
+                                                                                            display: 'flex',
+                                                                                            justifyContent: 'space-between',
+                                                                                            mb: 0.5,
+                                                                                        }}
+                                                                                    >
+                                                                                        <Typography variant="caption" color="text.secondary">
+                                                                                            Progression
+                                                                                        </Typography>
+                                                                                        <Typography variant="caption" fontWeight="bold">
+                                                                                            {task.progress || 0}%
+                                                                                        </Typography>
+                                                                                    </Box>
+                                                                                    <LinearProgress
+                                                                                        variant="determinate"
+                                                                                        value={task.progress || 0}
+                                                                                        sx={{
+                                                                                            height: 8,
+                                                                                            borderRadius: 4,
+                                                                                            bgcolor: '#e9ecef',
+                                                                                            '& .MuiLinearProgress-bar': {
+                                                                                                bgcolor:
+                                                                                                    (task.progress ?? 0) >= 80
+                                                                                                        ? '#16A249'
+                                                                                                        : (task.progress ?? 0) >= 50
+                                                                                                          ? '#2196f3'
+                                                                                                          : (task.progress ?? 0) >= 30
+                                                                                                            ? '#ff9800'
+                                                                                                            : '#f44336',
+                                                                                                borderRadius: 4,
+                                                                                            },
+                                                                                        }}
+                                                                                    />
+                                                                                </Box>
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Box sx={{ display: 'flex' }}>
+                                                                                    <IconButton
+                                                                                        size="small"
+                                                                                        sx={{
+                                                                                            color: '#2196f3',
+                                                                                            '&:hover': {
+                                                                                                bgcolor: 'rgba(33, 150, 243, 0.1)',
+                                                                                            },
+                                                                                            transition: 'all 0.2s',
+                                                                                        }}
+                                                                                    >
+                                                                                        <Edit fontSize="small" />
+                                                                                    </IconButton>
+                                                                                    <IconButton
+                                                                                        size="small"
+                                                                                        sx={{
+                                                                                            color: '#f44336',
+                                                                                            '&:hover': {
+                                                                                                bgcolor: 'rgba(244, 67, 54, 0.1)',
+                                                                                            },
+                                                                                            transition: 'all 0.2s',
+                                                                                        }}
+                                                                                    >
+                                                                                        <Delete fontSize="small" />
+                                                                                    </IconButton>
+                                                                                </Box>
+                                                                            </TableCell>
+                                                                        </TableRow>
+                                                                    ))
+                                                                ) : (
+                                                                    <TableRow>
+                                                                        <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                                                                            <Box
+                                                                                sx={{
+                                                                                    display: 'flex',
+                                                                                    flexDirection: 'column',
+                                                                                    alignItems: 'center',
+                                                                                    p: 3,
+                                                                                }}
+                                                                            >
+                                                                                <AssignmentIcon sx={{ fontSize: 48, color: '#ccc', mb: 2 }} />
+                                                                                <Typography variant="h6" color="text.secondary" gutterBottom>
+                                                                                    Aucune tâche trouvée
+                                                                                </Typography>
+                                                                                <Typography variant="body2" color="text.secondary">
+                                                                                    Commencez par ajouter une tâche à ce projet
+                                                                                </Typography>
+                                                                            </Box>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </TableContainer>
+                                                </Box>
+                                            )}
                                         </>
                                     )}
                                 </Box>
@@ -1336,20 +1565,6 @@ function Projet() {
                                                         Liste des équipes qui gèrent ce projet
                                                     </Typography>
                                                 </Box>
-                                                {/* <Box>
-                                                    <Button 
-                                                        variant="contained"
-                                                        color="success"
-                                                        startIcon={<Add />}
-                                                        sx={{ textTransform: 'none', borderRadius: 1, px: 2, bgcolor: '#16A249' }}
-                                                        onClick={() => {
-                                                            // Ouvrir un dialogue pour assigner une nouvelle équipe
-                                                            // Cette fonctionnalité pourrait être implémentée ultérieurement
-                                                        }}
-                                                    >
-                                                        Assigner une équipe
-                                                    </Button>
-                                                </Box> */}
                                             </Box>
 
                                             {loadingTeams ? (
@@ -1480,638 +1695,452 @@ function Projet() {
                                                     <Typography variant="body1" color="text.secondary">
                                                         Aucune équipe associée à ce projet
                                                     </Typography>
-                                                    <Button
-                                                        variant="contained"
-                                                        color="primary"
-                                                        startIcon={<Add />}
-                                                        sx={{ mt: 2 }}
-                                                        onClick={() => {
-                                                            // Ouvrir un dialogue pour assigner une nouvelle équipe
-                                                            // Cette fonctionnalité pourrait être implémentée ultérieurement
-                                                        }}
-                                                    >
-                                                        Assigner une équipe
-                                                    </Button>
                                                 </Box>
                                             )}
                                         </>
                                     )}
                                 </Box>
 
-                                {/* Contenu de l'onglet Commentaires (version améliorée) */}
+                                {/* Amélioration du design de la fenêtre Commentaires */}
+                                {/* Contenu de l'onglet Commentaires */}
                                 <Box role="tabpanel" hidden={tabValue !== 3} sx={{ p: 3 }}>
                                     {tabValue === 3 && (
                                         <>
-                                            {/* Formulaire d'ajout de commentaire principal - en haut */}
-                                            <Paper elevation={1} sx={{ p: 3, mb: 4, borderRadius: 2, bgcolor: '#fff', border: '1px solid #e8f5e9' }}>
-                                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                                                    <Avatar
-                                                        sx={{
-                                                            bgcolor: '#16A249',
-                                                            color: 'white',
-                                                            width: 48,
-                                                            height: 48,
-                                                            fontWeight: 'medium',
-                                                            fontSize: '1rem',
-                                                            display: 'flex',
-                                                            justifyContent: 'center',
-                                                            alignItems: 'center',
-                                                        }}
-                                                    >
-                                                        {currentUser.avatar ? (
-                                                            <img
-                                                                src={currentUser.avatar}
-                                                                alt={currentUser.name}
-                                                                width="48"
-                                                                height="48"
-                                                                style={{ objectFit: 'cover' }}
-                                                            />
-                                                        ) : (
-                                                            getInitials(currentUser.name)
-                                                        )}
-                                                    </Avatar>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                                                <Typography variant="h6" component="h2" fontWeight="bold">
+                                                    Commentaires
+                                                </Typography>
+                                            </Box>
+
+                                            {/* Zone de saisie de commentaire en haut */}
+                                            <Box sx={{ mb: 4, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                                <Avatar sx={{ bgcolor: '#16A249' }}>{getInitials(currentUser.name)}</Avatar>
+                                                <Box sx={{ flex: 1 }}>
                                                     <TextField
                                                         fullWidth
-                                                        multiline
-                                                        rows={3}
-                                                        placeholder="Ajouter un commentaire..."
                                                         value={newComment}
                                                         onChange={(e) => setNewComment(e.target.value)}
                                                         variant="outlined"
-                                                        InputProps={{
-                                                            sx: {
-                                                                borderRadius: 2,
-                                                                bgcolor: '#f8f8f8',
+                                                        sx={{
+                                                            mb: 1,
+                                                            '& .MuiOutlinedInput-root': {
                                                                 '& fieldset': {
-                                                                    borderColor: 'rgba(22, 162, 73, 0.1)',
+                                                                    borderRadius: 2,
                                                                 },
                                                                 '&:hover fieldset': {
-                                                                    borderColor: 'rgba(22, 162, 73, 0.3) !important',
+                                                                    borderColor: 'darkgreen',
                                                                 },
                                                                 '&.Mui-focused fieldset': {
-                                                                    borderColor: '#16A249 !important',
-                                                                    borderWidth: '1px !important',
+                                                                    borderColor: '#16A249', // vert personnalisé pendant focus
                                                                 },
                                                             },
                                                         }}
                                                     />
                                                 </Box>
-                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                                                    <Button
-                                                        variant="contained"
-                                                        startIcon={<SendIcon />}
-                                                        onClick={() => {
-                                                            // Réinitialiser replyingToCommentId pour s'assurer qu'on ajoute un commentaire principal
-                                                            setReplyingToCommentId(null);
-                                                            handleAddComment();
-                                                        }}
-                                                        disabled={!newComment.trim()}
-                                                        sx={{
-                                                            borderRadius: 6,
-                                                            textTransform: 'none',
-                                                            px: 3,
-                                                            bgcolor: '#16A249',
-                                                            '&:hover': {
-                                                                bgcolor: '#118C3E',
-                                                            },
-                                                        }}
-                                                    >
-                                                        Commenter
-                                                    </Button>
-                                                </Box>
-                                            </Paper>
+                                                <Button
+                                                    variant="contained"
+                                                    color="success"
+                                                    onClick={handleAddComment}
+                                                    disabled={!newComment.trim()}
+                                                    endIcon={<InsertCommentOutlinedIcon />}
+                                                    sx={{
+                                                        bgcolor: '#16A249',
+                                                        border: '1px  ',
+                                                        textTransform: 'none',
+                                                        borderRadius: 1,
+                                                        px: 2,
+                                                        '&:hover': {
+                                                            bgcolor: '#138a3c', // a slightly darker green for hover
+                                                            borderColor: '#138a3c',
+                                                        },
+                                                    }}
+                                                >
+                                                    Commenter
+                                                </Button>
+                                            </Box>
 
                                             {/* Liste des commentaires */}
-                                            <Typography variant="h6" fontWeight="bold" gutterBottom color="#333">
-                                                Commentaires
-                                            </Typography>
-
-                                            {loadingComments ? (
-                                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                                                    <CircularProgress sx={{ color: '#16A249' }} size={30} />
-                                                </Box>
-                                            ) : comments.length > 0 ? (
-                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                    {comments.map((comment) => (
-                                                        <Paper
-                                                            key={comment.id}
-                                                            elevation={0}
-                                                            sx={{
-                                                                p: 3,
-                                                                borderRadius: 2,
-                                                                bgcolor: '#fff',
-                                                                border: '1px solid #e8f5e9',
-                                                                mb: 2,
-                                                                position: 'relative',
-                                                                '&::before': {
-                                                                    content: '""',
-                                                                    position: 'absolute',
-                                                                    left: 0,
-                                                                    top: 0,
-                                                                    bottom: 0,
-                                                                    width: '4px',
-                                                                    bgcolor: '#16A249',
-                                                                    borderTopLeftRadius: 2,
-                                                                    borderBottomLeftRadius: 2,
-                                                                    opacity: 0.7,
-                                                                },
-                                                            }}
-                                                        >
-                                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                                    <Avatar
-                                                                        sx={{
-                                                                            bgcolor: '#16A249',
-                                                                            color: 'white',
-                                                                            width: 48,
-                                                                            height: 48,
-                                                                            fontWeight: 'medium',
-                                                                            fontSize: '1rem',
-                                                                            display: 'flex',
-                                                                            justifyContent: 'center',
-                                                                            alignItems: 'center',
-                                                                        }}
-                                                                    >
-                                                                        {comment.user?.avatar ? (
-                                                                            <img
-                                                                                src={comment.user.avatar}
-                                                                                alt={comment.user.name}
-                                                                                width="48"
-                                                                                height="48"
-                                                                                style={{ objectFit: 'cover' }}
-                                                                            />
-                                                                        ) : (
-                                                                            getInitials(comment.user?.name || 'Utilisateur')
-                                                                        )}
-                                                                    </Avatar>
-                                                                    <Box>
-                                                                        <Typography variant="subtitle1" fontWeight="bold">
-                                                                            {comment.user?.name || 'Utilisateur'}
-                                                                        </Typography>
-                                                                        <Typography variant="body2" color="text.secondary">
-                                                                            {formatDateTime(comment.created_at)}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                </Box>
-                                                                {comment.user_id === currentUser.id && (
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        onClick={(e) => handleCommentActionMenuOpen(e, comment.id)}
-                                                                        sx={{ color: '#757575', '&:hover': { color: '#16A249' } }}
-                                                                    >
-                                                                        <MoreVert fontSize="small" />
-                                                                    </IconButton>
-                                                                )}
-                                                            </Box>
-
-                                                            {editingCommentId === comment.id ? (
-                                                                <Box sx={{ mt: 2 }}>
-                                                                    <TextField
-                                                                        fullWidth
-                                                                        multiline
-                                                                        rows={3}
-                                                                        value={editCommentContent}
-                                                                        onChange={(e) => setEditCommentContent(e.target.value)}
-                                                                        sx={{ mb: 2 }}
-                                                                        variant="outlined"
-                                                                        InputProps={{
-                                                                            sx: {
-                                                                                borderRadius: 2,
-                                                                                bgcolor: '#f8f8f8',
-                                                                                '& fieldset': {
-                                                                                    borderColor: 'rgba(22, 162, 73, 0.1)',
-                                                                                },
-                                                                                '&:hover fieldset': {
-                                                                                    borderColor: 'rgba(22, 162, 73, 0.3) !important',
-                                                                                },
-                                                                                '&.Mui-focused fieldset': {
-                                                                                    borderColor: '#16A249 !important',
-                                                                                    borderWidth: '1px !important',
-                                                                                },
-                                                                            },
-                                                                        }}
-                                                                    />
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                                                        <Button
-                                                                            variant="text"
-                                                                            onClick={handleCancelEditComment}
-                                                                            sx={{ textTransform: 'none', color: '#757575' }}
-                                                                        >
-                                                                            Annuler
-                                                                        </Button>
-                                                                        <Button
-                                                                            variant="contained"
-                                                                            onClick={handleUpdateComment}
-                                                                            disabled={!editCommentContent.trim()}
-                                                                            sx={{
-                                                                                textTransform: 'none',
-                                                                                bgcolor: '#16A249',
-                                                                                '&:hover': {
-                                                                                    bgcolor: '#118C3E',
-                                                                                },
-                                                                            }}
-                                                                        >
-                                                                            Enregistrer
-                                                                        </Button>
-                                                                    </Box>
-                                                                </Box>
-                                                            ) : (
-                                                                <>
-                                                                    <Typography
-                                                                        variant="body1"
-                                                                        sx={{
-                                                                            mt: 2,
-                                                                            mb: 2,
-                                                                            whiteSpace: 'pre-wrap',
-                                                                            lineHeight: 1.6,
-                                                                            color: '#333',
-                                                                        }}
-                                                                    >
-                                                                        {comment.content}
-                                                                    </Typography>
-
+                                            <Box sx={{ mt: 2, mb: 4 }}>
+                                                {loadingComments ? (
+                                                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                                                        <CircularProgress size={30} />
+                                                    </Box>
+                                                ) : comments.length > 0 ? (
+                                                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                                        {comments
+                                                            .filter((comment) => !comment.parent_id)
+                                                            .map((comment) => (
+                                                                <Box key={comment.id} sx={{ position: 'relative', mb: 3 }}>
+                                                                    {/* Barre verte verticale */}
                                                                     <Box
                                                                         sx={{
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            borderTop: '1px solid #e8f5e9',
-                                                                            pt: 2,
-                                                                            mt: 2,
+                                                                            position: 'absolute',
+                                                                            left: 0,
+                                                                            top: 0,
+                                                                            bottom: 0,
+                                                                            width: '4px',
+                                                                            bgcolor: '#16A249',
+                                                                            borderTopLeftRadius: 4,
+                                                                            borderBottomLeftRadius: 4,
                                                                         }}
-                                                                    >
-                                                                        <Button
-                                                                            startIcon={
-                                                                                isCommentLiked(comment.id) ? <ThumbUpAlt /> : <ThumbUpAltOutlined />
-                                                                            }
-                                                                            onClick={() => handleLikeComment(comment.id)}
-                                                                            disabled={likingCommentIds.includes(comment.id)}
-                                                                            sx={{
-                                                                                textTransform: 'none',
-                                                                                color: isCommentLiked(comment.id) ? '#16A249' : '#757575',
-                                                                                mr: 2,
-                                                                                fontWeight: 'medium',
-                                                                                '&:hover': {
-                                                                                    color: '#16A249',
-                                                                                    bgcolor: 'rgba(22, 162, 73, 0.08)',
-                                                                                },
-                                                                                '&.Mui-disabled': {
-                                                                                    opacity: 0.6,
-                                                                                    color: isCommentLiked(comment.id) ? '#16A249' : '#757575',
-                                                                                },
-                                                                            }}
-                                                                        >
-                                                                            {comment.likes_count || 0}
-                                                                        </Button>
-                                                                        <Button
-                                                                            startIcon={<CommentIcon />}
-                                                                            sx={{
-                                                                                textTransform: 'none',
-                                                                                color: replyingToCommentId === comment.id ? '#16A249' : '#757575',
-                                                                                fontWeight: 'medium',
-                                                                                '&:hover': {
-                                                                                    color: '#16A249',
-                                                                                    bgcolor: 'rgba(22, 162, 73, 0.08)',
-                                                                                },
-                                                                            }}
-                                                                            onClick={() => {
-                                                                                // Toggle le formulaire de réponse
-                                                                                if (replyingToCommentId === comment.id) {
-                                                                                    setReplyingToCommentId(null);
-                                                                                    setNewComment('');
-                                                                                } else {
-                                                                                    setReplyingToCommentId(comment.id);
-                                                                                    setNewComment('');
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            Répondre
-                                                                        </Button>
-                                                                    </Box>
-                                                                </>
-                                                            )}
+                                                                    />
 
-                                                            {/* Formulaire de réponse inline */}
-                                                            {replyingToCommentId === comment.id && (
-                                                                <Box sx={{ mt: 3, mb: 2, ml: 6, borderLeft: '2px solid #e8f5e9', pl: 2 }}>
-                                                                    <Paper
-                                                                        elevation={0}
-                                                                        sx={{
-                                                                            p: 2,
-                                                                            bgcolor: '#f8f8f8',
-                                                                            borderRadius: 2,
-                                                                            border: '1px solid rgba(22, 162, 73, 0.1)',
-                                                                        }}
-                                                                    >
-                                                                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                                                                            <Avatar
-                                                                                sx={{
-                                                                                    bgcolor: '#16A249',
-                                                                                    color: 'white',
-                                                                                    width: 36,
-                                                                                    height: 36,
-                                                                                    fontWeight: 'medium',
-                                                                                    fontSize: '0.9rem',
-                                                                                }}
-                                                                            >
-                                                                                {getInitials(currentUser.name)}
+                                                                    <Box sx={{ pl: 2 }}>
+                                                                        {/* En-tête du commentaire */}
+                                                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                                            <Avatar sx={{ width: 40, height: 40, bgcolor: '#16A249', mr: 1 }}>
+                                                                                {getInitials(comment.user?.name || 'Utilisateur')}
                                                                             </Avatar>
-                                                                            <TextField
-                                                                                fullWidth
-                                                                                multiline
-                                                                                rows={2}
-                                                                                placeholder={`Répondre à ${comment.user?.name || 'Utilisateur'}...`}
-                                                                                value={newComment}
-                                                                                onChange={(e) => setNewComment(e.target.value)}
-                                                                                variant="outlined"
-                                                                                autoFocus
-                                                                                InputProps={{
-                                                                                    sx: {
-                                                                                        borderRadius: 2,
-                                                                                        bgcolor: '#fff',
-                                                                                        '& fieldset': {
-                                                                                            borderColor: 'rgba(22, 162, 73, 0.1)',
-                                                                                        },
-                                                                                        '&:hover fieldset': {
-                                                                                            borderColor: 'rgba(22, 162, 73, 0.3) !important',
-                                                                                        },
-                                                                                        '&.Mui-focused fieldset': {
-                                                                                            borderColor: '#16A249 !important',
-                                                                                            borderWidth: '1px !important',
-                                                                                        },
-                                                                                    },
-                                                                                }}
-                                                                            />
+                                                                            <Box>
+                                                                                <Typography variant="subtitle1" fontWeight="medium">
+                                                                                    {comment.user?.name || 'Utilisateur'}
+                                                                                </Typography>
+                                                                                <Typography variant="caption" color="text.secondary">
+                                                                                    {formatDateTime(comment.created_at)}
+                                                                                </Typography>
+                                                                            </Box>
+                                                                            {comment.user_id === currentUser.id && (
+                                                                                <IconButton
+                                                                                    size="small"
+                                                                                    sx={{ ml: 'auto' }}
+                                                                                    onClick={(e) => handleCommentActionMenuOpen(e, comment.id)}
+                                                                                >
+                                                                                    <MoreVert fontSize="small" />
+                                                                                </IconButton>
+                                                                            )}
                                                                         </Box>
-                                                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, gap: 1 }}>
+
+                                                                        {/* Contenu du commentaire */}
+                                                                        {editingCommentId === comment.id ? (
+                                                                            <Box sx={{ mt: 1, ml: 6 }}>
+                                                                                <TextField
+                                                                                    fullWidth
+                                                                                    multiline
+                                                                                    rows={2}
+                                                                                    value={editCommentContent}
+                                                                                    onChange={(e) => setEditCommentContent(e.target.value)}
+                                                                                    sx={{
+                                                                                        mb: 1,
+                                                                                        '& .MuiOutlinedInput-root': {
+                                                                                            '& fieldset': {
+                                                                                                borderRadius: 2,
+                                                                                            },
+                                                                                            '&:hover fieldset': {
+                                                                                                borderColor: 'darkgreen',
+                                                                                            },
+                                                                                            '&.Mui-focused fieldset': {
+                                                                                                borderColor: '#16A249', // vert personnalisé pendant focus
+                                                                                            },
+                                                                                        },
+                                                                                    }}
+                                                                                />
+                                                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                                                                    <Button
+                                                                                        size="small"
+                                                                                        variant="outlined"
+                                                                                        color="error"
+                                                                                        onClick={handleCancelEditComment}
+                                                                                        sx={{
+                                                                                            textTransform: 'none',
+                                                                                            borderColor: 'error.main',
+                                                                                            '&:hover': {
+                                                                                                backgroundColor: 'error.main',
+                                                                                                color: 'white',
+                                                                                                borderColor: 'error.main',
+                                                                                            },
+                                                                                        }}
+                                                                                    >
+                                                                                        Annuler
+                                                                                    </Button>
+                                                                                    <Button
+                                                                                        size="small"
+                                                                                        variant="contained"
+                                                                                        onClick={handleUpdateComment}
+                                                                                        disabled={!editCommentContent.trim()}
+                                                                                        sx={{
+                                                                                            bgcolor: '#16A249',
+                                                                                            border: '1px solid #16A249',
+                                                                                            textTransform: 'none',
+                                                                                            borderRadius: 1,
+                                                                                            px: 2,
+                                                                                            '&:hover': {
+                                                                                                bgcolor: '#138a3c', // a slightly darker green for hover
+                                                                                                borderColor: '#138a3c',
+                                                                                            },
+                                                                                        }}
+                                                                                    >
+                                                                                        Enregistrer
+                                                                                    </Button>
+                                                                                </Box>
+                                                                            </Box>
+                                                                        ) : (
+                                                                            <Typography variant="body1" sx={{ ml: 6, mb: 2 }}>
+                                                                                {comment.content}
+                                                                            </Typography>
+                                                                        )}
+
+                                                                        {/* Actions du commentaire (J'aime, Répondre) */}
+                                                                        <Box sx={{ display: 'flex', alignItems: 'center', ml: 6, mb: 2 }}>
                                                                             <Button
-                                                                                variant="text"
-                                                                                onClick={() => {
-                                                                                    setReplyingToCommentId(null);
-                                                                                    setNewComment('');
+                                                                                startIcon={
+                                                                                    likedComments.has(comment.id) ? (
+                                                                                        <ThumbUp />
+                                                                                    ) : (
+                                                                                        <ThumbUpAltOutlined />
+                                                                                    )
+                                                                                }
+                                                                                sx={{
+                                                                                    color: likedComments.has(comment.id)
+                                                                                        ? '#16A249'
+                                                                                        : 'text.secondary',
+                                                                                    textTransform: 'none',
+                                                                                    mr: 2,
                                                                                 }}
-                                                                                sx={{ textTransform: 'none', color: '#757575' }}
+                                                                                onClick={() => handleToggleLike(comment.id)}
                                                                             >
-                                                                                Annuler
+                                                                                {comment.likes_count || 0}
                                                                             </Button>
                                                                             <Button
-                                                                                variant="contained"
-                                                                                startIcon={<SendIcon />}
-                                                                                onClick={handleAddComment}
-                                                                                disabled={!newComment.trim()}
+                                                                                startIcon={<ChatBubbleOutline />}
                                                                                 sx={{
-                                                                                    borderRadius: 6,
+                                                                                    color: 'text.secondary',
                                                                                     textTransform: 'none',
-                                                                                    px: 2,
-                                                                                    bgcolor: '#16A249',
-                                                                                    '&:hover': {
-                                                                                        bgcolor: '#118C3E',
-                                                                                    },
                                                                                 }}
+                                                                                onClick={() => handleReplyToComment(comment.id)}
                                                                             >
                                                                                 Répondre
                                                                             </Button>
                                                                         </Box>
-                                                                    </Paper>
-                                                                </Box>
-                                                            )}
 
-                                                            {/* Afficher les réponses au commentaire */}
-                                                            {comment.replies && comment.replies.length > 0 && (
-                                                                <Box sx={{ mt: 3, ml: 6 }}>
-                                                                    {comment.replies.map((reply) => (
-                                                                        <Box
-                                                                            key={reply.id}
-                                                                            sx={{
-                                                                                pt: 3,
-                                                                                borderTop: '1px solid #e8f5e9',
-                                                                                position: 'relative',
-                                                                                '&::before': {
-                                                                                    content: '""',
-                                                                                    position: 'absolute',
-                                                                                    left: -16,
-                                                                                    top: 28,
-                                                                                    bottom: 0,
-                                                                                    width: '2px',
-                                                                                    height: 'calc(100% - 28px)',
-                                                                                    bgcolor: '#e8f5e9',
-                                                                                },
-                                                                                mb: 3,
-                                                                            }}
-                                                                        >
-                                                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                                                                                <Avatar
+                                                                        {/* Zone de réponse */}
+                                                                        {replyingToCommentId === comment.id && (
+                                                                            <Box sx={{ ml: 6, mb: 2 }}>
+                                                                                <TextField
+                                                                                    fullWidth
+                                                                                    placeholder="Écrivez votre réponse..."
+                                                                                    value={replyContent}
+                                                                                    onChange={(e) => setReplyContent(e.target.value)}
                                                                                     sx={{
-                                                                                        bgcolor: '#16A249',
-                                                                                        color: 'white',
-                                                                                        width: 40,
-                                                                                        height: 40,
-                                                                                        fontWeight: 'medium',
-                                                                                        fontSize: '0.9rem',
-                                                                                        display: 'flex',
-                                                                                        justifyContent: 'center',
-                                                                                        alignItems: 'center',
+                                                                                        mb: 1,
+                                                                                        '& .MuiOutlinedInput-root': {
+                                                                                            '& fieldset': {
+                                                                                                borderRadius: 2,
+                                                                                            },
+                                                                                            '&:hover fieldset': {
+                                                                                                borderColor: 'darkgreen',
+                                                                                            },
+                                                                                            '&.Mui-focused fieldset': {
+                                                                                                borderColor: '#16A249', // vert personnalisé pendant focus
+                                                                                            },
+                                                                                        },
                                                                                     }}
-                                                                                >
-                                                                                    {reply.user?.avatar ? (
-                                                                                        <img
-                                                                                            src={reply.user.avatar}
-                                                                                            alt={reply.user.name}
-                                                                                            width="40"
-                                                                                            height="40"
-                                                                                            style={{ objectFit: 'cover' }}
-                                                                                        />
-                                                                                    ) : (
-                                                                                        getInitials(reply.user?.name || 'Utilisateur')
-                                                                                    )}
-                                                                                </Avatar>
-                                                                                <Box sx={{ flex: 1 }}>
-                                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                                                        <Box>
-                                                                                            <Typography variant="subtitle1" fontWeight="bold">
-                                                                                                {reply.user?.name || 'Utilisateur'}
-                                                                                            </Typography>
-                                                                                            <Typography variant="body2" color="text.secondary">
-                                                                                                {formatDateTime(reply.created_at)}
-                                                                                            </Typography>
-                                                                                        </Box>
-                                                                                        {reply.user_id === currentUser.id && (
-                                                                                            <IconButton
-                                                                                                size="small"
-                                                                                                onClick={(e) =>
-                                                                                                    handleCommentActionMenuOpen(e, reply.id)
-                                                                                                }
-                                                                                                sx={{
-                                                                                                    color: '#757575',
-                                                                                                    '&:hover': { color: '#16A249' },
-                                                                                                }}
-                                                                                            >
-                                                                                                <MoreVert fontSize="small" />
-                                                                                            </IconButton>
-                                                                                        )}
-                                                                                    </Box>
-                                                                                    {editingCommentId === reply.id ? (
-                                                                                        <Box sx={{ mt: 2 }}>
-                                                                                            <TextField
-                                                                                                fullWidth
-                                                                                                multiline
-                                                                                                rows={2}
-                                                                                                value={editCommentContent}
-                                                                                                onChange={(e) =>
-                                                                                                    setEditCommentContent(e.target.value)
-                                                                                                }
-                                                                                                sx={{ mb: 2 }}
-                                                                                                variant="outlined"
-                                                                                                InputProps={{
-                                                                                                    sx: {
-                                                                                                        borderRadius: 2,
-                                                                                                        bgcolor: '#f8f8f8',
-                                                                                                        '& fieldset': {
-                                                                                                            borderColor: 'rgba(22, 162, 73, 0.1)',
-                                                                                                        },
-                                                                                                        '&:hover fieldset': {
-                                                                                                            borderColor:
-                                                                                                                'rgba(22, 162, 73, 0.3) !important',
-                                                                                                        },
-                                                                                                        '&.Mui-focused fieldset': {
-                                                                                                            borderColor: '#16A249 !important',
-                                                                                                            borderWidth: '1px !important',
-                                                                                                        },
-                                                                                                    },
-                                                                                                }}
-                                                                                            />
+                                                                                />
+                                                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                                                                    <Button
+                                                                                        variant="outlined"
+                                                                                        color="error"
+                                                                                        size="small"
+                                                                                        onClick={handleCancelReply}
+                                                                                        sx={{
+                                                                                            textTransform: 'none',
+                                                                                            borderColor: 'error.main',
+                                                                                            '&:hover': {
+                                                                                                backgroundColor: 'error.main',
+                                                                                                color: 'white',
+                                                                                                borderColor: 'error.main',
+                                                                                            },
+                                                                                        }}
+                                                                                    >
+                                                                                        Annuler
+                                                                                    </Button>
+                                                                                    <Button
+                                                                                        variant="contained"
+                                                                                        size="small"
+                                                                                        color="success"
+                                                                                        onClick={handleSubmitReply}
+                                                                                        disabled={!replyContent.trim()}
+                                                                                        sx={{
+                                                                                            bgcolor: '#16A249',
+                                                                                            border: '1px solid #16A249',
+                                                                                            textTransform: 'none',
+                                                                                            borderRadius: 1,
+                                                                                            px: 2,
+                                                                                            '&:hover': {
+                                                                                                bgcolor: '#138a3c', // a slightly darker green for hover
+                                                                                                borderColor: '#138a3c',
+                                                                                            },
+                                                                                        }}
+                                                                                    >
+                                                                                        Répondre
+                                                                                    </Button>
+                                                                                </Box>
+                                                                            </Box>
+                                                                        )}
+
+                                                                        {/* Afficher les réponses */}
+                                                                        {comments.filter((reply) => reply.parent_id === comment.id).length > 0 && (
+                                                                            <Box sx={{ ml: 6, borderLeft: '2px solid #e0e0e0', pl: 2 }}>
+                                                                                {comments
+                                                                                    .filter((reply) => reply.parent_id === comment.id)
+                                                                                    .map((reply) => (
+                                                                                        <Box key={reply.id} sx={{ mb: 2 }}>
                                                                                             <Box
-                                                                                                sx={{
-                                                                                                    display: 'flex',
-                                                                                                    justifyContent: 'flex-end',
-                                                                                                    gap: 1,
-                                                                                                }}
+                                                                                                sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
                                                                                             >
-                                                                                                <Button
-                                                                                                    variant="text"
-                                                                                                    onClick={handleCancelEditComment}
-                                                                                                    sx={{ textTransform: 'none', color: '#757575' }}
-                                                                                                >
-                                                                                                    Annuler
-                                                                                                </Button>
-                                                                                                <Button
-                                                                                                    variant="contained"
-                                                                                                    onClick={handleUpdateComment}
-                                                                                                    disabled={!editCommentContent.trim()}
+                                                                                                <Avatar
                                                                                                     sx={{
-                                                                                                        textTransform: 'none',
+                                                                                                        width: 32,
+                                                                                                        height: 32,
                                                                                                         bgcolor: '#16A249',
-                                                                                                        '&:hover': {
-                                                                                                            bgcolor: '#118C3E',
-                                                                                                        },
+                                                                                                        mr: 1,
                                                                                                     }}
                                                                                                 >
-                                                                                                    Enregistrer
-                                                                                                </Button>
+                                                                                                    {getInitials(reply.user?.name || 'Utilisateur')}
+                                                                                                </Avatar>
+                                                                                                <Box>
+                                                                                                    <Typography
+                                                                                                        variant="subtitle2"
+                                                                                                        fontWeight="medium"
+                                                                                                    >
+                                                                                                        {reply.user?.name || 'Utilisateur'}
+                                                                                                    </Typography>
+                                                                                                    <Typography
+                                                                                                        variant="caption"
+                                                                                                        color="text.secondary"
+                                                                                                    >
+                                                                                                        {formatDateTime(reply.created_at)}
+                                                                                                    </Typography>
+                                                                                                </Box>
+                                                                                                {reply.user_id === currentUser.id && (
+                                                                                                    <IconButton
+                                                                                                        size="small"
+                                                                                                        sx={{ ml: 'auto' }}
+                                                                                                        onClick={(e) =>
+                                                                                                            handleCommentActionMenuOpen(e, reply.id)
+                                                                                                        }
+                                                                                                    >
+                                                                                                        <MoreVert fontSize="small" />
+                                                                                                    </IconButton>
+                                                                                                )}
                                                                                             </Box>
-                                                                                        </Box>
-                                                                                    ) : (
-                                                                                        <>
-                                                                                            <Typography
-                                                                                                variant="body1"
-                                                                                                sx={{
-                                                                                                    mt: 1,
-                                                                                                    whiteSpace: 'pre-wrap',
-                                                                                                    lineHeight: 1.6,
-                                                                                                    color: '#333',
-                                                                                                }}
-                                                                                            >
-                                                                                                {reply.content}
-                                                                                            </Typography>
+                                                                                            {editingCommentId === reply.id ? (
+                                                                                                <Box sx={{ mt: 1, ml: 5 }}>
+                                                                                                    <TextField
+                                                                                                        fullWidth
+                                                                                                        multiline
+                                                                                                        rows={2}
+                                                                                                        value={editCommentContent}
+                                                                                                        onChange={(e) =>
+                                                                                                            setEditCommentContent(e.target.value)
+                                                                                                        }
+                                                                                                        sx={{
+                                                                                                            mb: 1,
+                                                                                                            '& .MuiOutlinedInput-root': {
+                                                                                                                '& fieldset': {
+                                                                                                                    borderRadius: 2,
+                                                                                                                },
+                                                                                                                '&:hover fieldset': {
+                                                                                                                    borderColor: 'darkgreen',
+                                                                                                                },
+                                                                                                                '&.Mui-focused fieldset': {
+                                                                                                                    borderColor: '#16A249',
+                                                                                                                },
+                                                                                                            },
+                                                                                                        }}
+                                                                                                    />
+                                                                                                    <Box
+                                                                                                        sx={{
+                                                                                                            display: 'flex',
+                                                                                                            justifyContent: 'flex-end',
+                                                                                                            gap: 1,
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        <Button
+                                                                                                            size="small"
+                                                                                                            variant="outlined"
+                                                                                                            color="error"
+                                                                                                            onClick={handleCancelEditComment}
+                                                                                                            sx={{
+                                                                                                                textTransform: 'none',
+                                                                                                                borderColor: 'error.main',
+                                                                                                                '&:hover': {
+                                                                                                                    backgroundColor: 'error.main',
+                                                                                                                    color: 'white',
+                                                                                                                    borderColor: 'error.main',
+                                                                                                                },
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            Annuler
+                                                                                                        </Button>
+                                                                                                        <Button
+                                                                                                            size="small"
+                                                                                                            variant="contained"
+                                                                                                            onClick={handleUpdateComment}
+                                                                                                            disabled={!editCommentContent.trim()}
+                                                                                                            sx={{
+                                                                                                                bgcolor: '#16A249',
+                                                                                                                border: '1px solid #16A249',
+                                                                                                                textTransform: 'none',
+                                                                                                                borderRadius: 1,
+                                                                                                                px: 2,
+                                                                                                                '&:hover': {
+                                                                                                                    bgcolor: '#138a3c',
+                                                                                                                    borderColor: '#138a3c',
+                                                                                                                },
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            Enregistrer
+                                                                                                        </Button>
+                                                                                                    </Box>
+                                                                                                </Box>
+                                                                                            ) : (
+                                                                                                <Typography variant="body1" sx={{ ml: 5 }}>
+                                                                                                    {reply.content}
+                                                                                                </Typography>
+                                                                                            )}
+                                                                                            {/* Bouton J'aime pour les réponses */}
                                                                                             <Box
                                                                                                 sx={{
                                                                                                     display: 'flex',
                                                                                                     alignItems: 'center',
-                                                                                                    mt: 2,
+                                                                                                    ml: 5,
+                                                                                                    mt: 1,
                                                                                                 }}
                                                                                             >
                                                                                                 <Button
                                                                                                     startIcon={
-                                                                                                        isCommentLiked(reply.id) ? (
-                                                                                                            <ThumbUpAlt />
+                                                                                                        likedComments.has(reply.id) ? (
+                                                                                                            <ThumbUp />
                                                                                                         ) : (
                                                                                                             <ThumbUpAltOutlined />
                                                                                                         )
                                                                                                     }
-                                                                                                    onClick={() => handleLikeComment(reply.id)}
-                                                                                                    disabled={likingCommentIds.includes(reply.id)}
+                                                                                                    size="small"
                                                                                                     sx={{
-                                                                                                        textTransform: 'none',
-                                                                                                        color: isCommentLiked(reply.id)
+                                                                                                        color: likedComments.has(reply.id)
                                                                                                             ? '#16A249'
-                                                                                                            : '#757575',
-                                                                                                        mr: 2,
-                                                                                                        fontWeight: 'medium',
-                                                                                                        '&:hover': {
-                                                                                                            color: '#16A249',
-                                                                                                            bgcolor: 'rgba(22, 162, 73, 0.08)',
-                                                                                                        },
-                                                                                                        '&.Mui-disabled': {
-                                                                                                            opacity: 0.6,
-                                                                                                            color: isCommentLiked(reply.id)
-                                                                                                                ? '#16A249'
-                                                                                                                : '#757575',
-                                                                                                        },
+                                                                                                            : 'text.secondary',
+                                                                                                        textTransform: 'none',
                                                                                                     }}
+                                                                                                    onClick={() => handleToggleLike(reply.id)}
                                                                                                 >
                                                                                                     {reply.likes_count || 0}
                                                                                                 </Button>
-                                                                                                <Button
-                                                                                                    startIcon={<CommentIcon />}
-                                                                                                    sx={{
-                                                                                                        textTransform: 'none',
-                                                                                                        color: '#757575',
-                                                                                                        fontWeight: 'medium',
-                                                                                                        '&:hover': {
-                                                                                                            color: '#16A249',
-                                                                                                            bgcolor: 'rgba(22, 162, 73, 0.08)',
-                                                                                                        },
-                                                                                                    }}
-                                                                                                    onClick={() => {
-                                                                                                        // Répondre au commentaire parent
-                                                                                                        setReplyingToCommentId(comment.id);
-                                                                                                        setNewComment(
-                                                                                                            `@${reply.user?.name || 'Utilisateur'} `,
-                                                                                                        );
-                                                                                                    }}
-                                                                                                >
-                                                                                                    Répondre
-                                                                                                </Button>
                                                                                             </Box>
-                                                                                        </>
-                                                                                    )}
-                                                                                </Box>
+                                                                                        </Box>
+                                                                                    ))}
                                                                             </Box>
-                                                                        </Box>
-                                                                    ))}
+                                                                        )}
+                                                                    </Box>
                                                                 </Box>
-                                                            )}
-                                                        </Paper>
-                                                    ))}
-                                                </Box>
-                                            ) : (
-                                                <Paper
-                                                    elevation={0}
-                                                    sx={{
-                                                        p: 4,
-                                                        borderRadius: 2,
-                                                        bgcolor: '#fff',
-                                                        border: '1px solid #e8f5e9',
-                                                        textAlign: 'center',
-                                                    }}
-                                                >
-                                                    <Typography variant="body1" color="text.secondary">
+                                                            ))}
+                                                    </Box>
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
                                                         Aucun commentaire pour ce projet
                                                     </Typography>
-                                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                                        Soyez le premier à commenter !
-                                                    </Typography>
-                                                </Paper>
-                                            )}
+                                                )}
+                                            </Box>
                                         </>
                                     )}
                                 </Box>
@@ -2153,11 +2182,20 @@ function Projet() {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ width: 250 }}
+                                    sx={{
+                                        width: 250,
+                                        '& .MuiOutlinedInput-root': {
+                                            '&:hover fieldset': {
+                                                borderColor: 'darkgreen',
+                                            },
+                                            '&.Mui-focused fieldset': {
+                                                borderColor: '#16A249', // vert personnalisé pendant focus
+                                            },
+                                        },
+                                    }}
                                 />
                                 <Button
                                     variant="contained"
-                                    color="primary"
                                     onClick={() => setShowFilters(!showFilters)}
                                     sx={{
                                         textTransform: 'uppercase',
@@ -2167,10 +2205,10 @@ function Projet() {
                                         justifyContent: 'space-between',
                                         alignItems: 'center',
                                         px: 2,
-                                        bgcolor: showFilters ? '#1976d2' : '#f5f5f5',
+                                        bgcolor: showFilters ? '#16A249' : '#f5f5f5',
                                         color: showFilters ? 'white' : 'black',
                                         '&:hover': {
-                                            bgcolor: showFilters ? '#1565c0' : '#e0e0e0',
+                                            bgcolor: showFilters ? '#138a3c' : '#e0e0e0',
                                         },
                                     }}
                                     endIcon={
@@ -2197,7 +2235,7 @@ function Projet() {
                         <Collapse in={showFilters}>
                             <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, height: '100%' }}>
-                                    <FormControl sx={{ minWidth: 200, flex: 1 }}>
+                                    <FormControl sx={{ minWidth: 200, flex: 1 }} color="success">
                                         <InputLabel id="statuts-label">Statuts</InputLabel>
                                         <Select
                                             labelId="statuts-label"
@@ -2205,6 +2243,14 @@ function Projet() {
                                             onChange={handleStatusFilterChange}
                                             label="Statuts"
                                             fullWidth
+                                            sx={{
+                                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: '#138a3c', // on hover
+                                                },
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: '#16A249', // on focus
+                                                },
+                                            }}
                                         >
                                             <MenuItem value="Tous les statuts">Tous les statuts</MenuItem>
                                             {statuses.map((status) => (
@@ -2214,7 +2260,7 @@ function Projet() {
                                             ))}
                                         </Select>
                                     </FormControl>
-                                    <FormControl sx={{ minWidth: 200, flex: 1 }}>
+                                    <FormControl sx={{ minWidth: 200, flex: 1 }} color="success">
                                         <InputLabel id="priorites-label">Priorités</InputLabel>
                                         <Select
                                             labelId="priorites-label"
@@ -2222,6 +2268,14 @@ function Projet() {
                                             onChange={handlePriorityFilterChange}
                                             label="Priorités"
                                             fullWidth
+                                            sx={{
+                                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: '#138a3c', // on hover
+                                                },
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                    borderColor: '#16A249', // on focus
+                                                },
+                                            }}
                                         >
                                             <MenuItem value="Toutes les priorités">Toutes les priorités</MenuItem>
                                             {priorities.map((priority) => (
@@ -2233,20 +2287,40 @@ function Projet() {
                                     </FormControl>
                                     <TextField
                                         label="Date de début"
+                                        color="success"
                                         type="date"
                                         value={startDateFilter}
                                         onChange={handleStartDateFilterChange}
                                         InputLabelProps={{ shrink: true }}
-                                        sx={{ minWidth: 200, flex: 1 }}
+                                        sx={{
+                                            minWidth: 200,
+                                            flex: 1,
+                                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                borderColor: '#138a3c', // on hover
+                                            },
+                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                borderColor: '#16A249', // on focus
+                                            },
+                                        }}
                                         fullWidth
                                     />
                                     <TextField
                                         label="Date de fin"
+                                        color="success"
                                         type="date"
                                         value={endDateFilter}
                                         onChange={handleEndDateFilterChange}
                                         InputLabelProps={{ shrink: true }}
-                                        sx={{ minWidth: 200, flex: 1 }}
+                                        sx={{
+                                            minWidth: 200,
+                                            flex: 1,
+                                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                borderColor: '#138a3c', // on hover
+                                            },
+                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                borderColor: '#16A249', // on focus
+                                            },
+                                        }}
                                         fullWidth
                                     />
                                 </Box>
@@ -2503,6 +2577,7 @@ function Projet() {
                         id="title"
                         name="title"
                         label="Nom du projet"
+                        color="success"
                         type="text"
                         fullWidth
                         variant="outlined"
@@ -2510,6 +2585,16 @@ function Projet() {
                         onChange={handleNewProjectInputChange}
                         error={newProjectErrors.title}
                         helperText={newProjectErrors.title ? 'Le nom du projet est requis' : ''}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                    borderColor: 'darkgreen',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#16A249',
+                                },
+                            },
+                        }}
                         required
                     />
                     <TextField
@@ -2517,6 +2602,7 @@ function Projet() {
                         id="description"
                         name="description"
                         label="Description"
+                        color="success"
                         type="text"
                         fullWidth
                         multiline
@@ -2526,30 +2612,19 @@ function Projet() {
                         onChange={handleNewProjectInputChange}
                         error={newProjectErrors.description}
                         helperText={newProjectErrors.description ? 'La description est requise' : ''}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                    borderColor: 'darkgreen',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#16A249',
+                                },
+                            },
+                        }}
                         required
                     />
-                    <FormControl fullWidth margin="dense" error={newProjectErrors.status_id}>
-                        <InputLabel id="status-label">Statut</InputLabel>
-                        <Select
-                            labelId="status-label"
-                            id="status_id"
-                            value={newProjectData.status_id.toString()}
-                            label="Statut"
-                            onChange={handleNewProjectStatusChange}
-                        >
-                            {statuses.map((status) => (
-                                <MenuItem key={status.id} value={status.id.toString()}>
-                                    {status.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                        {newProjectErrors.status_id && (
-                            <Typography variant="caption" color="error">
-                                Le statut est requis
-                            </Typography>
-                        )}
-                    </FormControl>
-                    <FormControl fullWidth margin="dense" error={newProjectErrors.priority_id}>
+                    <FormControl fullWidth margin="dense" error={newProjectErrors.priority_id} color="success">
                         <InputLabel id="priority-label">Priorité</InputLabel>
                         <Select
                             labelId="priority-label"
@@ -2573,6 +2648,7 @@ function Projet() {
                     <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                         <TextField
                             label="Date de début"
+                            color="success"
                             type="date"
                             name="start_date"
                             value={newProjectData.start_date}
@@ -2582,9 +2658,20 @@ function Projet() {
                             InputLabelProps={{ shrink: true }}
                             error={newProjectErrors.start_date}
                             helperText={newProjectErrors.start_date ? 'La date de début est requise' : ''}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    '&:hover fieldset': {
+                                        borderColor: 'darkgreen',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#16A249',
+                                    },
+                                },
+                            }}
                         />
                         <TextField
                             label="Date d'échéance"
+                            color="success"
                             type="date"
                             name="end_date"
                             value={newProjectData.end_date}
@@ -2596,39 +2683,43 @@ function Projet() {
                             helperText={newProjectErrors.end_date ? "La date d'échéance est requise" : ''}
                         />
                     </Box>
-                    <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-                        Équipe du projet
-                    </Typography>
-                    <Autocomplete
-                        id="team"
-                        options={teams}
-                        getOptionLabel={(option) => option.name}
-                        value={selectedTeam}
-                        onChange={handleTeamChange}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                margin="dense"
-                                name="team"
-                                label="Équipe"
-                                variant="outlined"
-                                error={newProjectErrors.teamId}
-                                helperText={newProjectErrors.teamId ? "L'équipe est requise" : ''}
-                            />
-                        )}
-                        renderOption={(props, option) => (
-                            <li {...props}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                                    <Typography variant="body1">{option.name}</Typography>
-                                </Box>
-                            </li>
-                        )}
-                    />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleNewProjectDialogClose}>Annuler</Button>
-                    <Button onClick={handleCreateNewProject} variant="contained" color="success" sx={{ bgcolor: '#16A249' }} disabled={loading}>
-                        Créer le projet
+                    <Button
+                        onClick={handleNewProjectDialogClose}
+                        color="error"
+                        variant="outlined"
+                        sx={{
+                            textTransform: 'none',
+                            borderColor: 'error.main',
+                            '&:hover': {
+                                backgroundColor: 'error.main',
+                                color: 'white',
+                                borderColor: 'error.main',
+                            },
+                        }}
+                    >
+                        Annuler
+                    </Button>
+                    <Button
+                        onClick={handleCreateNewProject}
+                        variant="contained"
+                        color="success"
+                        endIcon={<SendIcon />}
+                        sx={{
+                            bgcolor: '#16A249',
+                            border: '1px solid #16A249',
+                            textTransform: 'none',
+                            borderRadius: 1,
+                            px: 2,
+                            '&:hover': {
+                                bgcolor: '#138a3c', // a slightly darker green for hover
+                                borderColor: '#138a3c',
+                            },
+                        }}
+                        disabled={loading}
+                    >
+                        Créer Le Projet
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -2643,7 +2734,18 @@ function Projet() {
                         id="title"
                         name="title"
                         label="Nom du projet"
+                        color="success"
                         type="text"
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                    borderColor: 'darkgreen',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#16A249',
+                                },
+                            },
+                        }}
                         fullWidth
                         variant="outlined"
                         value={editProjectData.title}
@@ -2657,7 +2759,18 @@ function Projet() {
                         id="description"
                         name="description"
                         label="Description"
+                        color="success"
                         type="text"
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                    borderColor: 'darkgreen',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#16A249',
+                                },
+                            },
+                        }}
                         fullWidth
                         multiline
                         rows={4}
@@ -2668,7 +2781,7 @@ function Projet() {
                         helperText={editProjectErrors.description ? 'La description est requise' : ''}
                         required
                     />
-                    <FormControl fullWidth margin="dense" error={editProjectErrors.status_id}>
+                    <FormControl fullWidth margin="dense" error={editProjectErrors.status_id} color="success">
                         <InputLabel id="edit-status-label">Statut</InputLabel>
                         <Select
                             labelId="edit-status-label"
@@ -2689,7 +2802,7 @@ function Projet() {
                             </Typography>
                         )}
                     </FormControl>
-                    <FormControl fullWidth margin="dense" error={editProjectErrors.priority_id}>
+                    <FormControl fullWidth margin="dense" error={editProjectErrors.priority_id} color="success">
                         <InputLabel id="edit-priority-label">Priorité</InputLabel>
                         <Select
                             labelId="edit-priority-label"
@@ -2715,8 +2828,19 @@ function Projet() {
                             label="Date de début"
                             type="date"
                             name="start_date"
+                            color="success"
                             value={editProjectData.start_date}
                             onChange={handleEditProjectInputChange}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    '&:hover fieldset': {
+                                        borderColor: 'darkgreen',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#16A249',
+                                    },
+                                },
+                            }}
                             fullWidth
                             margin="dense"
                             InputLabelProps={{ shrink: true }}
@@ -2727,8 +2851,19 @@ function Projet() {
                             label="Date d'échéance"
                             type="date"
                             name="end_date"
+                            color="success"
                             value={editProjectData.end_date}
                             onChange={handleEditProjectInputChange}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    '&:hover fieldset': {
+                                        borderColor: 'darkgreen',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#16A249',
+                                    },
+                                },
+                            }}
                             fullWidth
                             margin="dense"
                             InputLabelProps={{ shrink: true }}
@@ -2736,38 +2871,42 @@ function Projet() {
                             helperText={editProjectErrors.end_date ? "La date d'échéance est requise" : ''}
                         />
                     </Box>
-                    <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-                        Équipe du projet
-                    </Typography>
-                    <Autocomplete
-                        id="edit-team"
-                        options={teams}
-                        getOptionLabel={(option) => option.name}
-                        value={selectedEditTeam}
-                        onChange={handleEditTeamChange}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                margin="dense"
-                                name="team"
-                                label="Équipe"
-                                variant="outlined"
-                                error={editProjectErrors.teamId}
-                                helperText={editProjectErrors.teamId ? "L'équipe est requise" : ''}
-                            />
-                        )}
-                        renderOption={(props, option) => (
-                            <li {...props}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                                    <Typography variant="body1">{option.name}</Typography>
-                                </Box>
-                            </li>
-                        )}
-                    />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleEditProjectDialogClose}>Annuler</Button>
-                    <Button onClick={handleUpdateProject} variant="contained" color="success" sx={{ bgcolor: '#16A249' }} disabled={loading}>
+                    <Button
+                        onClick={handleEditProjectDialogClose}
+                        color="error"
+                        variant="outlined"
+                        sx={{
+                            textTransform: 'none',
+                            borderColor: 'error.main',
+                            '&:hover': {
+                                backgroundColor: 'error.main',
+                                color: 'white',
+                                borderColor: 'error.main',
+                            },
+                        }}
+                    >
+                        Annuler
+                    </Button>
+                    <Button
+                        onClick={handleUpdateProject}
+                        variant="contained"
+                        color="success"
+                        sx={{
+                            bgcolor: '#16A249',
+                            border: '1px solid #16A249',
+                            textTransform: 'none',
+                            borderRadius: 1,
+                            px: 2,
+                            '&:hover': {
+                                bgcolor: '#138a3c', // a slightly darker green for hover
+                                borderColor: '#138a3c',
+                                backgroundColor: '#138a3c', // a slightly darker green for hover
+                            },
+                        }}
+                        disabled={loading}
+                    >
                         Mettre à jour
                     </Button>
                 </DialogActions>
@@ -2780,8 +2919,39 @@ function Projet() {
                     <Typography variant="body1">Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.</Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleDeleteProjectDialogClose}>Annuler</Button>
-                    <Button onClick={handleDeleteProject} variant="contained" color="error" disabled={loading}>
+                    <Button
+                        onClick={handleDeleteProjectDialogClose}
+                        color="success"
+                        variant="outlined"
+                        sx={{
+                            border: '1px solid #16A249',
+                            textTransform: 'none',
+                            borderRadius: 1,
+                            px: 2,
+                            '&:hover': {
+                                color: 'white',
+                                bgcolor: '#138a3c', // a slightly darker green for hover
+                                borderColor: '#138a3c',
+                            },
+                        }}
+                    >
+                        Annuler
+                    </Button>
+                    <Button
+                        onClick={handleDeleteProject}
+                        variant="contained"
+                        color="error"
+                        sx={{
+                            textTransform: 'none',
+                            borderColor: 'error.main',
+                            '&:hover': {
+                                backgroundColor: 'error.main',
+                                color: 'white',
+                                borderColor: 'error.main',
+                            },
+                        }}
+                        disabled={loading}
+                    >
                         {loading ? <CircularProgress size={24} color="inherit" /> : 'Supprimer'}
                     </Button>
                 </DialogActions>
@@ -2823,12 +2993,12 @@ function Projet() {
             >
                 <MenuItem onClick={(e) => handleViewProjectDetails(selectedProjectId || 0, e)}>
                     <ListItemIcon>
-                        <VisibilityIcon fontSize="small" />
+                        <EditIcon fontSize="small" sx={{ color: '#16A249' }} />
                     </ListItemIcon>
                     <ListItemText primary="Détails" />
                 </MenuItem>
                 <MenuItem
-                    onClick={() => {
+                    onClick={(e) => {
                         handleProjectActionMenuClose();
                         handleViewProjectDetails(selectedProjectId || 0);
                         // Attendre que les détails du projet soient chargés avant de changer d'onglet
@@ -2836,13 +3006,13 @@ function Projet() {
                     }}
                 >
                     <ListItemIcon>
-                        <CommentIcon fontSize="small" />
+                        <CommentIcon fontSize="small" sx={{ color: '#16A249' }} />
                     </ListItemIcon>
                     <ListItemText primary="Commentaires" />
                 </MenuItem>
                 <MenuItem onClick={() => handleEditProjectDialogOpen(selectedProjectId || 0)}>
                     <ListItemIcon>
-                        <EditIcon fontSize="small" />
+                        <EditIcon fontSize="small" sx={{ color: '#16A249' }} />
                     </ListItemIcon>
                     <ListItemText primary="Modifier" />
                 </MenuItem>
@@ -2884,7 +3054,7 @@ function Projet() {
             >
                 <MenuItem onClick={() => handleEditComment(selectedCommentId || 0)}>
                     <ListItemIcon>
-                        <EditIcon fontSize="small" />
+                        <EditIcon fontSize="small" sx={{ color: '#16A249' }} />
                     </ListItemIcon>
                     <ListItemText primary="Modifier" />
                 </MenuItem>

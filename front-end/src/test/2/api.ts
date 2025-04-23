@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { NewTaskData } from '../1/api';
 
 // Création d'une instance axios avec une URL de base
 const api = axios.create({
@@ -59,24 +58,24 @@ export interface Comment {
     content: string;
     user_id: number;
     project_id: number;
-    parent_id?: number | null; // Pour les réponses aux commentaires
-    likes_count: number; // Nombre de likes
+    parent_id?: number | null;
     created_at: string;
     updated_at: string;
+    likes_count?: number;
     user?: {
         id: number;
         name: string;
         email: string;
         avatar?: string;
     };
-    replies?: Comment[]; // Pour les commentaires imbriqués
+    replies?: Comment[];
 }
 
 export interface NewCommentData {
     content: string;
     user_id: number;
     project_id: number;
-    parent_id?: number | null; // Rendre parent_id optionnel
+    parent_id?: number | null;
 }
 
 // API pour les projets
@@ -88,6 +87,15 @@ export const projectApi = {
             return response.data.data;
         } catch (error) {
             console.error('Erreur lors de la récupération des projets:', error);
+            throw error;
+        }
+    },
+    getProjectTasks: async (projectId: number) => {
+        try {
+            const response = await api.get(`/projects/${projectId}/tasks`);
+            return response.data.data;
+        } catch (error) {
+            console.error(`Erreur lors de la récupération des tâches du projet ${projectId}:`, error);
             throw error;
         }
     },
@@ -185,7 +193,7 @@ export const projectApi = {
     addComment: async (commentData: NewCommentData) => {
         try {
             const response = await api.post('/comments', commentData);
-            return response.data;
+            return response.data.data;
         } catch (error) {
             console.error("Erreur lors de l'ajout du commentaire:", error);
             throw error;
@@ -214,7 +222,7 @@ export const projectApi = {
         }
     },
 
-    // Méthode pour liker un commentaire
+    // Ajouter un like à un commentaire
     likeComment: async (commentId: number) => {
         try {
             const response = await api.post(`/comments/${commentId}/like`);
@@ -225,46 +233,13 @@ export const projectApi = {
         }
     },
 
-    // Méthode pour unliker un commentaire
+    // Retirer un like d'un commentaire
     unlikeComment: async (commentId: number) => {
         try {
             const response = await api.post(`/comments/${commentId}/unlike`);
             return response.data;
         } catch (error) {
             console.error(`Erreur lors du unlike du commentaire ${commentId}:`, error);
-            throw error;
-        }
-    },
-
-    // Mettre à jour la progression d'un projet
-    updateProjectProgress: async (projectId: number) => {
-        try {
-            const response = await api.post(`/projects/${projectId}/update-progress`);
-            return response.data;
-        } catch (error) {
-            console.error(`Erreur lors de la mise à jour de la progression du projet ${projectId}:`, error);
-            throw error;
-        }
-    },
-
-    // Annuler un projet (admin uniquement)
-    cancelProject: async (projectId: number) => {
-        try {
-            const response = await api.post(`/projects/${projectId}/cancel`);
-            return response.data;
-        } catch (error) {
-            console.error(`Erreur lors de l'annulation du projet ${projectId}:`, error);
-            throw error;
-        }
-    },
-
-    // Calculer automatiquement la progression lorsqu'une tâche est créée, mise à jour ou supprimée
-    refreshProjectProgress: async (projectId: number) => {
-        try {
-            const response = await api.post(`/projects/${projectId}/update-progress`);
-            return response.data;
-        } catch (error) {
-            console.error(`Erreur lors du calcul de la progression du projet ${projectId}:`, error);
             throw error;
         }
     },
@@ -400,74 +375,6 @@ export const userApi = {
             return response.data.data;
         } catch (error) {
             console.error('Erreur lors de la récupération des utilisateurs:', error);
-            throw error;
-        }
-    },
-};
-
-export const taskApi = {
-    getAllTasks: async () => {
-        try {
-            const response = await api.get('/tasks');
-            // Imprimer la réponse pour débogage
-            console.log('Réponse API tâches:', response.data);
-            return response.data.data;
-        } catch (error) {
-            console.error('Erreur lors de la récupération des tâches:', error);
-            throw error;
-        }
-    },
-
-    // Récupérer une tâche par son ID
-    getTaskById: async (id: number) => {
-        try {
-            const response = await api.get(`/tasks/${id}`);
-            return response.data.data;
-        } catch (error) {
-            console.error(`Erreur lors de la récupération de la tâche ${id}:`, error);
-            throw error;
-        }
-    },
-
-    // Créer une nouvelle tâche
-    createTask: async (taskData: NewTaskData) => {
-        try {
-            // Adapter les données pour le backend qui attend assigned_to au lieu de user_id
-            const response = await api.post('/tasks', {
-                ...taskData,
-                // Utiliser assigned_to pour le backend
-                assigned_to: taskData.assigned_to,
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Erreur lors de la création de la tâche:', error);
-            throw error;
-        }
-    },
-
-    // Mettre à jour une tâche
-    updateTask: async (id: number, taskData: Partial<NewTaskData>) => {
-        try {
-            // Adapter les données pour le backend
-            const response = await api.put(`/tasks/${id}`, {
-                ...taskData,
-                // Utiliser assigned_to pour le backend
-                assigned_to: taskData.assigned_to,
-            });
-            return response.data;
-        } catch (error) {
-            console.error(`Erreur lors de la mise à jour de la tâche ${id}:`, error);
-            throw error;
-        }
-    },
-
-    // Supprimer une tâche
-    deleteTask: async (id: number) => {
-        try {
-            const response = await api.delete(`/tasks/${id}`);
-            return response.data;
-        } catch (error) {
-            console.error(`Erreur lors de la suppression de la tâche ${id}:`, error);
             throw error;
         }
     },

@@ -63,6 +63,7 @@ Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
 Route::get('/projects/{id}/teams', [ProjectController::class, 'getProjectTeams']);
 Route::patch('/edbs/{id}/annuler', [ProjectController::class, 'projetanuule']);
 Route::patch('/edbs/{id}/teminer', [ProjectController::class, 'projetterminer']);
+Route::get('projects/{id}/tasks', [ProjectController::class, 'getProjectTasks']);
 
 
 
@@ -141,8 +142,10 @@ Route::delete('/edbs/{id}', [EdbController::class, 'destroy']);
 Route::patch('/edbs/{id}/approve', [EdbController::class, 'approveEdb']);
 Route::patch('/edbs/{id}/reject', [EdbController::class, 'rejectEdb']);
 Route::post('/edbs/{id}/attachments', [EDBController::class, 'uploadMultipleAttachments']);
-Route::get('edbs/{id}/attachments', [EdbController::class, 'getAttachments']);
-Route::delete('edbs/{id}/attachments/{attachmentId}', [EdbController::class, 'deleteAttachment']);
+Route::get('/edbs/{id}/attachments', [EdbController::class, 'getAttachments']);
+Route::delete('/edbs/{id}/attachments/{attachmentId}', [EdbController::class, 'deleteAttachment']);
+// Route::get('/edbs/{id}/export-pdf', [EdbController::class, 'exportPdf']);
+
 
 
 

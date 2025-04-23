@@ -6,8 +6,9 @@ import TaskOverview from '../test/1/TaskOverview';
 import Teambadi from '../test/1/Teambadi';
 import TestTeam from '../test/1/TestTeam';
 import Projet from '../test/2/Projet';
-import EDBDetail from '../test/EDBDetail';
 import Login from '../test/Login/Login';
+import PdfExport from '../test/PdfExport';
+import FinalEdb from '../test/edb/FinalEdb';
 
 export const testsRoutes = (
     <Route path="/test">
@@ -18,6 +19,7 @@ export const testsRoutes = (
         <Route path="3/:id" element={<ProjetDetail />} />
         <Route path="4" element={<TaskOverview />} />
         <Route path="5" element={<Login />} />
-        <Route path="6" element={<EDBDetail edbId={1} />} />
+        <Route path="6" element={<PdfExport edbId={1} />} />
+        <Route path="7" element={<FinalEdb />} />
     </Route>
 );

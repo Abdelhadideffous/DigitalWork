@@ -8,6 +8,7 @@ use App\Models\Attachment;
 use App\Models\Edb;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class EdbController extends Controller
 {
@@ -180,4 +181,9 @@ class EdbController extends Controller
             'message' => 'Fichier supprimé avec succès'
         ], 200); // OK - Ajouté
     }
+
+   
+
+
+
 }

@@ -16,7 +16,6 @@ class TaskResource extends JsonResource
             'assigned_user' => $this->assignedUser ? [
                 'id' => $this->assignedUser->id,
                 'name' => $this->assignedUser->name,
-                'email' => $this->assignedUser->email,
             ] : null,
             'project' => $this->project ? [
                 'id' => $this->project->id,

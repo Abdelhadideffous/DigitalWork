@@ -18,7 +18,6 @@ class CommentsProjetController extends Controller
             // Récupérer uniquement les commentaires de premier niveau (sans parent)
             $comments = CommentsProject::with(['user', 'replies.user'])
                 ->where('project_id', $projectId)
-                ->whereNull('parent_id')
                 ->orderBy('created_at', 'desc')
                 ->get();
 
