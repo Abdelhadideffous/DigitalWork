@@ -116,4 +116,25 @@ class TaskController extends Controller
             'message' => 'Tâche annulée'
         ], 200);
     }
+
+
+
+    // Ajouter cette méthode
+    public function calculateProgress($id)
+    {
+        $task = Task::find($id);
+
+        if (!$task) {
+            return response()->json(['success' => false, 'message' => 'Tâche non trouvée'], 404);
+        }
+
+        $task->calculateProgress();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Progression recalculée',
+            'data' => new TaskResource($task)
+        ], 200);
+    }
+
 }

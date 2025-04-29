@@ -20,6 +20,7 @@ class ProjectResource extends JsonResource
             'status_id' => $this->status_id,
             'priority' => ['name' => $this->priority->name],
             'status' => $this->status ? ['name' => $this->status->name] : null,
+            'progress' => $this->progress,
             // 'team_members' => ProjectTeamResource::collection($this->whenLoaded('teamMembers')),
         ];
     }

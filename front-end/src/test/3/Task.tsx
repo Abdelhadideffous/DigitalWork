@@ -50,8 +50,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { styled } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
-import AppLayout from './AppLayout';
 import { projectApi, taskApi, userApi, type Priority, type Project, type Status, type Task } from './api';
+import AppLayout from '../layout/AppLayout';
 
 // Define the styled dialog component
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
@@ -63,7 +63,7 @@ const BootstrapDialog = styled(Dialog)(({ theme }) => ({
     },
 }));
 
-export default function TaskOverview() {
+const Task: React.FC = () => {
     // État pour stocker la valeur de recherche
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -815,17 +815,16 @@ export default function TaskOverview() {
                 </Alert>
             </Snackbar>
 
-            <Container maxWidth="xl" sx={{ display: 'flex', flexDirection: 'column', py: 5 }}>
+            <Container maxWidth="xl" sx={{ display: 'flex', flexDirection: 'column', py: 3 }}>
                 {/* Fil d'Ariane */}
                 <Box sx={{ mb: 2 }}>
-                    <Breadcrumbs aria-label="breadcrumb">
-                        <Link underline="hover" color="inherit" href="/">
-                            Tableau de bord
-                        </Link>
-                        <Typography color="text.primary">Taches</Typography>
-                    </Breadcrumbs>
+                 <Breadcrumbs aria-label="breadcrumb">
+                   <Link underline="hover" color="inherit" href="/">
+                  Tableau de bord
+                   </Link>
+                 <Typography color="text.primary">Tachés</Typography>
+                 </Breadcrumbs>
                 </Box>
-
                 {/* En-tête et titre */}
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
@@ -1016,7 +1015,7 @@ export default function TaskOverview() {
                     </DialogContent>
 
                     <DialogActions>
-                        <Button variant="outlined" color="success" onClick={handleClose} sx={{ textTransform: 'none' }}>
+                        <Button variant="outlined" color="error" onClick={handleClose} sx={{ textTransform: 'none' }}>
                             Annuler
                         </Button>
                         <Button
@@ -1474,3 +1473,4 @@ export default function TaskOverview() {
         </AppLayout>
     );
 }
+export default  Task;

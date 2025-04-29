@@ -15,9 +15,10 @@ class Project extends Model
         'start_date',
         'end_date',
         'priority_id',
+        'progress',
+
 
         // 'manager_id',
-        // 'progress',
     ];
 
     protected $guarded = ['status_id'];
@@ -37,25 +38,40 @@ class Project extends Model
     {
         return $this->belongsTo(Priority::class);
     }
-    
+
     // Équipes associées au projet
     public function teams()
     {
         return $this->hasMany(Team::class);
     }
-    
+
     // Tous les membres des équipes associées au projet
     public function teamMembers()
     {
         return $this->belongsToMany(User::class, 'project_teams', 'project_id', 'user_id');
     }
 
- /**
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    /**
      * Get all comments associated with the project.
      */
     public function comments(): HasMany
     {
         return $this->hasMany(CommentsProject::class);
     }
+
+
+    public function calculateProgress()
+    {
+        $avgProgress = $this->tasks()->avg('progress');
+        $this->progress = $avgProgress ?? 0.00; // Définit à 0.00 si null
+        return $this->save(); // Retourne le résultat de save pour vérification
+    }
+
+
 
 }

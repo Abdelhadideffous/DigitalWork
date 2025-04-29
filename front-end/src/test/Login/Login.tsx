@@ -1,135 +1,158 @@
-import { Container } from '@mui/material';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+"use client"
 
-// Components
-import LoginForm from './LoginForm';
-import LoginHeader from './LoginHeader';
+import type React from "react"
+import { useState } from "react"
+import {
+  Container,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  IconButton, 
+} from "@mui/material"
+import { Visibility, VisibilityOff, Work as WorkIcon } from "@mui/icons-material"
 
-import api, { API_URLS } from './api';
-import { LoginRequest } from './auth';
 
-// Service d'authentification intégré directement dans Login.tsx
-const authService = {
-    // Login function
-    login: async (email: string, password: string) => {
-        try {
-            const response = await api.post(API_URLS.AUTH.LOGIN, { email, password });
+const Login: React.FC = () => {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState<boolean>(false)
+  const togglePasswordVisibility = () => setShowPassword(!showPassword)
 
-            // Store token and user data in localStorage
-            if (response.data.success) {
-                localStorage.setItem('auth_token', response.data.token);
-                localStorage.setItem('user', JSON.stringify(response.data.user));
-            }
+  return (
+      <Container maxWidth="md" 
+      sx={{
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        borderTop: "0px ",
+        pt: { xs: 1, sm: 2 },
+        py: { xs: 2, sm: 4 } 
 
-            return response.data;
-        } catch (error: any) {
-            if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                return {
-                    success: false,
-                    error: error.response.data.message || 'Une erreur est survenue',
-                };
-            } else if (error.request) {
-                // The request was made but no response was received
-                return {
-                    success: false,
-                    error: 'Erreur de connexion au serveur',
-                };
-            } else {
-                // Something happened in setting up the request that triggered an Error
-                return {
-                    success: false,
-                    error: 'Erreur lors de la requête',
-                };
-            }
-        }
-    },
-
-    // Logout function
-    logout: async () => {
-        try {
-            await api.post(API_URLS.AUTH.LOGOUT);
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('user');
-            return { success: true };
-        } catch (error) {
-            console.error('Logout error:', error);
-            return { success: false, error: 'Erreur lors de la déconnexion' };
-        }
-    },
-
-    // Get current user
-    getCurrentUser: () => {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            return JSON.parse(userStr);
-        }
-        return null;
-    },
-
-    // Check if user is authenticated
-    isAuthenticated: () => {
-        return localStorage.getItem('auth_token') !== null;
-    },
-};
-
-const Login = () => {
-    const navigate = useNavigate();
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState(false);
-
-    const handleSubmit = async (data: LoginRequest) => {
-        // Validation basique
-        if (!data.email || !data.password) {
-            setError('Veuillez remplir tous les champs');
-            return;
-        }
-
-        try {
-            setIsLoading(true);
-            setError('');
-
-            const result = await authService.login(data.email, data.password);
-
-            if (result.success) {
-                // Afficher le message de succès
-                setSuccess(true);
-
-                // Redirection après un délai
-                setTimeout(() => {
-                    navigate('/dashboard');
-                }, 1500);
-            } else {
-                setError(result.error || 'Une erreur est survenue');
-            }
-        } catch (err) {
-            setError('Erreur de connexion au serveur');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <Container
-            maxWidth="md"
+        }}>
+          <Box
             sx={{
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                pt: { xs: 1, sm: 2 },
-                py: { xs: 2, sm: 4 },
+              mb: { xs: 2, sm: 4 },
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
             }}
-        >
-            <LoginHeader />
-            <LoginForm onSubmit={handleSubmit} isLoading={isLoading} error={error} success={success} />
-        </Container>
-    );
-};
+          >
+            <Box
+              sx={{
+                bgcolor: "#16A249",
+                color: "white",
+                p: { xs: 1, sm: 1.5 },
+                borderRadius: "50%",
+                mb: { xs: 1, sm: 2 },
+              }}
+            >
+              <WorkIcon fontSize="large" />
+            </Box>
+            <Typography variant="h4" component="h1" fontWeight="bold">
+              DigiWork
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: "center", px: 2 }}>
+              Connectez-vous pour accéder à votre espace de travail
+            </Typography>
+          </Box>
 
-// Export authService pour pouvoir l'utiliser dans d'autres composants si nécessaire
-export { authService };
+          <Box
+            component="form"
+            sx={{
+              width: "100%",
+              maxWidth: "500px",
+              px: { xs: 2, sm: 0 },
+            }}
+          >
+            <TextField
+             margin="normal"
+             required
+             fullWidth
+             id="email"
+             label="Email"
+             name="email"
+             autoComplete="email"
+             autoFocus
+             value={email}
+             placeholder="nom@exemple.com"
+             onChange={(e) => setEmail(e.target.value)}
+              sx={{
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#16A249",
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "#16A249",
+                },
+              }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="password"
+              name="password"
+              label="Mot de passe"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              InputProps={{
+                endAdornment: (
+                  <IconButton aria-label="toggle password visibility" onClick={togglePasswordVisibility} edge="end">
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                ),
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#16A249",
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "#16A249",
+                },
+              }}
+            />
+
+            <Box sx={{ textAlign: "right", mt: 1 }}>
+              <Button variant="text" size="small" sx={{ color: "#16A249",fontWeight: "bold", }}>
+                Mot de passe oublié?
+              </Button>
+            </Box>
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              //
+              size= "large"
+              sx={{
+                mt: 3,
+                mb: 2,
+                py: { xs: 1, sm: 1.5 },
+                borderRadius: 1.5,
+                backgroundColor:"#16A249",
+              }}
+            >
+              Se connecter
+            </Button>
+
+            <Box sx={{ textAlign: "center", mt: { xs: 2, sm: 3 } }}>
+              <Typography variant="body2">
+                Vous n'avez pas de compte?{" "}
+                <Button
+                  variant="text"
+                  size="small"
+                  sx={{ color: "#16A249", fontWeight: "bold", p: 0, minWidth: "auto" }}
+                >
+                  S'inscrire
+                </Button>
+              </Typography>
+            </Box>
+          </Box>
+      </Container>
+  )
+}
+
 export default Login;
+

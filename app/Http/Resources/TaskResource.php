@@ -29,6 +29,7 @@ class TaskResource extends JsonResource
                 'id' => $this->priority->id,
                 'name' => $this->priority->name,
             ] : null,
+            'progress' => $this->progress,
             'start_date' => $this->start_date->format('Y-m-d'),
             'end_date' => $this->end_date->format('Y-m-d'),
         ];

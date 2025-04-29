@@ -20,7 +20,7 @@ class ProjectController extends Controller
     {
 
         ProjectStatusUpdater::update();
-        
+
         $projects = Project::all();
 
         return response()->json([
@@ -171,25 +171,44 @@ class ProjectController extends Controller
 
 
     public function getProjectTasks($id)
-{
-    $project = Project::find($id);
-    if (!$project) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Projet non trouvé'
-        ], 404);
-    }
-    
-    $tasks = Task::with(['assignedUser', 'status', 'priority'])
-                 ->where('project_id', $id)
-                 ->get();
-                 
-    return response()->json([
-        'success' => true,
-        'data' => TaskResource::collection($tasks)
-    ]);
-}
+    {
+        $project = Project::find($id);
+        if (!$project) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Projet non trouvé'
+            ], 404);
+        }
 
+        $tasks = Task::with(['assignedUser', 'status', 'priority'])
+            ->where('project_id', $id)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => TaskResource::collection($tasks)
+        ]);
+    }
+
+
+
+    // Ajouter cette méthode
+    public function calculateProjectProgress($id)
+    {
+        $project = Project::find($id);
+
+        if (!$project) {
+            return response()->json(['success' => false, 'message' => 'Projet non trouvé'], 404);
+        }
+
+        $project->calculateProgress();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Progression projet recalculée',
+            'data' => new ProjectResource($project)
+        ], 200);
+    }
 
 
 

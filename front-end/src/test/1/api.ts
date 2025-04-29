@@ -60,39 +60,6 @@ export interface User {
     avatar?: string;
 }
 
-// Types pour les tâches - mise à jour pour correspondre au backend Laravel
-export interface Task {
-    id: number;
-    title: string;
-    description: string;
-    project_id: number;
-    status_id: number;
-    priority_id: number;
-
-    // Ajout des propriétés pour l'utilisateur assigné telles que renvoyées par le backend
-    assigned_to: number;
-    assigned_user?: {
-        id: number;
-        name: string;
-        email: string;
-    };
-
-    // Garder user_id/user pour rétrocompatibilité
-    user_id?: number;
-    user?: {
-        id: number;
-        name: string;
-        avatar?: string;
-    };
-
-    start_date: string;
-    end_date: string;
-    status?: { id: number; name: string };
-    priority?: { id: number; name: string };
-    project?: { id: number; title: string };
-    created_at?: string;
-    updated_at?: string;
-}
 
 export interface NewTaskData {
     title: string;
@@ -105,74 +72,6 @@ export interface NewTaskData {
     end_date: string;
 }
 
-// API pour les tâches
-export const taskApi = {
-    getAllTasks: async () => {
-        try {
-            const response = await api.get('/tasks');
-            // Imprimer la réponse pour débogage
-            console.log('Réponse API tâches:', response.data);
-            return response.data.data;
-        } catch (error) {
-            console.error('Erreur lors de la récupération des tâches:', error);
-            throw error;
-        }
-    },
-
-    // Récupérer une tâche par son ID
-    getTaskById: async (id: number) => {
-        try {
-            const response = await api.get(`/tasks/${id}`);
-            return response.data.data;
-        } catch (error) {
-            console.error(`Erreur lors de la récupération de la tâche ${id}:`, error);
-            throw error;
-        }
-    },
-
-    // Créer une nouvelle tâche
-    createTask: async (taskData: NewTaskData) => {
-        try {
-            // Adapter les données pour le backend qui attend assigned_to au lieu de user_id
-            const response = await api.post('/tasks', {
-                ...taskData,
-                // Utiliser assigned_to pour le backend
-                assigned_to: taskData.assigned_to,
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Erreur lors de la création de la tâche:', error);
-            throw error;
-        }
-    },
-
-    // Mettre à jour une tâche
-    updateTask: async (id: number, taskData: Partial<NewTaskData>) => {
-        try {
-            // Adapter les données pour le backend
-            const response = await api.put(`/tasks/${id}`, {
-                ...taskData,
-                // Utiliser assigned_to pour le backend
-                assigned_to: taskData.assigned_to,
-            });
-            return response.data;
-        } catch (error) {
-            console.error(`Erreur lors de la mise à jour de la tâche ${id}:`, error);
-            throw error;
-        }
-    },
-
-    // Supprimer une tâche
-    deleteTask: async (id: number) => {
-        try {
-            const response = await api.delete(`/tasks/${id}`);
-            return response.data;
-        } catch (error) {
-            console.error(`Erreur lors de la suppression de la tâche ${id}:`, error);
-            throw error;
-        }
-    },
-};
 
 // API pour les projets
 export const projectApi = {

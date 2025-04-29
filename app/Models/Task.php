@@ -9,11 +9,7 @@ class Task extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
+
     protected $fillable = [
         'title',
         'description',
@@ -23,54 +19,71 @@ class Task extends Model
         'priority_id',
         'start_date',
         'end_date',
+        'progress',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array
-     */
+
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
     ];
 
-    /**
-     * Les relations à charger automatiquement.
-     *
-     * @var array
-     */
+
     protected $with = ['assignedUser'];
 
-    /**
-     * Get the project that owns the task.
-     */
+
     public function project()
     {
         return $this->belongsTo(Project::class);
     }
 
-    /**
-     * Get the user that is assigned to the task.
-     */
+
     public function assignedUser()
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
-    /**
-     * Get the status of the task.
-     */
+
     public function status()
     {
         return $this->belongsTo(Statuses::class);
     }
 
-    /**
-     * Get the priority of the task.
-     */
+
     public function priority()
     {
         return $this->belongsTo(Priority::class);
     }
+
+    public function subtasks()
+    {
+        return $this->hasMany(Subtask::class);
+    }
+
+    // Ajouter cette méthode
+    public function calculateProgress()
+    {
+        $this->progress = $this->subtasks()->avg('progress') ?? 0.0;
+        $this->save();
+        if ($this->project) {
+            $this->project->calculateProgress();
+        }
+    }
+
+    protected static function booted()
+    {
+        static::saved(function ($task) {
+            if ($task->project) {
+                $task->project->calculateProgress();
+            }
+        });
+
+        static::deleted(function ($task) {
+            if ($task->project) {
+                $task->project->calculateProgress();
+            }
+        });
+    }
+
+
 }
