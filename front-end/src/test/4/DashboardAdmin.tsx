@@ -1,480 +1,262 @@
-"use client"
+// src/pages/Dashboard.tsx
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { 
+  Box, 
+  Container, 
+  Typography, 
+  Paper, 
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Divider
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import SpeedIcon from '@mui/icons-material/Speed';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
-import type React from "react"
-import { useState } from "react"
-import {
-  Box,
-  Typography,
-  IconButton,
-  Paper,
-  Chip,
-  Container,
-  Breadcrumbs,
-  Button,
-  LinearProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-} from "@mui/material"
-import { styled } from "@mui/material/styles"
-import {
-  Folder as FolderIcon,
-  Task as TaskIcon,
-  People as TeamIcon,
-  Warning,
-  Add as AddIcon,
-  MoreVert,
-  FilterList,
-  PieChart,
-  BarChart,
-  Close as CloseIcon,
-  Send as SendIcon,
-} from "@mui/icons-material"
-import { DatePicker } from "@mui/x-date-pickers/DatePicker"
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"
-import AppLayout from "../layout/AppLayout"
+// Types pour les données
+interface PerformanceData {
+  projects: {
+    count: number;
+    percentage_change: number;
+  };
+  tasks: {
+    count: number;
+    percentage_change: number;
+  };
+  performance: {
+    percentage: number;
+    percentage_change: number;
+  };
+  deadlines_met: {
+    percentage: number;
+    percentage_change: number;
+  };
+  key_points: string[];
+}
 
-const BootstrapDialog = styled(Dialog)(({ theme }) => ({
-  "& .MuiDialogContent-root": { padding: theme.spacing(2) },
-  "& .MuiDialogActions-root": { padding: theme.spacing(1) },
-}))
+interface ApiResponse {
+  success: boolean;
+  data: PerformanceData;
+}
 
-const DashboardAdmin: React.FC = () => {
-  // État pour le modal de création de projet (ajouté depuis projet.tsx)
-  const [projectModalOpen, setProjectModalOpen] = useState(false)
+const StyledPaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  height: '100%',
+  borderRadius: 16,
+  display: 'flex',
+  flexDirection: 'column',
+  boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.05)',
+}));
 
-  // Fonctions pour gérer le modal de projet
-  const handleProjectModalOpen = () => setProjectModalOpen(true)
-  const handleProjectModalClose = () => setProjectModalOpen(false)
+const StatIcon = styled(Box)(({ theme }) => ({
+  width: 48,
+  height: 48,
+  borderRadius: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: theme.spacing(2),
+}));
 
+const FlexContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexWrap: 'wrap',
+  margin: theme.spacing(-1.5),
+}));
 
-  // Données pour les cartes de statistiques
-  const statsCards = [
-    { icon: <FolderIcon sx={{ color: "blue" }} />, label: "Projets actifs", count: 8, bgColor: "#E3F2FD" },
-    { icon: <TaskIcon sx={{ color: "orange" }} />, label: "Tâches en cours", count: 24, bgColor: "#FFF3E0" },
-    { icon: <TeamIcon sx={{ color: "green" }} />, label: "Utilisateurs", count: 15, bgColor: "#E8F5E9" },
-    { icon: <Warning sx={{ color: "red" }} />, label: "Projets en retard", count: 2, bgColor: "#FFEBEE" },
-  ]
+const FlexItem = styled(Box)(({ theme }) => ({
+  flex: '1 1 calc(25% - 24px)',
+  margin: theme.spacing(1.5),
+  minWidth: '220px',
+}));
 
-  // Données pour les projets récents
-  const recentProjects = [
-    {
-      id: 1,
-      nom: "Refonte du site web",
-      statut: "En cours",
-      progression: 65,
-      responsable: "Marie Dupont",
-    },
-    {
-      id: 2,
-      nom: "Application mobile",
-      statut: "En cours",
-      progression: 40,
-      responsable: "Jean Martin",
-    },
-    {
-      id: 3,
-      nom: "Campagne marketing Q2",
-      statut: "À démarrer",
-      progression: 0,
-      responsable: "Sophie Leclerc",
-    },
-    {
-      id: 4,
-      nom: "Mise à jour CRM",
-      statut: "Terminé",
-      progression: 100,
-      responsable: "Thomas Bernard",
-    },
-  ]
+const Dashboard: React.FC = () => {
+  const [loading, setLoading] = useState<boolean>(true);
+  const [data, setData] = useState<PerformanceData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Données pour les utilisateurs récents
-  const recentUsers = [
-    { id: 1, nom: "Marie Dupont", role: "Chef de projet", departement: "Marketing", dateCreation: "01/03/2025" },
-    { id: 2, nom: "Jean Martin", role: "Chef de projet", departement: "Développement", dateCreation: "15/02/2025" },
-    { id: 3, nom: "Sophie Leclerc", role: "Membre d'équipe", departement: "Marketing", dateCreation: "10/02/2025" },
-    { id: 4, nom: "Thomas Bernard", role: "Membre d'équipe", departement: "Design", dateCreation: "05/02/2025" },
-  ]
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Dans un environnement réel, utilisez l'URL réelle de votre API
+        const response = await axios.get<ApiResponse>('/api/dashboard/performance-summary');
+        if (response.data.success) {
+          setData(response.data.data);
+        } else {
+          setError('Erreur lors du chargement des données');
+        }
+      } catch (err) {
+        setError('Erreur de serveur');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Fonction pour obtenir la couleur du statut
-  const getStatusColor = (statut: string) => {
-    switch (statut) {
-      case "À démarrer":
-        return { bg: "#FFF9C4", color: "goldenrod" }
-      case "En cours":
-        return { bg: "#E3F2FD", color: "blue" }
-      case "Terminé":
-        return { bg: "#E8F5E9", color: "green" }
-      case "En retard":
-        return { bg: "#FFEBEE", color: "red" }
-      default:
-        return { bg: "#E0E0E0", color: "gray" }
-    }
+    // Pour des besoins de démonstration, je vais simuler les données
+    // Remplacez ce bloc par fetchData() lorsque votre API est prête
+    setTimeout(() => {
+      setData({
+        projects: { count: 25, percentage_change: 15 },
+        tasks: { count: 124, percentage_change: 8 },
+        performance: { percentage: 89, percentage_change: 5 },
+        deadlines_met: { percentage: 92, percentage_change: 12 },
+        key_points: [
+          "La performance globale de l'équipe a augmenté de 5% ce trimestre",
+          "Le respect des délais s'est amélioré de 12%, atteignant 92%",
+          "Le nombre de projets actifs a augmenté de 15%",
+          "Le département technique a la meilleure performance avec 95%",
+          "Le projet \"Intégration CRM\" progresse plus rapidement que prévu"
+        ]
+      });
+      setLoading(false);
+    }, 1000);
+
+    // fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <Typography color="error">{error || "Données non disponibles"}</Typography>
+      </Box>
+    );
   }
 
   return (
-    <AppLayout>
-            <Container maxWidth="xl" sx={{ display: 'flex', flexDirection: 'column', py: 3 }}>
-          {/* Fil d'Ariane */}
-          <Box sx={{ mb: 2 }}>
-            <Breadcrumbs aria-label="breadcrumb">
-              <Typography color="text.primary">Tableau de bord</Typography>
-            </Breadcrumbs>
-          </Box>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Typography variant="h4" fontWeight="bold" gutterBottom>
+        Résumé des performances
+      </Typography>
+      <Typography variant="subtitle1" color="text.secondary" gutterBottom sx={{ mb: 4 }}>
+        Aperçu global des performances de l'entreprise
+      </Typography>
 
-          {/* En-tête et titre */}
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 4 }}>
-            <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-              Tableau de bord administrateur
+      <FlexContainer sx={{ mb: 4 }}>
+        {/* Projets */}
+        <FlexItem>
+          <StyledPaper>
+            <StatIcon sx={{ bgcolor: 'rgba(34, 197, 94, 0.1)' }}>
+              <BarChartIcon sx={{ color: '#22c55e' }} />
+            </StatIcon>
+            <Typography variant="subtitle1" color="text.secondary">
+              Projets
             </Typography>
-
-            {/* Bouton "Nouveau projet" modifié pour ouvrir le modal */}
-            <Button
-              variant="contained"
-              onClick={handleProjectModalOpen}
-              color="success"
-              startIcon={<AddIcon />}
-              sx={{ textTransform: "none", borderRadius: 1, px: 2 }}
+            <Typography variant="h3" fontWeight="bold" mt={1}>
+              {data.projects.count}
+            </Typography>
+            <Typography 
+              variant="body2"
+              color="success.main"
+              mt={1}
             >
-              Nouveau projet
-            </Button>
+              +{data.projects.percentage_change}% par rapport au trimestre précédent
+            </Typography>
+          </StyledPaper>
+        </FlexItem>
 
-            {/* Modal de création de projet (intégré depuis projet.tsx) */}
-            <BootstrapDialog
-              onClose={handleProjectModalClose}
-              aria-labelledby="customized-dialog-title"
-              open={projectModalOpen}
-              maxWidth="sm"
-              fullWidth
+        {/* Tâches */}
+        <FlexItem>
+          <StyledPaper>
+            <StatIcon sx={{ bgcolor: 'rgba(14, 165, 233, 0.1)' }}>
+              <AssignmentIcon sx={{ color: '#0ea5e9' }} />
+            </StatIcon>
+            <Typography variant="subtitle1" color="text.secondary">
+              Tâches
+            </Typography>
+            <Typography variant="h3" fontWeight="bold" mt={1}>
+              {data.tasks.count}
+            </Typography>
+            <Typography 
+              variant="body2"
+              color="success.main"
+              mt={1}
             >
-              <DialogTitle sx={{ m: 0, p: 2 }} id="customized-dialog-title">
-                Créer un nouveau projet
-              </DialogTitle>
-              <IconButton
-                aria-label="close"
-                onClick={handleProjectModalClose}
-                sx={{ position: "absolute", right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
-              >
-                <CloseIcon />
-              </IconButton>
+              +{data.tasks.percentage_change}% par rapport au trimestre précédent
+            </Typography>
+          </StyledPaper>
+        </FlexItem>
 
-              <DialogContent dividers>
-                <Box component="form" sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                  <TextField label="Nom du projet" fullWidth variant="outlined" />
-                  <TextField label="Description" fullWidth multiline rows={4} variant="outlined" />
-                  <TextField select label="Priorité" fullWidth variant="outlined"></TextField>
-                  <TextField select label="Statut" fullWidth variant="outlined"></TextField>
-
-                  <LocalizationProvider dateAdapter={AdapterDayjs}>
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      <Box sx={{ flex: 1 }}>
-                        <DatePicker
-                          label="Date de début"
-                          slotProps={{ textField: { fullWidth: true, placeholder: "Date de début" } }}
-                        />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <DatePicker
-                          label="Date de fin"
-                          slotProps={{ textField: { fullWidth: true, placeholder: "Date de fin" } }}
-                        />
-                      </Box>
-                    </Box>
-                  </LocalizationProvider>
-                </Box>
-              </DialogContent>
-
-              <DialogActions>
-                <Button
-                  variant="outlined"
-                  color="success"
-                  onClick={handleProjectModalClose}
-                  sx={{ textTransform: "none" }}
-                >
-                  Annuler
-                </Button>
-                <Button
-                  variant="contained"
-                  color="success"
-                  onClick={handleProjectModalClose}
-                  endIcon={<SendIcon />}
-                  sx={{ textTransform: "none", borderRadius: 1, px: 3 }}
-                >
-                  Créer le Projet
-                </Button>
-              </DialogActions>
-            </BootstrapDialog>
-          </Box>
-
-          {/* Cartes des statistiques */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 2,
-              mb: 4,
-              flexWrap: "wrap",
-            }}
-          >
-            {statsCards.map((card, index) => (
-              <Paper
-                key={index}
-                elevation={2}
-                sx={{
-                  width: { xs: "100%", sm: "calc(50% - 8px)", md: "calc(25% - 12px)" },
-                  height: 120,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 2,
-                  p: 2,
-                  textAlign: "center",
-                  mb: { xs: 2, sm: 0 },
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  "&:hover": {
-                    transform: "translateY(-3px)",
-                    boxShadow: 3,
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: "50%",
-                    backgroundColor: card.bgColor,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    mb: 1,
-                  }}
-                >
-                  {card.icon}
-                </Box>
-                <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-                  {card.label}
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                  {card.count}
-                </Typography>
-              </Paper>
-            ))}
-          </Box>
-
-          {/* Graphiques et tableaux */}
-          <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3, mb: 4 }}>
-            {/* Graphique de progression des projets */}
-            <Paper
-              sx={{
-                p: 3,
-                borderRadius: 2,
-                boxShadow: 3,
-                width: { xs: "100%", md: "50%" },
-                mb: { xs: 3, md: 0 },
-              }}
+        {/* Performance */}
+        <FlexItem>
+          <StyledPaper>
+            <StatIcon sx={{ bgcolor: 'rgba(168, 85, 247, 0.1)' }}>
+              <SpeedIcon sx={{ color: '#a855f7' }} />
+            </StatIcon>
+            <Typography variant="subtitle1" color="text.secondary">
+              Performance
+            </Typography>
+            <Typography variant="h3" fontWeight="bold" mt={1}>
+              {data.performance.percentage}%
+            </Typography>
+            <Typography 
+              variant="body2"
+              color="success.main"
+              mt={1}
             >
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                  Progression des projets
-                </Typography>
-                <IconButton size="small">
-                  <MoreVert fontSize="small" />
-                </IconButton>
-              </Box>
-              <Box
-                sx={{
-                  height: 250,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "#f9f9f9",
-                  borderRadius: 1,
-                }}
-              >
-                <BarChart sx={{ fontSize: 100, color: "#ccc" }} />
-              </Box>
-            </Paper>
+              +{data.performance.percentage_change}% par rapport au trimestre précédent
+            </Typography>
+          </StyledPaper>
+        </FlexItem>
 
-            {/* Répartition des tâches */}
-            <Paper
-              sx={{
-                p: 3,
-                borderRadius: 2,
-                boxShadow: 3,
-                width: { xs: "100%", md: "50%" },
-              }}
+        {/* Délais respectés */}
+        <FlexItem>
+          <StyledPaper>
+            <StatIcon sx={{ bgcolor: 'rgba(16, 185, 129, 0.1)' }}>
+              <EventAvailableIcon sx={{ color: '#10b981' }} />
+            </StatIcon>
+            <Typography variant="subtitle1" color="text.secondary">
+              Délais respectés
+            </Typography>
+            <Typography variant="h3" fontWeight="bold" mt={1}>
+              {data.deadlines_met.percentage}%
+            </Typography>
+            <Typography 
+              variant="body2"
+              color="success.main"
+              mt={1}
             >
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                  Répartition des tâches
-                </Typography>
-                <IconButton size="small">
-                  <MoreVert fontSize="small" />
-                </IconButton>
-              </Box>
-              <Box
-                sx={{
-                  height: 250,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "#f9f9f9",
-                  borderRadius: 1,
-                }}
-              >
-                <PieChart sx={{ fontSize: 100, color: "#ccc" }} />
-              </Box>
-            </Paper>
-          </Box>
+              +{data.deadlines_met.percentage_change}% par rapport au trimestre précédent
+            </Typography>
+          </StyledPaper>
+        </FlexItem>
+      </FlexContainer>
 
-          {/* Projets récents */}
-          <Paper sx={{ p: 3, borderRadius: 2,boxShadow: 3, mb: 4 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                Projets récents
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                endIcon={<FilterList />}
-                sx={{ textTransform: "none", borderRadius: 1 }}
-              >
-                Filtrer
-              </Button>
-            </Box>
-            <TableContainer>
-              <Table sx={{ minWidth: 650 }}>
-                <TableHead sx={{ bgcolor: "#f5f5f5" }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Nom du projet</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Statut</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Progression</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Responsable</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {recentProjects.map((project) => {
-                    const statusColor = getStatusColor(project.statut)
-                    return (
-                      <TableRow key={project.id} hover>
-                        <TableCell>{project.nom}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={project.statut}
-                            size="small"
-                            sx={{
-                              backgroundColor: statusColor.bg,
-                              color: statusColor.color,
-                              fontWeight: "medium",
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={project.progression}
-                              sx={{
-                                width: 100,
-                                height: 6,
-                                borderRadius: 3,
-                                bgcolor: "#e0e0e0",
-                                "& .MuiLinearProgress-bar": {
-                                  bgcolor:
-                                    project.progression === 100
-                                      ? "#4caf50"
-                                      : project.progression < 30
-                                        ? "#f44336"
-                                        : "#2196f3",
-                                },
-                              }}
-                            />
-                            <Typography variant="body2">{project.progression}%</Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>{project.responsable}</TableCell>
-                        <TableCell>
-                          <IconButton size="small">
-                            <MoreVert fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-              <Button variant="text" color="primary" sx={{ textTransform: "none" }}>
-                Voir tous les projets
-              </Button>
-            </Box>
-          </Paper>
+      {/* Points clés */}
+      <StyledPaper>
+        <Typography variant="h6" fontWeight="bold" mb={2}>
+          Points clés
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <List sx={{ p: 0 }}>
+          {data.key_points.map((point, index) => (
+            <ListItem key={index} sx={{ py: 0.5, px: 0 }}>
+              <ListItemIcon sx={{ minWidth: 24 }}>
+                <FiberManualRecordIcon fontSize="small" color="primary" />
+              </ListItemIcon>
+              <ListItemText primary={point} />
+            </ListItem>
+          ))}
+        </List>
+      </StyledPaper>
+    </Container>
+  );
+};
 
-          {/* Utilisateurs récents */}
-          <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 3, }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                Utilisateurs récents
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                endIcon={<FilterList />}
-                sx={{ textTransform: "none", borderRadius: 1 }}
-              >
-                Filtrer
-              </Button>
-            </Box>
-            <TableContainer>
-              <Table sx={{ minWidth: 650 }}>
-                <TableHead sx={{ bgcolor: "#f5f5f5" }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Nom</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Rôle</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Département</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Date de création</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {recentUsers.map((user) => (
-                    <TableRow key={user.id} hover>
-                      <TableCell>{user.nom}</TableCell>
-                      <TableCell>{user.role}</TableCell>
-                      <TableCell>{user.departement}</TableCell>
-                      <TableCell>{user.dateCreation}</TableCell>
-                      <TableCell>
-                        <IconButton size="small">
-                          <MoreVert fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-              <Button variant="text" color="primary" sx={{ textTransform: "none" }}>
-                Voir tous les utilisateurs
-              </Button>
-            </Box>
-          </Paper>
-        </Container>
-    </AppLayout>
-  )
-}
-
-export default DashboardAdmin
-
+export default Dashboard;

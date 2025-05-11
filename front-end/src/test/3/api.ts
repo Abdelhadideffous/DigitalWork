@@ -90,6 +90,7 @@ export interface Task {
     status?: { id: number; name: string };
     priority?: { id: number; name: string };
     project?: { id: number; title: string };
+    progress?: number;
     created_at?: string;
     updated_at?: string;
 }
@@ -103,6 +104,23 @@ export interface NewTaskData {
     assigned_to: number; // Mise à jour pour utiliser assigned_to au lieu de user_id
     start_date: string;
     end_date: string;
+}
+
+// Interface pour les sous-tâches
+export interface Subtask {
+    id: number;
+    task_id: number;
+    title: string;
+    status_id: number;
+    progress: number;
+    created_at?: string;
+    updated_at?: string;
+    status?: { id: number; name: string };
+}
+
+export interface NewSubtaskData {
+    title: string;
+    progress?: number;
 }
 
 // API pour les tâches
@@ -169,6 +187,86 @@ export const taskApi = {
             return response.data;
         } catch (error) {
             console.error(`Erreur lors de la suppression de la tâche ${id}:`, error);
+            throw error;
+        }
+    },
+
+    // Calculer la progression d'une tâche
+    calculateProgress: async (id: number) => {
+        try {
+            const response = await api.post(`/tasks/${id}/calculate-progress`);
+            return response.data;
+        } catch (error) {
+            console.error(`Erreur lors du calcul de la progression de la tâche ${id}:`, error);
+            throw error;
+        }
+    },
+};
+
+// API pour les sous-tâches
+export const subtaskApi = {
+    // Récupérer toutes les sous-tâches d'une tâche
+    getTaskSubtasks: async (taskId: number) => {
+        try {
+            const response = await api.get(`/tasks/${taskId}/subtasks`);
+            return response.data.data;
+        } catch (error) {
+            console.error(`Erreur lors de la récupération des sous-tâches pour la tâche ${taskId}:`, error);
+            throw error;
+        }
+    },
+
+    // Créer une nouvelle sous-tâche
+    createSubtask: async (taskId: number, subtaskData: NewSubtaskData) => {
+        try {
+            const response = await api.post(`/tasks/${taskId}/subtasks`, subtaskData);
+            return response.data;
+        } catch (error) {
+            console.error('Erreur lors de la création de la sous-tâche:', error);
+            throw error;
+        }
+    },
+
+    // Mettre à jour une sous-tâche
+    updateSubtask: async (subtaskId: number, subtaskData: Partial<NewSubtaskData>) => {
+        try {
+            const response = await api.put(`/subtasks/${subtaskId}`, subtaskData);
+            return response.data;
+        } catch (error) {
+            console.error(`Erreur lors de la mise à jour de la sous-tâche ${subtaskId}:`, error);
+            throw error;
+        }
+    },
+
+    // Supprimer une sous-tâche
+    deleteSubtask: async (subtaskId: number) => {
+        try {
+            const response = await api.delete(`/subtasks/${subtaskId}`);
+            return response.data;
+        } catch (error) {
+            console.error(`Erreur lors de la suppression de la sous-tâche ${subtaskId}:`, error);
+            throw error;
+        }
+    },
+
+    // Marquer une sous-tâche comme terminée
+    completeSubtask: async (subtaskId: number) => {
+        try {
+            const response = await api.post(`/subtasks/${subtaskId}/complete`);
+            return response.data;
+        } catch (error) {
+            console.error(`Erreur lors du marquage de la sous-tâche ${subtaskId} comme terminée:`, error);
+            throw error;
+        }
+    },
+
+    // Annuler une sous-tâche
+    cancelSubtask: async (subtaskId: number) => {
+        try {
+            const response = await api.post(`/subtasks/${subtaskId}/cancel`);
+            return response.data;
+        } catch (error) {
+            console.error(`Erreur lors de l'annulation de la sous-tâche ${subtaskId}:`, error);
             throw error;
         }
     },

@@ -14,7 +14,7 @@ import DashboardAdmin from '../test/4/DashboardAdmin';
 
 export const testsRoutes = (
     <Route path="/test">
-        {/* <Route path="1" element={<DashboardAdmin/>} /> */}
+        <Route path="1" element={<DashboardAdmin/>} />
         <Route path="2" element={<Projet />} />
         <Route path="3" element={<FinalEdb />} />
         <Route path="4" element={<Task />} />
@@ -24,7 +24,7 @@ export const testsRoutes = (
         <Route path="8" element={<Pagemesage />} />
         <Route path="9" element={<Parametres />} />
         <Route path="0" element={<Home />} />
-        <Route path="00" element={<Login />} />
+        <Route path="login" element={<Login />} />
         <Route path="000" element={<Register />} />
     </Route>
 );

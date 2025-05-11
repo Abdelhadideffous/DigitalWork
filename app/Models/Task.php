@@ -63,12 +63,14 @@ class Task extends Model
     // Ajouter cette méthode
     public function calculateProgress()
     {
-        $this->progress = $this->subtasks()->avg('progress') ?? 0.0;
+        $this->progress = round($this->subtasks()->avg('progress') ?? 0.0, 1);
         $this->save();
+
         if ($this->project) {
             $this->project->calculateProgress();
         }
     }
+
 
     protected static function booted()
     {

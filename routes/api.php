@@ -4,6 +4,7 @@
 use App\Http\Controllers\ApiBridgeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentsProjetController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EdbController;
 use App\Http\Controllers\PriorityController;
 use App\Http\Controllers\ProjectController;
@@ -18,6 +19,19 @@ use Illuminate\Support\Facades\Route;
 
 
 
+
+Route::middleware('auth:sanctum')->group(function () {
+
+    // Route::get('/projects', [ProjectController::class, 'index']);
+    // Route::get('/edbs', [EdbController::class, 'index']);
+    // Route::get('/all-edbs', [EdbController::class, 'getAllEdbs']);
+    // Route::post('/edbs', [EdbController::class, 'store']);
+    Route::get('/teams', [TeamController::class, 'index']);
+
+
+
+
+});
 
 
 
@@ -40,9 +54,9 @@ Route::get('/priorities', [PriorityController::class, 'getAllPriorities']);
 
 // route statues
 Route::get('/statuses', [StatusController::class, 'index']);
+Route::get('/statusesprojetetask', [StatusController::class, 'getStatusProjetetTask']);
 
 //route projects
-Route::get('/projects', [ProjectController::class, 'index']);
 Route::post('/projects', [ProjectController::class, 'store']);
 Route::get('/projects/{id}', [ProjectController::class, 'show']);
 Route::put('/projects/{id}', [ProjectController::class, 'update']);
@@ -54,10 +68,11 @@ Route::get('projects/{id}/tasks', [ProjectController::class, 'getProjectTasks'])
 Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgress']);
 Route::post('/projects/{id}/cancel', [ProjectController::class, 'cancelProject']);
 Route::get('/projects/update-all-statuses', [ProjectController::class, 'updateAllProjectsStatus']);
+Route::get('/projects/filter', [ProjectController::class, 'filterProjects']);
+
 
 
 //route team 
-Route::get('/teams', [TeamController::class, 'index']);
 Route::post('/teams', [TeamController::class, 'store']);
 Route::get('/teams/{id}', [TeamController::class, 'show']);
 Route::put('/teams/{id}', [TeamController::class, 'update']);
@@ -98,9 +113,7 @@ Route::patch('/subtasks/{id}/complete', [SubtaskController::class, 'completeSubt
 
 
 // route pour edb 
-Route::get('/edbs', [EdbController::class, 'index']);
-Route::get('/all-edbs', [EdbController::class, 'getAllEdbs']);
-Route::post('/edbs', [EdbController::class, 'store']);
+
 Route::get('/edbs/{id}', [EdbController::class, 'show']);
 Route::put('/edbs/{id}', [EdbController::class, 'update']);
 Route::delete('/edbs/{id}', [EdbController::class, 'destroy']);
@@ -118,6 +131,9 @@ Route::delete('/edbs/{id}/attachments/{attachmentId}', [EdbController::class, 'd
 Route::post('/tasks/{id}/calculate-progress', [TaskController::class, 'calculateProgress']);
 Route::post('/projects/{id}/calculate-progress', [ProjectController::class, 'calculateProjectProgress']);
 
+
+
+Route::get('/dashboard/performance-summary', [DashboardController::class, 'getPerformanceSummary']);
 
 
 

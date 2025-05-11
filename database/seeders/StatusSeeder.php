@@ -15,10 +15,10 @@ class StatusSeeder extends Seeder
             ['name' => 'En cours'],
             ['name' => 'Terminé'],
             ['name' => 'Annulé'],
+            ['name' => 'En pause'],
             ['name' => 'Validé'],
             ['name' => 'Rejeté'],
             ['name' => 'En révision'],
-            ['name' => 'En pause'],
         ];
 
         foreach ($statuses as $key => $value) {

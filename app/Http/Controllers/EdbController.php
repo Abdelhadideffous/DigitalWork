@@ -9,30 +9,54 @@ use App\Models\Edb;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Auth;
 
 class EdbController extends Controller
 {
     public function index()
     {
-        $edbs = Edb::all();
-        return response()->json([
-            'success' => true,
-            'data' => EdbResource::collection($edbs)
-        ], 200); // OK - Déjà présent
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        // Admin : tous les enregistrements
+        if ($user->role === 'admin') {
+            $edbs = Edb::all();
+        } else {
+            // Tous les autres rôles : uniquement leurs propres EDB
+            $edbs = Edb::where('user_id', $user->id)->get();
+            // Si tu veux que le manager voie tout, enlève la condition sur le rôle
+        }
+
+        return EdbResource::collection($edbs);
     }
 
     public function getAllEdbs()
     {
-        $edbs = Edb::all();
-        return response()->json([
-            'success' => true,
-            'data' => EdbResource::collection($edbs)
-        ], 200); // OK - Déjà présent
+       $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        // Admin : tous les enregistrements
+        if ($user->role === 'admin') {
+            $edbs = Edb::all();
+        } else {
+            // Tous les autres rôles : uniquement leurs propres EDB
+            $edbs = Edb::where('user_id', $user->id)->get();
+            // Si tu veux que le manager voie tout, enlève la condition sur le rôle
+        }
+
+        return EdbResource::collection($edbs);
     }
 
     public function store(EdbRequest $request)
     {
+       
+
         $validated = $request->validated();
+        $validated['user_id'] = Auth::id(); // Associer l'EDB à l'utilisateur authentifié
 
         $edb = Edb::create($validated);
 
@@ -182,7 +206,7 @@ class EdbController extends Controller
         ], 200); // OK - Ajouté
     }
 
-   
+
 
 
 

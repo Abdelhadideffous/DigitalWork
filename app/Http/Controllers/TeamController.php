@@ -9,19 +9,32 @@ use App\Models\Project;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TeamController extends Controller
 {
     public function index()
-    {
-        $teams = Team::with(['manager', 'project', 'members'])->get();
+{
+    $user = Auth::user();
 
-        return response()->json([
-            'success' => true,
-            'data' => TeamResource::collection($teams)
-        ], 200);
+    if (!$user) {
+        return response()->json(['message' => 'Unauthenticated'], 401);
     }
+
+    if ($user->role === 'admin') {
+        $teams = Team::with(['project', 'members'])->get();
+    } else {
+        $teams = Team::whereHas('members', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })->with(['project', 'members'])->get();
+    }
+
+    return response()->json([
+        'success' => true,
+        'data' => TeamResource::collection($teams)
+    ]);
+}
 
     public function store(TeamRequest $request)
     {

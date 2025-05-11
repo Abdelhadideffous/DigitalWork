@@ -11,12 +11,19 @@ class StatusController extends Controller
 
     public function index()
     {
-        $statuses = StatusResource::collection(Statuses::all());
+        $statuses = StatusResource::collection(Statuses::query()->take(5)->get()); // Récupère les 5 premiers
 
         return response()->json([
             'success' => true,
             'data' => $statuses
         ], 200);
+    }
+
+    public function getStatusProjetetTask()
+    {
+        $statuses = StatusResource::collection(Statuses::query()->take(5)->get()); // Récupère les 5 premiers
+
+        return response()->json($statuses);
     }
 
 

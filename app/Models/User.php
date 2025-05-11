@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens; // Ajout de l'import
@@ -22,6 +23,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+
     ];
 
     /**
@@ -52,12 +55,13 @@ class User extends Authenticatable
     }
 
     // Équipes dont l'utilisateur est membre
-    public function teams()
+    public function teams(): BelongsToMany
     {
-        return $this->belongsToMany(Team::class, 'team_user');
-
-
+        return $this->belongsToMany(Team::class);   // ← table pivot par défaut : team_user
     }
+
+
+
 
     // Projets auxquels l'utilisateur participe (via les équipes)
     public function projects()
@@ -75,6 +79,24 @@ class User extends Authenticatable
     public function edbs()
     {
         return $this->hasMany(Edb::class);
+    }
+
+    public function isAdmin()
+    {
+        return $this->hasRole('admin');
+    }
+    public function isManager()
+    {
+        return $this->hasRole('manager');
+    }
+    public function isEmployee()
+    {
+        return $this->hasRole('employee');
+    }
+
+    public function hasRole($role)
+    {
+        return $this->role === $role;
     }
 
 

@@ -22,6 +22,19 @@ class UserController extends Controller
     /**
      * Rechercher des utilisateurs par nom ou email
      */
+
+
+
+    public function getAllUsers()
+    {
+        $users = User::all();
+
+        return response()->json([
+            'success' => true,
+            'data' => UserResource::collection($users)
+        ], 200);
+    }
+
     public function searchUsers(Request $request)
     {
         $query = $request->input('query', '');
@@ -105,14 +118,6 @@ class UserController extends Controller
     }
 
 
-    public function getAllUsers()
-    {
-        $users = User::select('id', 'name', 'email')->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => UserResource::collection($users)
-        ], 200);
-    }
 
 }

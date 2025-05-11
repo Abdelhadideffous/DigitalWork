@@ -18,7 +18,6 @@ class EdbRequest extends FormRequest
             'description' => 'required|string',
             'objectif' => 'nullable|string|max:255',
             'contrainte' => 'nullable|string|max:255',
-            'user_id' => 'required|exists:users,id',
             'priority_id' => 'required|exists:priorities,id',
         ];
     }

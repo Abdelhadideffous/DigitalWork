@@ -42,7 +42,7 @@ class Project extends Model
     // Équipes associées au projet
     public function teams()
     {
-        return $this->hasMany(Team::class);
+        return $this->belongsToMany(Team::class, 'project_team'); // Specify pivot table if needed
     }
 
     // Tous les membres des équipes associées au projet
@@ -68,8 +68,8 @@ class Project extends Model
     public function calculateProgress()
     {
         $avgProgress = $this->tasks()->avg('progress');
-        $this->progress = $avgProgress ?? 0.00; // Définit à 0.00 si null
-        return $this->save(); // Retourne le résultat de save pour vérification
+        $this->progress = round($avgProgress ?? 0.0, 1); // arrondi à 1 chiffre après la virgule
+        return $this->save();
     }
 
 

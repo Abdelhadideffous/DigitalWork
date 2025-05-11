@@ -12,22 +12,37 @@ use App\Models\Task;
 use App\Models\Team;
 use App\Services\ProjectStatusUpdater;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ProjectController extends Controller
 {
 
     public function index()
     {
-
         ProjectStatusUpdater::update();
 
-        $projects = Project::all();
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], status: 401);
+        }
+        $projectsQuery = Project::query();
+
+        if ($user->role !== 'admin') {
+            $projectsQuery
+                ->join('teams', 'teams.project_id', '=', 'projects.id')
+                ->join('team_user', 'team_user.team_id', '=', 'teams.id')
+                ->where('team_user.user_id', $user->id)
+                ->select('projects.*')          // évite de récupérer les colonnes du pivot
+                ->distinct();                   // supprime les doublons éventuels
+        }
+        $projects = $projectsQuery->get();
 
         return response()->json([
             'success' => true,
-            'data' => ProjectResource::collection($projects)
-        ], 200);
+            'data' => ProjectResource::collection($projects),
+        ]);
     }
+
 
     public function store(ProjectRequest $request)
     {
