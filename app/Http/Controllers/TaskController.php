@@ -7,27 +7,60 @@ use App\Http\Resources\TaskResource;
 use App\Models\Task;
 use App\Services\TasktStatusUpdater;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
     public function index()
     {
-        TasktStatusUpdater::update();
+        $user = Auth::user();
+        if (!$user)
+            return response()->json(['message' => 'Unauthenticated'], 401);
 
-        $tasks = Task::with(['project', 'assignedUser', 'status', 'priority'])->get();
+        if ($user->role === 'admin') {
+            $tasks = Task::with(['project', 'status', 'priority', 'assignedUser'])->get();
+
+        } else {
+            // Cas manager + employé : on récupère toutes les tâches,
+            // puis on filtre en fonction du projet ET du lien réel
+
+            $tasks = Task::with(['project.team', 'status', 'priority', 'assignedUser'])
+                ->get()
+                ->filter(function ($task) use ($user) {
+                    $project = $task->project;
+
+                    // Si le projet est null → ignorer cette tâche
+                    if (!$project)
+                        return false;
+
+                    // OK si manager du projet
+                    if ($user->isManagerOfProject($project))
+                        return true;
+
+                    // OK si la tâche lui est assignée
+                    return $task->assigned_to === $user->id;
+                })
+                ->values();
+        }
 
         return response()->json([
             'success' => true,
             'data' => TaskResource::collection($tasks)
-        ], 200);
+        ]);
     }
-
-    public function store(TaskRequest $request)
+    public function store(Request $request)
     {
-        $validated = $request->validated();
+        $user = Auth::user();
+
+        if (!$user || !in_array($user->role, ['admin', 'manager'])) {
+            return response()->json([
+                'message' => 'Accès refusé : seuls les managers et administrateurs peuvent créer une tâche.'
+            ], 403);
+        }
+
+        $validated = $request->validate(app(TaskRequest::class)->rules());
 
         $task = Task::create($validated);
-        $task->load(['project', 'assignedUser', 'status', 'priority']);
 
         return response()->json([
             'success' => true,

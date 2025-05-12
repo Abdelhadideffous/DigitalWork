@@ -7,6 +7,7 @@ use App\Http\Requests\ProjectRequest;
 use App\Http\Resources\ProjectResource;
 use App\Http\Resources\TaskResource;
 use App\Http\Resources\TeamResource;
+use App\Http\Resources\UserResource;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Team;
@@ -19,29 +20,55 @@ class ProjectController extends Controller
 
     public function index()
     {
-        ProjectStatusUpdater::update();
+        // ProjectStatusUpdater::update();
+
+        // $user = Auth::user();
+        // if (!$user) {
+        //     return response()->json(['message' => 'Unauthenticated.'], status: 401);
+        // }
+        // $projectsQuery = Project::query();
+
+        // if ($user->role !== 'admin') {
+        //     $projectsQuery
+        //         ->join('teams', 'teams.project_id', '=', 'projects.id')
+        //         ->join('team_user', 'team_user.team_id', '=', 'teams.id')
+        //         ->where('team_user.user_id', $user->id)
+        //         ->select('projects.*')          // évite de récupérer les colonnes du pivot
+        //         ->distinct();                   // supprime les doublons éventuels
+        // }
+        // $projects = $projectsQuery->get();
+
+        // return response()->json([
+        //     'success' => true,
+        //     'data' => ProjectResource::collection($projects),
+        // ]);
 
         $user = Auth::user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], status: 401);
-        }
-        $projectsQuery = Project::query();
 
-        if ($user->role !== 'admin') {
-            $projectsQuery
-                ->join('teams', 'teams.project_id', '=', 'projects.id')
-                ->join('team_user', 'team_user.team_id', '=', 'teams.id')
-                ->where('team_user.user_id', $user->id)
-                ->select('projects.*')          // évite de récupérer les colonnes du pivot
-                ->distinct();                   // supprime les doublons éventuels
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
         }
-        $projects = $projectsQuery->get();
+
+        if ($user->role === 'admin') {
+            $projects = Project::with('team')->get();
+        } else {
+            // Tous les projets, filtrés ensuite
+            $projects = Project::with('team.members')
+                ->get()
+                ->filter(function ($project) use ($user) {
+                    return $user->isManagerOfProject($project) || $user->isMemberOfProject($project);
+                })
+                ->values(); // pour réindexer
+        }
 
         return response()->json([
             'success' => true,
-            'data' => ProjectResource::collection($projects),
+            'data' => ProjectResource::collection($projects)
         ]);
     }
+
+
+
 
 
     public function store(ProjectRequest $request)
@@ -223,6 +250,55 @@ class ProjectController extends Controller
             'message' => 'Progression projet recalculée',
             'data' => new ProjectResource($project)
         ], 200);
+    }
+
+    public function getManagedProjects()
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if ($user->role === 'admin') {
+            $projects = Project::all(); // admin voit tout
+        } elseif ($user->role === 'manager') {
+            // manager : projets dont l'équipe est gérée par lui
+            $projects = Project::whereHas('team', function ($query) use ($user) {
+                $query->where('manager_id', $user->id);
+            })->get();
+        } else {
+            return response()->json([], 200); // employé = aucun
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => ProjectResource::collection($projects)
+        ], 200);
+
+
+    }
+
+
+
+    public function getProjectMembers($id)
+    {
+        $user = Auth::user();
+
+        $project = Project::with('team.members')->find($id);
+
+        if (!$project || !$project->team) {
+            return response()->json(['message' => 'Projet ou équipe introuvable'], 404);
+        }
+
+        if ($user->id !== $project->team->manager_id && $user->role !== 'admin') {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => UserResource::collection($project->team->members),
+        ]);
     }
 
 

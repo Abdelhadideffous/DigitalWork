@@ -22,16 +22,23 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Route::get('/projects', [ProjectController::class, 'index']);
-    // Route::get('/edbs', [EdbController::class, 'index']);
-    // Route::get('/all-edbs', [EdbController::class, 'getAllEdbs']);
-    // Route::post('/edbs', [EdbController::class, 'store']);
+    Route::get('/projects', [ProjectController::class, 'index']);
+    Route::get('/edbs', [EdbController::class, 'index']);
+    Route::get('/all-edbs', [EdbController::class, 'getAllEdbs']);
+    Route::post('/edbs', [EdbController::class, 'store']);
     Route::get('/teams', [TeamController::class, 'index']);
+    Route::get('/tasks', [TaskController::class, 'index']);
+    Route::post('/tasks', [TaskController::class, 'store']);
+
+
 
 
 
 
 });
+
+Route::middleware('auth:sanctum')->get('/projects/managed', [ProjectController::class, 'getManagedProjects']);
+Route::middleware('auth:sanctum')->get('/projects/{id}/members', [ProjectController::class, 'getProjectMembers']);
 
 
 
@@ -96,8 +103,8 @@ Route::post('/comments/{id}/unlike', [CommentsProjetController::class, 'unlike']
 
 
 //route pour Task
-Route::get('/tasks', [TaskController::class, 'index']);
-Route::post('/tasks', [TaskController::class, 'store']);
+// Route::get('/tasks', [TaskController::class, 'index']);
+// Route::post('/tasks', [TaskController::class, 'store']);
 Route::get('/tasks/{task}', [TaskController::class, 'show']);
 Route::put('/tasks/{task}', [TaskController::class, 'update']);
 Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);

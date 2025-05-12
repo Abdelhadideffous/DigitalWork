@@ -60,7 +60,6 @@ export interface User {
     avatar?: string;
 }
 
-
 export interface NewTaskData {
     title: string;
     description: string;
@@ -72,6 +71,14 @@ export interface NewTaskData {
     end_date: string;
 }
 
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    config.headers.Accept = 'application/json';
+    return config;
+});
 
 // API pour les projets
 export const projectApi = {

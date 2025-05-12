@@ -86,6 +86,9 @@ const TaskPage: React.FC = () => {
     const [statuses, setStatuses] = useState<Status[]>([]);
     const [priorities, setPriorities] = useState<Priority[]>([]);
 
+    // État pour les membres du projet sélectionné
+    const [projectMembers, setProjectMembers] = useState<any[]>([]);
+
     // État pour les sous-tâches
     const [subtasks, setSubtasks] = useState<Subtask[]>([]);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -304,13 +307,39 @@ const TaskPage: React.FC = () => {
         }
     };
 
+    // Fonction pour charger les membres d'un projet
+    const fetchProjectMembers = async (projectId: number) => {
+        try {
+            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/members`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    Accept: 'application/json',
+                },
+            });
+            const data = await response.json();
+            if (data && data.data) {
+                setProjectMembers(data.data);
+            } else {
+                setProjectMembers([]);
+            }
+        } catch (error) {
+            console.error(`Erreur lors du chargement des membres du projet ${projectId}:`, error);
+            setSnackbar({
+                open: true,
+                message: 'Erreur lors du chargement des membres du projet',
+                severity: 'error',
+            });
+            setProjectMembers([]);
+        }
+    };
+
     // 2. Modifier la fonction fetchSubtasks pour s'assurer qu'elle ne récupère que les sous-tâches de la tâche sélectionnée
     const fetchSubtasks = async (taskId: number) => {
         try {
             setLoadingSubtasks(true);
             const subtasksData = await subtaskApi.getTaskSubtasks(taskId);
             // Assurez-vous que seules les sous-tâches de la tâche sélectionnée sont affichées
-            const filteredSubtasks = subtasksData.filter((subtask: { task_id: number; }) => subtask.task_id === taskId);
+            const filteredSubtasks = subtasksData.filter((subtask: { task_id: number }) => subtask.task_id === taskId);
             setSubtasks(filteredSubtasks);
             setLoadingSubtasks(false);
         } catch (error) {
@@ -359,6 +388,26 @@ const TaskPage: React.FC = () => {
         return () => {
             window.removeEventListener('storage', handleStorageChange);
         };
+    }, []);
+
+    // Charger les membres du projet lors de l'ouverture du dialogue de modification
+    useEffect(() => {
+        if (openEditTaskDialog && editTaskData.project_id) {
+            fetchProjectMembers(editTaskData.project_id);
+        }
+    }, [openEditTaskDialog, editTaskData.project_id]);
+
+    useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                const res = await projectApi.getManagedProjects();
+                setProjects(res); // => liste des projets où il est manager
+            } catch (err) {
+                console.error('Erreur de chargement des projets', err);
+            }
+        };
+
+        fetchProjects();
     }, []);
 
     // Fonction pour ouvrir le dialogue de création de tâche
@@ -411,9 +460,11 @@ const TaskPage: React.FC = () => {
 
     // Fonction pour gérer le changement de projet dans le formulaire de nouvelle tâche
     const handleNewTaskProjectChange = (e: React.ChangeEvent<{ value: unknown }>) => {
+        const projectId = e.target.value as number;
         setNewTaskData({
             ...newTaskData,
-            project_id: e.target.value as number,
+            project_id: projectId,
+            assigned_to: 0, // Réinitialiser l'utilisateur assigné
         });
 
         // Réinitialiser l'erreur si un projet est sélectionné
@@ -422,6 +473,13 @@ const TaskPage: React.FC = () => {
                 ...newTaskErrors,
                 project_id: false,
             });
+        }
+
+        // Charger les membres du projet sélectionné
+        if (projectId) {
+            fetchProjectMembers(projectId);
+        } else {
+            setProjectMembers([]);
         }
     };
 
@@ -898,9 +956,10 @@ const TaskPage: React.FC = () => {
 
     // Fonction pour gérer le changement de projet dans le formulaire de modification de tâche
     const handleEditTaskProjectChange = (e: React.ChangeEvent<{ value: unknown }>) => {
+        const projectId = e.target.value as number;
         setEditTaskData({
             ...editTaskData,
-            project_id: e.target.value as number,
+            project_id: projectId,
         });
 
         // Réinitialiser l'erreur si un projet est sélectionné
@@ -909,6 +968,13 @@ const TaskPage: React.FC = () => {
                 ...editTaskErrors,
                 project_id: false,
             });
+        }
+
+        // Charger les membres du projet sélectionné
+        if (projectId) {
+            fetchProjectMembers(projectId);
+        } else {
+            setProjectMembers([]);
         }
     };
 
@@ -2300,11 +2366,17 @@ const TaskPage: React.FC = () => {
                                 <MenuItem value="">
                                     <em>Sélectionner un utilisateur</em>
                                 </MenuItem>
-                                {users.map((user) => (
-                                    <MenuItem key={user.id} value={user.id}>
-                                        {user.name}
-                                    </MenuItem>
-                                ))}
+                                {newTaskData.project_id && projectMembers.length > 0
+                                    ? projectMembers.map((user) => (
+                                          <MenuItem key={user.id} value={user.id}>
+                                              {user.name}
+                                          </MenuItem>
+                                      ))
+                                    : users.map((user) => (
+                                          <MenuItem key={user.id} value={user.id}>
+                                              {user.name}
+                                          </MenuItem>
+                                      ))}
                             </Select>
                             {newTaskErrors.user_id && (
                                 <Typography variant="caption" color="error">
@@ -2591,11 +2663,17 @@ const TaskPage: React.FC = () => {
                                 <MenuItem value="">
                                     <em>Sélectionner un utilisateur</em>
                                 </MenuItem>
-                                {users.map((user) => (
-                                    <MenuItem key={user.id} value={user.id}>
-                                        {user.name}
-                                    </MenuItem>
-                                ))}
+                                {editTaskData.project_id && projectMembers.length > 0
+                                    ? projectMembers.map((user) => (
+                                          <MenuItem key={user.id} value={user.id}>
+                                              {user.name}
+                                          </MenuItem>
+                                      ))
+                                    : users.map((user) => (
+                                          <MenuItem key={user.id} value={user.id}>
+                                              {user.name}
+                                          </MenuItem>
+                                      ))}
                             </Select>
                             {editTaskErrors.user_id && (
                                 <Typography variant="caption" color="error">

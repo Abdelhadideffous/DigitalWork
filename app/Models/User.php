@@ -9,6 +9,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens; // Ajout de l'import
 use Illuminate\Database\Eloquent\Relations\HasMany; // Import HasMany
+use Illuminate\Support\Facades\Hash; // Import Hash facade
 
 class User extends Authenticatable
 {
@@ -24,6 +25,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'number',
 
     ];
 
@@ -47,6 +49,10 @@ class User extends Authenticatable
     ];
 
 
+    public function setPasswordAttribute($value)
+    {
+        $this->attributes['password'] = Hash::make($value);
+    }
 
     // Équipes que l'utilisateur gère
     public function managedTeams()
@@ -99,5 +105,32 @@ class User extends Authenticatable
         return $this->role === $role;
     }
 
+
+
+   /**
+     * Check if the user is the manager of a given project.
+     *
+     * @param \App\Models\Project $project
+     * @return bool
+     */
+    public function isManagerOfProject($project)
+    {
+        // Assumes Project has a 'team' relationship and Team has 'manager_id'
+        return $project->team && $project->team->manager_id === $this->id;
+    }
+
+    /**
+     * Check if the user is a member of a given project.
+     *
+     * @param \App\Models\Project $project
+     * @return bool
+     */
+    public function isMemberOfProject($project)
+    {
+        // Assumes Project has a 'team' relationship and Team has 'members' relationship
+        return $project->team && $project->team->members->contains('id', $this->id);
+    }
+
+    
 
 }

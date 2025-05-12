@@ -40,10 +40,10 @@ class Project extends Model
     }
 
     // Équipes associées au projet
-    public function teams()
-    {
-        return $this->belongsToMany(Team::class, 'project_team'); // Specify pivot table if needed
-    }
+    public function team()
+{
+    return $this->hasOne(Team::class); // ✅ un projet a une seule équipe
+}
 
     // Tous les membres des équipes associées au projet
     public function teamMembers()

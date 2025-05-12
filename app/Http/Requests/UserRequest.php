@@ -32,6 +32,7 @@ class UserRequest extends FormRequest
             'password' => 'required|string|min:8',
             // 'role' => 'required|string|in:manager,employee',
             'number' => 'required|string|max:255',
+            
         ];
     }
 

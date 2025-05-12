@@ -123,6 +123,17 @@ export interface NewSubtaskData {
     progress?: number;
 }
 
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    config.headers.Accept = 'application/json';
+    return config;
+});
+
+
+
 // API pour les tâches
 export const taskApi = {
     getAllTasks: async () => {
@@ -359,6 +370,12 @@ export const projectApi = {
             throw error;
         }
     },
+    getManagedProjects: async () => {
+        const res = await api.get('/projects/managed');
+        return res.data.data;
+      },
+
+    
 };
 
 // API pour les équipes

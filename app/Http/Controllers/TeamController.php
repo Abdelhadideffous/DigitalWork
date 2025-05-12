@@ -15,26 +15,35 @@ use Illuminate\Support\Facades\DB;
 class TeamController extends Controller
 {
     public function index()
-{
-    $user = Auth::user();
+    {
+        $user = Auth::user();
 
-    if (!$user) {
-        return response()->json(['message' => 'Unauthenticated'], 401);
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if ($user->role === 'admin') {
+            // Admin : toutes les équipes
+            $teams = Team::with(['project', 'members', 'manager'])->get();
+
+        } else {
+            // Manager : équipes qu’il gère
+            $managedTeams = Team::where('manager_id', $user->id)->with(['project', 'members', 'manager'])->get();
+
+            // Membre : équipes où il est dans team_user
+            $memberTeams = Team::whereHas('members', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })->with(['project', 'members', 'manager'])->get();
+
+            // Fusionner sans doublons
+            $teams = $managedTeams->merge($memberTeams)->unique('id')->values();
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => TeamResource::collection($teams)
+        ]);
     }
-
-    if ($user->role === 'admin') {
-        $teams = Team::with(['project', 'members'])->get();
-    } else {
-        $teams = Team::whereHas('members', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })->with(['project', 'members'])->get();
-    }
-
-    return response()->json([
-        'success' => true,
-        'data' => TeamResource::collection($teams)
-    ]);
-}
 
     public function store(TeamRequest $request)
     {
