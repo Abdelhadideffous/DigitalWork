@@ -30,7 +30,8 @@ import {
   Upload as UploadIcon,
   Delete as DeleteIcon,
 } from "@mui/icons-material"
-import { edbApi, type Attachment, type Edb, type Priority, type Status } from "./api"
+import { edbApi, type Attachment, type Edb, type Priority, type Status } from "./apiedb"
+import { getCurrentUser } from "../login/api"
 
 interface EdbDetailsProps {
   edb: Edb
@@ -48,6 +49,17 @@ function EdbDetails({ edb, onBack, onApprove, onReject, statuses, priorities }: 
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  // État pour l'utilisateur connecté
+  const [currentUser, setCurrentUser] = useState<any>(null)
+
+  // Récupérer l'utilisateur connecté au chargement du composant
+  useEffect(() => {
+    const user = getCurrentUser()
+    if (user) {
+      setCurrentUser(user)
+    }
+  }, [])
 
   // Fonction pour charger les pièces jointes
   const fetchAttachments = async () => {
@@ -140,13 +152,13 @@ function EdbDetails({ edb, onBack, onApprove, onReject, statuses, priorities }: 
 
   // Fonction pour prévisualiser une pièce jointe
   const handlePreviewAttachment = (filePath: string) => {
-    window.open(`${process.env.NEXT_PUBLIC_API_URL}/storage/${filePath}`, "_blank")
+    window.open(`http://localhost:8000/api/storage/${filePath}`, "_blank")
   }
 
   // Fonction pour télécharger une pièce jointe
   const handleDownloadAttachment = (filePath: string, fileName: string) => {
     const link = document.createElement("a")
-    link.href = `${process.env.NEXT_PUBLIC_API_URL}/storage/${filePath}`
+    link.href = `http://localhost:8000/api/storage/${filePath}`
     link.download = fileName
     document.body.appendChild(link)
     link.click()
@@ -347,7 +359,11 @@ function EdbDetails({ edb, onBack, onApprove, onReject, statuses, priorities }: 
                           <Typography variant="subtitle1" fontWeight="bold" color="#16A249" gutterBottom>
                             Demandeur
                           </Typography>
-                          <Typography variant="body1">{edb?.user?.name || "Non spécifié"}</Typography>
+                          <Typography variant="body1">
+                            {currentUser && edb?.user_id === currentUser.id
+                              ? currentUser.name
+                              : edb?.user?.name || "Non spécifié"}
+                          </Typography>
                         </Box>
                         <Box
                           sx={{
@@ -386,9 +402,11 @@ function EdbDetails({ edb, onBack, onApprove, onReject, statuses, priorities }: 
                           <Typography variant="subtitle1" fontWeight="bold" color="#f44336" gutterBottom>
                             Priorité
                           </Typography>
-                          <Typography variant="body1">
-                            {edb?.priority?.name || getPriorityName(edb?.priority_id)}
-                          </Typography>
+                          <Chip
+                          label={edb?.priority?.name || getPriorityName(edb?.priority_id)}
+                          color={getPriorityColor(edb?.priority?.name || getPriorityName(edb?.priority_id)) as any}
+                          sx={{ mr: 2 }}
+                          />
                         </Box>
                       </Box>
                     </CardContent>

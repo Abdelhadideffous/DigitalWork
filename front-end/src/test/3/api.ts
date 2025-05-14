@@ -511,6 +511,19 @@ export const userApi = {
             throw error;
         }
     },
+
+    getProjectMembers : async (projectId: number) => {
+        try {
+          const response = await api.get(`/projects/${projectId}/members`);
+          return response.data.data || [];
+        } catch (error) {
+          console.error(`Erreur lors de la récupération des membres du projet ${projectId}:`, error);
+          throw error;
+        }
+    },
 };
+
+
+
 
 export default api;

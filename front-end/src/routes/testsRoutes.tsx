@@ -5,7 +5,7 @@ import Task from '../test/3/Task';
 import FinalEdb from '../test/5/FinalEdb';
 import Pagecalendrier from '../test/6/Pagecalendrier';
 import PageRapport from '../test/7/PageRapport';
-import Pagemesage from '../test/8/Pagemesage';
+// import Pagemesage from '../test/8/Pagemesage';
 import Parametres from '../test/9/Parametres';
 import Home from '../test/login/Home';
 import Login from '../test/login/Login';
@@ -21,7 +21,7 @@ export const testsRoutes = (
         <Route path="5" element={<Team />} />
         {/* <Route path="6" element={<Pagecalendrier />} /> */}
         <Route path="7" element={<PageRapport />} />
-        <Route path="8" element={<Pagemesage />} />
+        {/* <Route path="8" element={<Pagemesage />} /> */}
         <Route path="9" element={<Parametres />} />
         <Route path="0" element={<Home />} />
         <Route path="login" element={<Login />} />

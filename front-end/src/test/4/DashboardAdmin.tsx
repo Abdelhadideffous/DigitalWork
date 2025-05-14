@@ -11,7 +11,9 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  Breadcrumbs,
+  Link
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import BarChartIcon from '@mui/icons-material/BarChart';
@@ -19,6 +21,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import SpeedIcon from '@mui/icons-material/Speed';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import AppLayout from '../layout/AppLayout';
 
 // Types pour les données
 interface PerformanceData {
@@ -140,6 +143,22 @@ const Dashboard: React.FC = () => {
   }
 
   return (
+    <AppLayout>
+       <Container maxWidth="xl" sx={{ display: 'flex', flexDirection: 'column', py: 3 }}>
+          <Box sx={{ mb: 3 }}>
+            <Breadcrumbs aria-label="breadcrumb">
+              <Link underline="hover" color="inherit" href="/">
+                Tableau de bord
+              </Link>
+              <Typography sx={{ color: "text.primary" }}>Rapports</Typography>
+            </Breadcrumbs>
+          </Box>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: "bold", mb: 3 }}>
+          Rapports
+          </Typography>
+
+
+
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" fontWeight="bold" gutterBottom>
         Résumé des performances
@@ -255,7 +274,9 @@ const Dashboard: React.FC = () => {
           ))}
         </List>
       </StyledPaper>
-    </Container>
+     </Container>
+     </Container>
+    </AppLayout>
   );
 };
 

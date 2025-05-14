@@ -14,6 +14,7 @@ import {
   ThumbUpAltOutlined,
   ThumbUp,
   Send as SendIcon,
+  Visibility as VisibilityIcon,
 } from "@mui/icons-material"
 
 import {
@@ -58,8 +59,9 @@ import {
 } from "@mui/material"
 import type React from "react"
 import { useEffect, useState } from "react"
-import { projectApi, type Comment, type Priority, type Project, type Status, type Task } from "./api"
+import { projectApi, type Comment, type Priority, type Project, type Status, type Task } from "./apiprojet"
 import AppLayout from "../layout/AppLayout"
+import { getCurrentUser } from "../login/api"
 
 const Projet: React.FC = () => {
   // État pour le menu d'actions des projets
@@ -69,6 +71,9 @@ const Projet: React.FC = () => {
 
   // État pour suivre les commentaires aimés
   const [likedComments, setLikedComments] = useState<Set<number>>(new Set())
+
+  // Récupérer l'utilisateur connecté depuis le localStorage
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   // Fonction pour obtenir la date actuelle au format YYYY-MM-DD
   const getCurrentDate = () => {
@@ -176,17 +181,39 @@ const Projet: React.FC = () => {
   const [statuses, setStatuses] = useState<Status[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
 
-  // Utilisateur actuel (simulé pour l'exemple)
-  const currentUser = {
-    id: 1,
-    name: "John Doe",
-    email: "john.doe@example.com",
-    avatar: null,
-  }
-
   // Ajouter ces états après les autres déclarations d'état
   const [tasks, setTasks] = useState<Task[]>([])
   const [loadingTasks, setLoadingTasks] = useState(false)
+
+  // Récupérer l'utilisateur connecté au chargement du composant
+  useEffect(() => {
+    const user = getCurrentUser()
+    if (user) {
+      setCurrentUser(user)
+    } else {
+      // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
+      window.location.href = "/test/login"
+    }
+  }, [])
+
+  // Surveiller les changements d'utilisateur dans le localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const user = getCurrentUser()
+      if (user) {
+        setCurrentUser(user)
+      } else {
+        // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
+        window.location.href = "/test/login"
+      }
+    }
+
+    window.addEventListener("storage", handleStorageChange)
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+    }
+  }, [])
 
   // Fonction pour charger les projets depuis l'API
   const fetchProjects = async () => {
@@ -313,10 +340,12 @@ const Projet: React.FC = () => {
 
   // Charger les projets, équipes, statuts et priorités au chargement du composant
   useEffect(() => {
-    fetchProjects()
-    fetchStatuses()
-    fetchPriorities()
-  }, [])
+    if (currentUser) {
+      fetchProjects()
+      fetchStatuses()
+      fetchPriorities()
+    }
+  }, [currentUser])
 
   // Charger les commentaires lorsqu'un projet est sélectionné et que l'onglet commentaires est actif
   useEffect(() => {
@@ -763,7 +792,7 @@ const Projet: React.FC = () => {
 
   // Fonctions pour gérer les commentaires
   const handleAddComment = async () => {
-    if (!newComment.trim() || !selectedProject?.id) return
+    if (!newComment.trim() || !selectedProject?.id || !currentUser) return
 
     try {
       setLoading(true)
@@ -883,7 +912,7 @@ const Projet: React.FC = () => {
   }
 
   const handleSubmitReply = async () => {
-    if (!replyingToCommentId || !replyContent.trim() || !selectedProject?.id) return
+    if (!replyingToCommentId || !replyContent.trim() || !selectedProject?.id || !currentUser) return
 
     try {
       setLoading(true)
@@ -1057,7 +1086,7 @@ const Projet: React.FC = () => {
                 <Link
                   underline="hover"
                   color="inherit"
-                  href="/"
+                  href="/test/1"
                   onClick={(e) => {
                     e.preventDefault()
                     handleBackToProjectsList()
@@ -1403,12 +1432,6 @@ const Projet: React.FC = () => {
                               </Typography>
                             </Box>
 
-                            <Box sx={{ mb: 2 }}>
-                             <Typography >
-                              hna nhat progression ki yakhdamha badi f back-end
-                              </Typography>  
-                            </Box>
-
                             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
                               <Box>
                                 <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -1446,9 +1469,6 @@ const Projet: React.FC = () => {
                                 </Typography>
                               </Box>
                             </Box>
-
-
-                    
 
                             {/* Boutons d'action */}
                             <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
@@ -1585,10 +1605,7 @@ const Projet: React.FC = () => {
                               <TableCell sx={{ fontWeight: "bold" }}>Priorité</TableCell>
                               <TableCell sx={{ fontWeight: "bold" }}>Assigné à</TableCell>
                               <TableCell sx={{ fontWeight: "bold" }}>Échéance</TableCell>
-                              <TableCell sx={{ fontWeight: "bold" }}>Progression</TableCell>
-                              <TableCell sx={{ fontWeight: "bold" }} align="right">
-                                Actions
-                              </TableCell>
+                              <TableCell sx={{ fontWeight: "bold" }} align="right">Progression</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -1657,7 +1674,7 @@ const Projet: React.FC = () => {
                                       </Typography>
                                     )}
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell align="right">
                                     <Box sx={{ display: "flex", alignItems: "center" }}>
                                       <LinearProgress
                                         variant="determinate"
@@ -1675,11 +1692,6 @@ const Projet: React.FC = () => {
                                       />
                                       <Typography variant="body2">{task.progress || 0}%</Typography>
                                     </Box>
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    <IconButton size="small">
-                                      <MoreVert />
-                                    </IconButton>
                                   </TableCell>
                                 </TableRow>
                               ))
@@ -2329,6 +2341,8 @@ const Projet: React.FC = () => {
                 >
                   Filtres
                 </Button>
+                
+                {currentUser && currentUser.role === "admin" && ( //admin le seul peut créer une projet 
                 <Button
                   variant="contained"
                   color="success"
@@ -2338,6 +2352,7 @@ const Projet: React.FC = () => {
                 >
                   Nouveau projet
                 </Button>
+                )}
               </Box>
             </Box>
 
@@ -3115,7 +3130,8 @@ const Projet: React.FC = () => {
       >
         <MenuItem onClick={(e) => handleViewProjectDetails(selectedProjectId || 0, e)}>
           <ListItemIcon>
-            <EditIcon fontSize="small" sx={{ color: "#16A249" }} />
+           
+             <VisibilityIcon fontSize="small" sx={{ color: "#16A249" }}  />
           </ListItemIcon>
           <ListItemText primary="Détails" />
         </MenuItem>
@@ -3132,18 +3148,22 @@ const Projet: React.FC = () => {
           </ListItemIcon>
           <ListItemText primary="Commentaires" />
         </MenuItem>
+        {currentUser && currentUser.role === "admin" && ( // admin peut modifier le projet
         <MenuItem onClick={() => handleEditProjectDialogOpen(selectedProjectId || 0)}>
           <ListItemIcon>
             <EditIcon fontSize="small" sx={{ color: "#16A249" }} />
           </ListItemIcon>
           <ListItemText primary="Modifier" />
         </MenuItem>
+        )}
+        {currentUser && currentUser.role === "admin" && ( // admin peut supprimer le projet
         <MenuItem onClick={() => handleDeleteProjectDialogOpen(selectedProjectId || 0)}>
           <ListItemIcon>
             <DeleteIcon fontSize="small" color="error" />
           </ListItemIcon>
           <ListItemText primary="Supprimer" sx={{ color: "error.main" }} />
         </MenuItem>
+        )}
       </Menu>
 
       {/* Menu d'actions pour les commentaires */}

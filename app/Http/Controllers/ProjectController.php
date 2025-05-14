@@ -14,57 +14,55 @@ use App\Models\Team;
 use App\Services\ProjectStatusUpdater;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ProjectController extends Controller
 {
 
     public function index()
     {
-        // ProjectStatusUpdater::update();
+        try {
+            $user = Auth::user();
 
-        // $user = Auth::user();
-        // if (!$user) {
-        //     return response()->json(['message' => 'Unauthenticated.'], status: 401);
-        // }
-        // $projectsQuery = Project::query();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Non authentifié'
+                ], 401);
+            }
 
-        // if ($user->role !== 'admin') {
-        //     $projectsQuery
-        //         ->join('teams', 'teams.project_id', '=', 'projects.id')
-        //         ->join('team_user', 'team_user.team_id', '=', 'teams.id')
-        //         ->where('team_user.user_id', $user->id)
-        //         ->select('projects.*')          // évite de récupérer les colonnes du pivot
-        //         ->distinct();                   // supprime les doublons éventuels
-        // }
-        // $projects = $projectsQuery->get();
+            $query = Project::query();
 
-        // return response()->json([
-        //     'success' => true,
-        //     'data' => ProjectResource::collection($projects),
-        // ]);
+            if ($user->role === 'admin') {
+                // Les administrateurs voient tous les projets
+                $projects = $query->get();
+            } else {
+                // Pour les autres utilisateurs, on récupère les projets où ils sont manager ou membre
+                $projects = $query
+                    ->where(function ($q) use ($user) {
+                        $q->whereHas('team', function ($teamQuery) use ($user) {
+                            $teamQuery->where('manager_id', $user->id);
+                        })
+                        ->orWhereHas('team.members', function ($memberQuery) use ($user) {
+                            $memberQuery->where('users.id', $user->id);
+                        });
+                    })
+                    ->get();
+            }
 
-        $user = Auth::user();
+            return response()->json([
+                'success' => true,
+                'data' => ProjectResource::collection($projects)
+            ]);
 
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de la récupération des projets: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la récupération des projets'
+            ], 500);
         }
-
-        if ($user->role === 'admin') {
-            $projects = Project::with('team')->get();
-        } else {
-            // Tous les projets, filtrés ensuite
-            $projects = Project::with('team.members')
-                ->get()
-                ->filter(function ($project) use ($user) {
-                    return $user->isManagerOfProject($project) || $user->isMemberOfProject($project);
-                })
-                ->values(); // pour réindexer
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => ProjectResource::collection($projects)
-        ]);
     }
 
 
@@ -291,13 +289,19 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Projet ou équipe introuvable'], 404);
         }
 
+        // ⚠️ Seul le vrai manager ou l'admin peut voir les membres
         if ($user->id !== $project->team->manager_id && $user->role !== 'admin') {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
+        $team = $project->team;
+
+        // ✅ Inclure le manager + tous les membres
+        $allUsers = collect($team->members)->push($team->manager)->unique('id');
+
         return response()->json([
             'success' => true,
-            'data' => UserResource::collection($project->team->members),
+            'data' => UserResource::collection($allUsers)
         ]);
     }
 

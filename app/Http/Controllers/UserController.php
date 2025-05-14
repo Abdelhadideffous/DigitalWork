@@ -6,6 +6,7 @@ use App\Http\Requests\UserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -27,8 +28,13 @@ class UserController extends Controller
 
     public function getAllUsers()
     {
-        $users = User::all();
+        // $user = Auth::user();
 
+        // if ($user->role !== 'admin') {
+        //     return response()->json(['message' => 'Accès refusé'], 403);
+        // }
+
+        $users = User::all();
         return response()->json([
             'success' => true,
             'data' => UserResource::collection($users)

@@ -10,10 +10,37 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
+use App\Services\NotificationService;
 
 class EdbController extends Controller
 {
-    public function index()
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
+    // public function index()
+    // {
+    //     $user = Auth::user();
+    //     if (!$user) {
+    //         return response()->json(['message' => 'Unauthenticated.'], 401);
+    //     }
+
+    //     // Admin : tous les enregistrements
+    //     if ($user->role === 'admin') {
+    //         $edbs = Edb::all();
+    //     } else {
+    //         // Tous les autres rôles : uniquement leurs propres EDB
+    //         $edbs = Edb::where('user_id', $user->id)->get();
+    //         // Si tu veux que le manager voie tout, enlève la condition sur le rôle
+    //     }
+
+    //     return EdbResource::collection($edbs);
+    // }
+
+    public function getAllEdbs()
     {
         $user = Auth::user();
         if (!$user) {
@@ -29,42 +56,28 @@ class EdbController extends Controller
             // Si tu veux que le manager voie tout, enlève la condition sur le rôle
         }
 
-        return EdbResource::collection($edbs);
-    }
-
-    public function getAllEdbs()
-    {
-       $user = Auth::user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        // Admin : tous les enregistrements
-        if ($user->role === 'admin') {
-            $edbs = Edb::all();
-        } else {
-            // Tous les autres rôles : uniquement leurs propres EDB
-            $edbs = Edb::where('user_id', $user->id)->get();
-            // Si tu veux que le manager voie tout, enlève la condition sur le rôle
-        }
-
-        return EdbResource::collection($edbs);
+        return response()->json([
+            'success' => true,
+            'message' => 'Edb créé avec succès',
+            'data' => EdbResource::collection($edbs)
+        ], 201); // Created - Déjà présent
     }
 
     public function store(EdbRequest $request)
     {
-       
-
         $validated = $request->validated();
-        $validated['user_id'] = Auth::id(); // Associer l'EDB à l'utilisateur authentifié
+        $validated['user_id'] = Auth::id();
 
         $edb = Edb::create($validated);
+
+        // Ajouter la notification
+        $this->notificationService->edbSubmitted($edb);
 
         return response()->json([
             'success' => true,
             'message' => 'Edb créé avec succès',
             'data' => new EdbResource($edb)
-        ], 201); // Created - Déjà présent
+        ], 201);
     }
 
     public function show($id)
@@ -124,25 +137,31 @@ class EdbController extends Controller
     public function approveEdb($id)
     {
         $edb = Edb::findOrFail($id);
-        $edb->status_id = 5; // ID du statut "approuvé"
+        $edb->status_id = 6; // ID du statut "approuvé"
         $edb->save();
+
+        // Ajouter la notification
+        $this->notificationService->edbApproved($edb);
 
         return response()->json([
             'success' => true,
             'message' => 'Demande approuvée avec succès'
-        ], 200); // OK - Ajouté
+        ], 200);
     }
 
     public function rejectEdb($id)
     {
         $edb = Edb::findOrFail($id);
-        $edb->status_id = 6; // ID du statut "rejeté"
+        $edb->status_id = 7; // ID du statut "rejeté"
         $edb->save();
+
+        // Ajouter la notification
+        $this->notificationService->edbRejected($edb);
 
         return response()->json([
             'success' => true,
             'message' => 'Demande rejetée avec succès'
-        ], 200); // OK - Ajouté
+        ], 200);
     }
 
     public function uploadMultipleAttachments(Request $request, $id)

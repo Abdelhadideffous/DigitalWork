@@ -10,6 +10,7 @@ import {
   Search as SearchIcon,
   Send as SendIcon,
   FilterList as FilterListIcon,
+  Visibility as VisibilityIcon,
 } from "@mui/icons-material"
 import {
   Alert,
@@ -48,11 +49,15 @@ import {
 } from "@mui/material"
 import type React from "react"
 import { useEffect, useState } from "react"
-import { edbApi, type Edb, type Priority, type Status } from "./api"
+import { edbApi, type Edb, type Priority, type Status } from "./apiedb"
+import { getCurrentUser } from "../login/api"
 import AppLayout from "../layout/AppLayout"
 import EdbDetails from "./EdbDetails"
 
 const FinalEdb: React.FC = () => {
+  // État pour l'utilisateur connecté
+  const [currentUser, setCurrentUser] = useState<any>(null)
+
   // État pour le menu d'actions des EDBs
   const [edbActionMenuAnchorEl, setEdbActionMenuAnchorEl] = useState<null | HTMLElement>(null)
   const [selectedEdbId, setSelectedEdbId] = useState<number | null>(null)
@@ -74,7 +79,7 @@ const FinalEdb: React.FC = () => {
     description: "",
     objectif: "",
     contrainte: "",
-    user_id: 1, // Utilisateur actuel (simulé)
+    user_id: 1, // Sera mis à jour avec l'ID de l'utilisateur connecté
     priority_id: 2, // Par défaut "Moyenne"
     date_demande: getCurrentDate(),
   })
@@ -90,16 +95,12 @@ const FinalEdb: React.FC = () => {
   // État pour la vue détaillée d'un EDB
   const [showEdbDetails, setShowEdbDetails] = useState(false)
   const [selectedEdb, setSelectedEdb] = useState<any>(null)
-  const [tabValue, setTabValue] = useState(0)
 
   // État pour la recherche
   const [searchEdbQuery, setSearchEdbQuery] = useState("")
 
   // État pour le filtre de statut
   const [statusFilter, setStatusFilter] = useState("Tous les statuts")
-
-  // État pour l'affichage du panneau de filtres
-  const [showFilters, setShowFilters] = useState(false)
 
   // État pour les dialogues d'édition et de suppression d'EDB
   const [openEditEdbDialog, setOpenEditEdbDialog] = useState(false)
@@ -110,7 +111,7 @@ const FinalEdb: React.FC = () => {
     description: "",
     objectif: "",
     contrainte: "",
-    user_id: 1,
+    user_id: 1, // Sera mis à jour avec l'ID de l'utilisateur connecté
     status_id: 1,
     priority_id: 2,
   })
@@ -139,22 +140,58 @@ const FinalEdb: React.FC = () => {
   const [statuses, setStatuses] = useState<Status[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
 
-  // Utilisateur actuel (simulé pour l'exemple)
-  const currentUser = {
-    id: 1,
-    name: "John Doe",
-    email: "john.doe@example.com",
-    avatar: null,
-  }
-
   // Ajouter des états pour les filtres de priorité, date de début et date de fin
   const [priorityFilter, setPriorityFilter] = useState("Toutes les priorités")
   // Remplacer le panneau de filtres complexe par un simple dialogue de filtres
   const [openFiltersDialog, setOpenFiltersDialog] = useState(false)
 
-  // Supprimer ces états inutiles
-  // const [startDateFilter, setStartDateFilter] = useState("")
-  // const [endDateFilter, setEndDateFilter] = useState("")
+  // Récupérer l'utilisateur connecté au chargement du composant
+  useEffect(() => {
+    const user = getCurrentUser()
+    if (user) {
+      setCurrentUser(user)
+      // Mettre à jour les données du formulaire avec l'ID de l'utilisateur connecté
+      setNewEdbData((prev) => ({
+        ...prev,
+        user_id: user.id,
+      }))
+      setEditEdbData((prev) => ({
+        ...prev,
+        user_id: user.id,
+      }))
+    } else {
+      // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
+      window.location.href = "/test/login"
+    }
+  }, [])
+
+  // Surveiller les changements d'utilisateur dans le localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const user = getCurrentUser()
+      if (user) {
+        setCurrentUser(user)
+        // Mettre à jour les données du formulaire avec l'ID de l'utilisateur connecté
+        setNewEdbData((prev) => ({
+          ...prev,
+          user_id: user.id,
+        }))
+        setEditEdbData((prev) => ({
+          ...prev,
+          user_id: user.id,
+        }))
+      } else {
+        // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
+        window.location.href = "/test/login"
+      }
+    }
+
+    window.addEventListener("storage", handleStorageChange)
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+    }
+  }, [])
 
   // Fonction pour charger les EDBs depuis l'API
   const fetchEdbs = async () => {
@@ -248,6 +285,16 @@ const FinalEdb: React.FC = () => {
   }
 
   const handleNewEdbDialogOpen = () => {
+    // Vérifier si l'utilisateur est connecté
+    if (!currentUser) {
+      setSnackbar({
+        open: true,
+        message: "Vous devez être connecté pour créer une EDB",
+        severity: "error",
+      })
+      return
+    }
+
     setOpenNewEdbDialog(true)
     setNewEdbData({
       title: "",
@@ -275,7 +322,7 @@ const FinalEdb: React.FC = () => {
       description: "",
       objectif: "",
       contrainte: "",
-      user_id: currentUser.id,
+      user_id: currentUser ? currentUser.id : 1,
       priority_id: 2,
       date_demande: getCurrentDate(),
     })
@@ -360,12 +407,7 @@ const FinalEdb: React.FC = () => {
   const handleBackToEdbsList = () => {
     setShowEdbDetails(false)
     setSelectedEdb(null)
-    setTabValue(0)
     setSearchEdbQuery("")
-  }
-
-  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue)
   }
 
   // Fonctions pour gérer l'édition d'un EDB
@@ -378,7 +420,7 @@ const FinalEdb: React.FC = () => {
         description: edb.description || "",
         objectif: edb.objectif || "",
         contrainte: edb.contrainte || "",
-        user_id: edb.user_id,
+        user_id: currentUser ? currentUser.id : edb.user_id,
         status_id: edb.status_id,
         priority_id: edb.priority_id,
       })
@@ -646,7 +688,7 @@ const FinalEdb: React.FC = () => {
   const handleApproveEdb = async (edbId: number) => {
     try {
       setLoading(true)
-      await edbApi.approveEdb(edbId)
+      await edbApi.approveEdb(edbId) 
 
       setSnackbar({
         open: true,
@@ -828,102 +870,6 @@ const FinalEdb: React.FC = () => {
                 </Button>
               </Box>
             </Box>
-
-            {/* Panneau de filtres */}
-            {/* <Collapse in={showFilters}>
-              <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, height: "100%" }}>
-                  <FormControl sx={{ minWidth: 200, flex: 1 }} color="success">
-                    <InputLabel id="statuts-label">Statuts</InputLabel>
-                    <Select
-                      labelId="statuts-label"
-                      value={statusFilter}
-                      onChange={handleStatusFilterChange}
-                      label="Statuts"
-                      fullWidth
-                      sx={{
-                        "&:hover .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#138a3c", // on hover
-                        },
-                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#16A249", // on focus
-                        },
-                      }}
-                    >
-                      <MenuItem value="Tous les statuts">Tous les statuts</MenuItem>
-                      {statuses.map((status) => (
-                        <MenuItem key={status.id} value={status.name}>
-                          {status.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl sx={{ minWidth: 200, flex: 1 }} color="success">
-                    <InputLabel id="priorites-label">Priorités</InputLabel>
-                    <Select
-                      labelId="priorites-label"
-                      value={priorityFilter}
-                      onChange={handlePriorityFilterChange}
-                      label="Priorités"
-                      fullWidth
-                      sx={{
-                        "&:hover .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#138a3c", // on hover
-                        },
-                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#16A249", // on focus
-                        },
-                      }}
-                    >
-                      <MenuItem value="Toutes les priorités">Toutes les priorités</MenuItem>
-                      {priorities.map((priority) => (
-                        <MenuItem key={priority.id} value={priority.name}>
-                          {priority.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <TextField
-                    label="Date de début"
-                    color="success"
-                    type="date"
-                    value={startDateFilter}
-                    onChange={handleStartDateFilterChange}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      minWidth: 200,
-                      flex: 1,
-                      "&:hover .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#138a3c", // on hover
-                      },
-                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#16A249", // on focus
-                      },
-                    }}
-                    fullWidth
-                  />
-                  <TextField
-                    label="Date de fin"
-                    color="success"
-                    type="date"
-                    value={endDateFilter}
-                    onChange={handleEndDateFilterChange}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      minWidth: 200,
-                      flex: 1,
-                      "&:hover .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#138a3c", // on hover
-                      },
-                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#16A249", // on focus
-                      },
-                    }}
-                    fullWidth
-                  />
-                </Box>
-              </Paper>
-            </Collapse> */}
 
             {/* Liste des EDBs */}
             <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2, boxShadow: 3, mb: 4 }}>
@@ -1636,7 +1582,7 @@ const FinalEdb: React.FC = () => {
       >
         <MenuItem onClick={(e) => handleViewEdbDetails(selectedEdbId || 0, e)}>
           <ListItemIcon>
-            <EditIcon fontSize="small" sx={{ color: "#16A249" }} />
+          <VisibilityIcon fontSize="small" sx={{ color: "#16A249" }}  />
           </ListItemIcon>
           <ListItemText primary="Détails" />
         </MenuItem>
