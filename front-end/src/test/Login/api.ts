@@ -11,7 +11,7 @@ const api = axios.create({
 // Ajouter cet intercepteur après la création de l'instance api
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -103,7 +103,7 @@ export const setAuthToken = (token: string | null) => {
 
 // Fonction pour récupérer l'utilisateur connecté
 export const getCurrentUser = () => {
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) return null;
 
     try {

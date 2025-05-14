@@ -241,12 +241,20 @@ const TaskPage: React.FC = () => {
   const fetchTasks = async () => {
     try {
       setLoading(true)
+      const token = sessionStorage.getItem('token')
+      if (!token) {
+        window.location.href = '/test/login'
+        return
+      }
       const tasksData = await taskApi.getAllTasks()
-      console.log("Données des tâches reçues:", tasksData) // Debug
+      console.log("Données des tâches reçues:", tasksData)
       setTasks(tasksData)
       setLoading(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors du chargement des tâches:", error)
+      if (error.response?.status === 401) {
+        window.location.href = '/test/login'
+      }
       setSnackbar({
         open: true,
         message: "Erreur lors du chargement des tâches",
@@ -259,10 +267,18 @@ const TaskPage: React.FC = () => {
   // Fonction pour charger les projets depuis l'API
   const fetchProjects = async () => {
     try {
+      const token = sessionStorage.getItem('token')
+      if (!token) {
+        window.location.href = '/test/login'
+        return
+      }
       const projectsData = await projectApi.getAllProjects()
       setProjects(projectsData)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors du chargement des projets:", error)
+      if (error.response?.status === 401) {
+        window.location.href = '/test/login'
+      }
       setSnackbar({
         open: true,
         message: "Erreur lors du chargement des projets",
@@ -274,11 +290,19 @@ const TaskPage: React.FC = () => {
   // Fonction pour charger les utilisateurs depuis l'API
   const fetchUsers = async () => {
     try {
+      const token = sessionStorage.getItem('token')
+      if (!token) {
+        window.location.href = '/test/login'
+        return
+      }
       const usersData = await userApi.getAllUsers()
-      console.log("Utilisateurs chargés:", usersData) // Debug
+      console.log("Utilisateurs chargés:", usersData)
       setUsers(usersData)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors du chargement des utilisateurs:", error)
+      if (error.response?.status === 401) {
+        window.location.href = '/test/login'
+      }
       setSnackbar({
         open: true,
         message: "Erreur lors du chargement des utilisateurs",
@@ -292,7 +316,7 @@ const TaskPage: React.FC = () => {
     try {
       const statusesData = await projectApi.getAllStatuses()
       setStatuses(statusesData)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors du chargement des statuts:", error)
       setSnackbar({
         open: true,
@@ -307,7 +331,7 @@ const TaskPage: React.FC = () => {
     try {
       const prioritiesData = await projectApi.getAllPriorities()
       setPriorities(prioritiesData)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors du chargement des priorités:", error)
       setSnackbar({
         open: true,
@@ -332,7 +356,7 @@ const TaskPage: React.FC = () => {
       } else {
         setProjectMembers([])
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Erreur lors du chargement des membres du projet ${projectId}:`, error)
       setSnackbar({
         open: true,
@@ -352,7 +376,7 @@ const TaskPage: React.FC = () => {
       const filteredSubtasks = subtasksData.filter((subtask: { task_id: number }) => subtask.task_id === taskId)
       setSubtasks(filteredSubtasks)
       setLoadingSubtasks(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Erreur lors du chargement des sous-tâches pour la tâche ${taskId}:`, error)
       setSnackbar({
         open: true,
@@ -365,20 +389,35 @@ const TaskPage: React.FC = () => {
 
   // Récupérer l'utilisateur connecté au chargement du composant
   useEffect(() => {
-    const user = getCurrentUser()
-    if (user) {
-      setCurrentUser(user)
-      // Charger les données une fois que l'utilisateur est authentifié
-      const loadData = async () => {
+    const fetchData = async () => {
+      try {
         setInitialLoading(true)
-        await Promise.all([fetchTasks(), fetchProjects(), fetchUsers(), fetchStatuses(), fetchPriorities()])
+        const token = sessionStorage.getItem('token')
+        if (!token) {
+          window.location.href = '/test/login'
+          return
+        }
+
+        const user = await getCurrentUser()
+        setCurrentUser(user)
+        await Promise.all([
+          fetchTasks(),
+          fetchProjects(),
+          fetchUsers(),
+          fetchStatuses(),
+          fetchPriorities(),
+        ])
+      } catch (error: any) {
+        console.error('Erreur lors du chargement initial:', error)
+        if (error.response?.status === 401) {
+          window.location.href = '/test/login'
+        }
+      } finally {
         setInitialLoading(false)
       }
-      loadData()
-    } else {
-      // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
-      window.location.href = "/test/login"
     }
+
+    fetchData()
   }, [])
 
   // Surveiller les changements d'utilisateur dans le localStorage
@@ -543,16 +582,17 @@ const TaskPage: React.FC = () => {
 
   // Fonction pour créer une nouvelle tâche
   const handleCreateNewTask = async () => {
-    // Validation des champs
-    const titleEmpty = newTaskData.title.trim() === ""
-    const descriptionEmpty = newTaskData.description.trim() === ""
-    const projectEmpty = !newTaskData.project_id
-    const statusEmpty = !newTaskData.status_id
-    const priorityEmpty = !newTaskData.priority_id
-    const userEmpty = !newTaskData.assigned_to // Modifié de user_id à assigned_to
+    // Vérifier si tous les champs requis sont remplis
+    const titleEmpty = !newTaskData.title.trim()
+    const descriptionEmpty = !newTaskData.description.trim()
+    const projectEmpty = newTaskData.project_id === 0
+    const statusEmpty = newTaskData.status_id === 0
+    const priorityEmpty = newTaskData.priority_id === 0
+    const userEmpty = newTaskData.assigned_to === 0
     const startDateInvalid = !newTaskData.start_date
     const endDateInvalid = !newTaskData.end_date
 
+    // Mettre à jour les erreurs
     setNewTaskErrors({
       title: titleEmpty,
       description: descriptionEmpty,
@@ -577,11 +617,16 @@ const TaskPage: React.FC = () => {
     ) {
       try {
         setLoading(true)
+        const token = sessionStorage.getItem('token')
+        if (!token) {
+          window.location.href = '/test/login'
+          return
+        }
         // Ajouter l'ID de l'utilisateur créateur (l'utilisateur connecté)
         const taskDataWithCreator = {
           ...newTaskData,
         }
-        console.log("Données de tâche à créer:", taskDataWithCreator) // Debug
+        console.log("Données de tâche à créer:", taskDataWithCreator)
         await taskApi.createTask(taskDataWithCreator)
 
         setSnackbar({
@@ -595,8 +640,11 @@ const TaskPage: React.FC = () => {
         fetchTasks()
 
         setLoading(false)
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erreur lors de la création de la tâche:", error)
+        if (error.response?.status === 401) {
+          window.location.href = '/test/login'
+        }
         setSnackbar({
           open: true,
           message: "Erreur lors de la création de la tâche",
@@ -722,7 +770,7 @@ const TaskPage: React.FC = () => {
         fetchTasks()
 
         setLoading(false)
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erreur lors de la création de la sous-tâche:", error)
         setSnackbar({
           open: true,
@@ -816,7 +864,7 @@ const TaskPage: React.FC = () => {
         }
 
         setLoading(false)
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erreur lors de la mise à jour de la sous-tâche:", error)
         setSnackbar({
           open: true,
@@ -865,7 +913,7 @@ const TaskPage: React.FC = () => {
       fetchTasks()
 
       setLoading(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la suppression de la sous-tâche:", error)
       setSnackbar({
         open: true,
@@ -900,7 +948,7 @@ const TaskPage: React.FC = () => {
       fetchTasks()
 
       setLoading(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors du marquage de la sous-tâche comme terminée:", error)
       setSnackbar({
         open: true,
@@ -1038,73 +1086,33 @@ const TaskPage: React.FC = () => {
 
   // Fonction pour mettre à jour une tâche
   const handleUpdateTask = async () => {
-    // Validation des champs
-    const titleEmpty = editTaskData.title.trim() === ""
-    const descriptionEmpty = editTaskData.description.trim() === ""
-    const projectEmpty = !editTaskData.project_id
-    const statusEmpty = !editTaskData.status_id
-    const priorityEmpty = !editTaskData.priority_id
-    const userEmpty = !editTaskData.assigned_to // Modifié de user_id à assigned_to
-    const startDateInvalid = !editTaskData.start_date
-    const endDateInvalid = !editTaskData.end_date
-
-    setEditTaskErrors({
-      title: titleEmpty,
-      description: descriptionEmpty,
-      project_id: projectEmpty,
-      status_id: statusEmpty,
-      priority_id: priorityEmpty,
-      user_id: userEmpty,
-      start_date: startDateInvalid,
-      end_date: endDateInvalid,
-    })
-
-    // Si tous les champs sont remplis, procéder à la mise à jour
-    if (
-      !titleEmpty &&
-      !descriptionEmpty &&
-      !projectEmpty &&
-      !statusEmpty &&
-      !priorityEmpty &&
-      !userEmpty &&
-      !startDateInvalid &&
-      !endDateInvalid
-    ) {
-      try {
-        setLoading(true)
-        // Ajouter l'ID de l'utilisateur qui modifie (l'utilisateur connecté)
-        const taskDataWithUpdater = {
-          ...editTaskData,
-        }
-        console.log("Données de mise à jour de tâche:", taskDataWithUpdater) // Debug
-        await taskApi.updateTask(editTaskData.id, taskDataWithUpdater)
-
-        setSnackbar({
-          open: true,
-          message: "Tâche mise à jour avec succès",
-          severity: "success",
-        })
-
-        handleEditTaskDialogClose()
-        // Recharger la liste des tâches
-        fetchTasks()
-
-        // Si la tâche est actuellement sélectionnée dans le dialogue de détails, mettre à jour également
-        if (selectedTask && selectedTask.id === editTaskData.id) {
-          const updatedTask = await taskApi.getTaskById(editTaskData.id)
-          setSelectedTask(updatedTask)
-        }
-
-        setLoading(false)
-      } catch (error) {
-        console.error("Erreur lors de la mise à jour de la tâche:", error)
-        setSnackbar({
-          open: true,
-          message: "Erreur lors de la mise à jour de la tâche",
-          severity: "error",
-        })
-        setLoading(false)
+    try {
+      setLoading(true)
+      const token = sessionStorage.getItem('token')
+      if (!token) {
+        window.location.href = '/test/login'
+        return
       }
+      await taskApi.updateTask(editTaskData.id, editTaskData)
+      setSnackbar({
+        open: true,
+        message: "Tâche modifiée avec succès",
+        severity: "success",
+      })
+      setOpenEditTaskDialog(false)
+      fetchTasks()
+      setLoading(false)
+    } catch (error: any) {
+      console.error("Erreur lors de la modification de la tâche:", error)
+      if (error.response?.status === 401) {
+        window.location.href = '/test/login'
+      }
+      setSnackbar({
+        open: true,
+        message: "Erreur lors de la modification de la tâche",
+        severity: "error",
+      })
+      setLoading(false)
     }
   }
 
@@ -1123,32 +1131,27 @@ const TaskPage: React.FC = () => {
 
   // Fonction pour supprimer une tâche
   const handleDeleteTask = async () => {
-    const taskIdToDelete = selectedTaskId
-
-    if (!taskIdToDelete) return
-
     try {
       setLoading(true)
-      await taskApi.deleteTask(taskIdToDelete)
-
+      const token = sessionStorage.getItem('token')
+      if (!token) {
+        window.location.href = '/test/login'
+        return
+      }
+      await taskApi.deleteTask(selectedTaskId || 0)
       setSnackbar({
         open: true,
         message: "Tâche supprimée avec succès",
         severity: "success",
       })
-
-      handleDeleteTaskDialogClose()
-      // Recharger la liste des tâches
+      setOpenDeleteTaskDialog(false)
       fetchTasks()
-
-      // Si la tâche est actuellement sélectionnée dans le dialogue de détails, fermer le dialogue
-      if (selectedTask && selectedTask.id === taskIdToDelete) {
-        handleTaskDetailsClose()
-      }
-
       setLoading(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la suppression de la tâche:", error)
+      if (error.response?.status === 401) {
+        window.location.href = '/test/login'
+      }
       setSnackbar({
         open: true,
         message: "Erreur lors de la suppression de la tâche",

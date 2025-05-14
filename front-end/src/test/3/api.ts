@@ -1,20 +1,40 @@
 import axios from 'axios';
 
-// Création d'une instance axios avec une URL de base
+const API_URL = 'http://localhost:8000/api';
+
+// Configuration de base d'axios
 const api = axios.create({
-    baseURL: 'http://localhost:8000/api',
+    baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Intercepteur pour gérer les erreurs globalement
+// Intercepteur pour ajouter le token à chaque requête
+api.interceptors.request.use(
+    (config) => {
+        const token = sessionStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Intercepteur pour gérer les erreurs d'authentification
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        console.error('API Error:', error.response || error.message || error);
+        if (error.response?.status === 401) {
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('user');
+            window.location.href = '/test/login';
+        }
         return Promise.reject(error);
-    },
+    }
 );
 
 // Types pour les projets
@@ -122,17 +142,6 @@ export interface NewSubtaskData {
     title: string;
     progress?: number;
 }
-
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    config.headers.Accept = 'application/json';
-    return config;
-});
-
-
 
 // API pour les tâches
 export const taskApi = {
@@ -373,9 +382,7 @@ export const projectApi = {
     getManagedProjects: async () => {
         const res = await api.get('/projects/managed');
         return res.data.data;
-      },
-
-    
+    },
 };
 
 // API pour les équipes
@@ -522,8 +529,5 @@ export const userApi = {
         }
     },
 };
-
-
-
 
 export default api;

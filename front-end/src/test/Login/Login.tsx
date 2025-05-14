@@ -84,8 +84,8 @@ const Login: React.FC = () => {
             const response = await authApi.login({ email, password });
 
             if (response.success && response.token) {
-                // Stocker le token et les informations utilisateur dans localStorage
-                localStorage.setItem('token', response.token);
+                // Stocker le token et les informations utilisateur dans sessionStorage
+                sessionStorage.setItem('token', response.token);
 
                 // S'assurer que le rôle est inclus dans les données utilisateur
                 const userData = {
@@ -93,13 +93,13 @@ const Login: React.FC = () => {
                     role: response.user?.role || 'user', // Utiliser 'user' comme rôle par défaut si non spécifié
                 };
 
-                localStorage.setItem('user', JSON.stringify(userData));
+                sessionStorage.setItem('user', JSON.stringify(userData));
 
                 // Configurer le token pour les requêtes futures
                 // setAuthToken(response.token)
 
                 // Rediriger vers la page d'accueil ou le tableau de bord
-                navigate('/test/3');
+                navigate('/test/2');
             } else {
                 setError(response.message || 'Erreur lors de la connexion');
                 setOpenSnackbar(true);

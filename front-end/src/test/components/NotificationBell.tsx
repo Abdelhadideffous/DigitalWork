@@ -25,6 +25,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import axios from '../../config/axios';
+import { useNavigate } from 'react-router-dom';
 
 interface Notification {
     id: number;
@@ -40,15 +41,29 @@ const NotificationBell: React.FC = () => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [loading, setLoading] = useState(false);
     const open = Boolean(anchorEl);
+    const navigate = useNavigate();
 
     const fetchNotifications = async () => {
         try {
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                navigate('/test/login');
+                return;
+            }
+
             setLoading(true);
-            const response = await axios.get('/notifications');
+            const response = await axios.get('/notifications', {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
             console.log('Notifications reçues:', response.data);
             setNotifications(response.data);
         } catch (error) {
             console.error('Erreur lors de la récupération des notifications:', error);
+            if (error.response?.status === 401) {
+                navigate('/test/login');
+            }
             setNotifications([]);
         } finally {
             setLoading(false);
@@ -56,12 +71,20 @@ const NotificationBell: React.FC = () => {
     };
 
     useEffect(() => {
-        fetchNotifications();
-        const interval = setInterval(fetchNotifications, 30000);
-        return () => clearInterval(interval);
+        const token = sessionStorage.getItem('token');
+        if (token) {
+            fetchNotifications();
+            const interval = setInterval(fetchNotifications, 30000);
+            return () => clearInterval(interval);
+        }
     }, []);
 
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+        const token = sessionStorage.getItem('token');
+        if (!token) {
+            navigate('/test/login');
+            return;
+        }
         setAnchorEl(event.currentTarget);
         fetchNotifications();
     };
@@ -72,30 +95,69 @@ const NotificationBell: React.FC = () => {
 
     const markAsRead = async (id: number) => {
         try {
-            await axios.post(`/notifications/${id}/mark-as-read`);
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                navigate('/test/login');
+                return;
+            }
+
+            await axios.post(`/notifications/${id}/mark-as-read`, {}, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setNotifications(notifications.map(notification =>
                 notification.id === id ? { ...notification, is_read: true } : notification
             ));
         } catch (error) {
             console.error('Erreur lors du marquage de la notification comme lue:', error);
+            if (error.response?.status === 401) {
+                navigate('/test/login');
+            }
         }
     };
 
     const markAllAsRead = async () => {
         try {
-            await axios.post('/notifications/mark-all-as-read');
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                navigate('/test/login');
+                return;
+            }
+
+            await axios.post('/notifications/mark-all-as-read', {}, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setNotifications(notifications.map(notification => ({ ...notification, is_read: true })));
         } catch (error) {
             console.error('Erreur lors du marquage de toutes les notifications comme lues:', error);
+            if (error.response?.status === 401) {
+                navigate('/test/login');
+            }
         }
     };
 
     const deleteNotification = async (id: number) => {
         try {
-            await axios.delete(`/notifications/${id}`);
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                navigate('/test/login');
+                return;
+            }
+
+            await axios.delete(`/notifications/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setNotifications(notifications.filter(notification => notification.id !== id));
         } catch (error) {
             console.error('Erreur lors de la suppression de la notification:', error);
+            if (error.response?.status === 401) {
+                navigate('/test/login');
+            }
         }
     };
 

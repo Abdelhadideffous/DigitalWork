@@ -165,34 +165,6 @@ const FinalEdb: React.FC = () => {
     }
   }, [])
 
-  // Surveiller les changements d'utilisateur dans le localStorage
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const user = getCurrentUser()
-      if (user) {
-        setCurrentUser(user)
-        // Mettre à jour les données du formulaire avec l'ID de l'utilisateur connecté
-        setNewEdbData((prev) => ({
-          ...prev,
-          user_id: user.id,
-        }))
-        setEditEdbData((prev) => ({
-          ...prev,
-          user_id: user.id,
-        }))
-      } else {
-        // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
-        window.location.href = "/test/login"
-      }
-    }
-
-    window.addEventListener("storage", handleStorageChange)
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange)
-    }
-  }, [])
-
   // Fonction pour charger les EDBs depuis l'API
   const fetchEdbs = async () => {
     try {

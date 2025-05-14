@@ -12,7 +12,7 @@ const api = axios.create({
 // Assurez-vous que chaque requête inclut le token d'authentification
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -85,7 +85,7 @@ export const edbApi = {
     getAllEdbs: async () => {
         try {
             // Récupérer le token manuellement pour s'assurer qu'il est utilisé
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (!token) {
                 throw new Error('Vous devez être connecté pour accéder à cette ressource');
             }

@@ -123,4 +123,36 @@ class TeamNotificationController extends Controller
             }
         }
     }
+
+    /**
+     * Envoyer une notification lors du changement de manager
+     */
+    public function managerChanged(Team $team, User $oldManager, User $newManager)
+    {
+        // Notification à l'ancien manager
+        $this->sendNotification(
+            $oldManager->id,
+            'Changement de rôle',
+            "Vous n'êtes plus le manager de l'équipe '{$team->name}'",
+            'warning'
+        );
+
+        // Notification au nouveau manager
+        $this->sendNotification(
+            $newManager->id,
+            'Nouveau rôle',
+            "Vous êtes maintenant le manager de l'équipe '{$team->name}'",
+            'success'
+        );
+
+        // Notification aux membres de l'équipe
+        foreach ($team->members as $member) {
+            $this->sendNotification(
+                $member->id,
+                'Changement de manager',
+                "Le manager de l'équipe '{$team->name}' a changé. Le nouveau manager est {$newManager->name}",
+                'info'
+            );
+        }
+    }
 } 

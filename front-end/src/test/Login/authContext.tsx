@@ -9,7 +9,7 @@ interface User {
     id: number;
     name: string;
     email: string;
-    role ?: string;
+    role?: string;
 }
 
 interface AuthContextType {
@@ -31,8 +31,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const navigate = useNavigate();
     // Vérifier si l'utilisateur est déjà connecté au chargement
     useEffect(() => {
-        const storedToken = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
+        const storedToken = sessionStorage.getItem('token');
+        const storedUser = sessionStorage.getItem('user');
 
         if (storedToken && storedUser) {
             setToken(storedToken);
@@ -45,8 +45,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const login = (newToken: string, newUser: User) => {
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(newUser));
+        sessionStorage.setItem('token', newToken);
+        sessionStorage.setItem('user', JSON.stringify(newUser));
         setToken(newToken);
         setUser(newUser);
         setAuthToken(newToken); // Configurer le token pour les requêtes Axios
@@ -59,8 +59,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             await authApi.logout(token);
         }
 
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         setToken(null);
         setUser(null);
         setAuthToken(null); // Supprimer le token des requêtes Axios
