@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/teams', [TeamController::class, 'index']);
     Route::get('/tasks', [TaskController::class, 'index']);
     Route::post('/tasks', [TaskController::class, 'store']);
+    Route::get('/users', [UserController::class, 'getAllUsers']);
 
 
 
@@ -50,7 +51,6 @@ Route::post('/users', [UserController::class, 'store']);
 Route::get('/users/{id}', [UserController::class, 'show']);
 Route::put('/users/{id}', [UserController::class, 'update']);
 Route::delete('/users/{id}', [UserController::class, 'destroy']);
-Route::get('/users', [UserController::class, 'getAllUsers']);
 
 //route login 
 Route::post('/login', [AuthController::class, 'login']);
@@ -117,7 +117,7 @@ Route::get('/subtasks/{id}', [SubtaskController::class, 'show']);
 Route::put('/subtasks/{id}', [SubtaskController::class, 'update']);
 Route::delete('/subtasks/{id}', [SubtaskController::class, 'destroy']);
 Route::patch('/subtasks/{id}/cancel', [SubtaskController::class, 'cancelSubtask']);
-Route::patch('/subtasks/{id}/complete', [SubtaskController::class, 'completeSubtask']);
+Route::post('/subtasks/{id}/complete', [SubtaskController::class, 'completeSubtask']);
 
 
 // route pour edb 
@@ -132,6 +132,7 @@ Route::get('/edbs/{id}/attachments', [EdbController::class, 'getAttachments']);
 Route::delete('/edbs/{id}/attachments/{attachmentId}', [EdbController::class, 'deleteAttachment']);
 // Route::get('/edbs/{id}/export-pdf', [EdbController::class, 'exportPdf']);
 
+Route::get('edbstatus', [EdbController::class, 'getEdbStatus']);
 
 
 

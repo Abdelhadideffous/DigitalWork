@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CommentsProject;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\EDB;
@@ -113,28 +114,28 @@ class NotificationService
     /**
      * Notifications liées aux EDB
      */
-    public function edbSubmitted(EDB $edb) 
-{
-    // ✅ Notification à TOUS les administrateurs
-    $admins = User::where('role', 'admin')->get();
+    public function edbSubmitted(EDB $edb)
+    {
+        // Notification à TOUS les administrateurs
+        $admins = User::where('role', 'admin')->get();
 
-    foreach ($admins as $admin) {
+        foreach ($admins as $admin) {
+            $this->sendNotification(
+                $admin->id,
+                'Nouvel EDB soumis',
+                "Un nouvel EDB a été soumis par {$edb->user->name}",
+                'info'
+            );
+        }
+
+        // Notification à l'utilisateur lui-même
         $this->sendNotification(
-            $admin->id,
-            'Nouvel EDB soumis',
-            "Un nouvel EDB a été soumis par {$edb->user->name}",
-            'info'
+            $edb->user_id,
+            'EDB soumis',
+            'Votre EDB a été soumis avec succès',
+            'success'
         );
     }
-
-    // ✅ Notification à l'utilisateur lui-même
-    $this->sendNotification(
-        $edb->user_id,
-        'EDB soumis',
-        'Votre EDB a été soumis avec succès',
-        'success'
-    );
-}
 
     public function edbApproved(EDB $edb)
     {
@@ -157,6 +158,52 @@ class NotificationService
             'error'
         );
     }
+
+
+
+    public function commentPosted(CommentsProject $comment): void
+    {
+        // Récupérer l’équipe qui gère le projet
+        $team = Team::with(['project', 'manager', 'members'])
+            ->where('project_id', $comment->project_id)
+            ->first();
+
+        if (!$team) {
+            return; // Aucun team – rien à notifier
+        }
+
+        $title = $comment->parent_id
+            ? "Nouvelle réponse sur « {$team->project->title} »"
+            : "Nouveau commentaire sur « {$team->project->title} »";
+
+        // Corps du message (on tronque pour ne pas dépasser)
+        $preview = mb_strimwidth($comment->content, 0, 80, '…');
+        $message = "{$comment->user->name} : « {$preview} »";
+
+        // → Manager
+        $this->sendNotification($team->manager_id, $title, $message, 'info');
+
+        // → Tous les membres SAUF l’auteur (qui voit déjà son propre message)
+        foreach ($team->members as $member) {
+            if ($member->id !== $comment->user_id) {
+                $this->sendNotification($member->id, $title, $message, 'info');
+            }
+        }
+    }
+
+    /**
+     * Marquer toutes les notifications "commentaires" d’un projet comme lues
+     * (utile quand on ouvre la page commentaires, par exemple)
+     */
+    public function markProjectCommentsAsRead(int $projectId, int $userId): void
+    {
+        DB::table('notifications')
+            ->where('user_id', $userId)
+            ->where('type', 'info')              // ou un type dédié, ex. 'comment'
+            ->where('message', 'like', "%{$projectId}%") // si vous stockez l’ID dans le msg
+            ->update(['is_read' => true]);
+    }
+
 
     /**
      * Notifications liées aux tâches
@@ -282,8 +329,10 @@ class NotificationService
     public function subtaskCreated(Subtask $subtask)
     {
         $task = $subtask->task;
-        if (!$task) return;
+        if (!$task)
+            return;
 
+            
         // Notification au manager du projet
         if ($task->project && $task->project->manager_id) {
             $this->sendNotification(
@@ -294,21 +343,24 @@ class NotificationService
             );
         }
 
-        // Notification à l'assigné de la tâche principale
-        if ($task->assigned_to) {
-            $this->sendNotification(
-                $task->assigned_to,
-                'Nouvelle sous-tâche',
-                "Une nouvelle sous-tâche '{$subtask->title}' a été ajoutée à votre tâche '{$task->title}'",
-                'info'
-            );
-        }
+        // //Notification à l'assigné de la tâche principale
+        // if ($task->assigned_to) {
+        //     $this->sendNotification(
+        //         $task->assigned_to,
+        //         'Nouvelle sous-tâche',
+        //         "Une nouvelle sous-tâche '{$subtask->title}' a été ajoutée à votre tâche '{$task->title}'",
+        //         'info'
+        //     );
+        // }
+
     }
+
 
     public function subtaskUpdated(Subtask $subtask)
     {
         $task = $subtask->task;
-        if (!$task) return;
+        if (!$task)
+            return;
 
         // Notification au manager du projet
         if ($task->project && $task->project->manager_id) {
@@ -334,7 +386,8 @@ class NotificationService
     public function subtaskCompleted(Subtask $subtask)
     {
         $task = $subtask->task;
-        if (!$task) return;
+        if (!$task)
+            return;
 
         // Notification au manager du projet
         if ($task->project && $task->project->manager_id) {
@@ -360,7 +413,8 @@ class NotificationService
     public function subtaskDeleted(Subtask $subtask)
     {
         $task = $subtask->task;
-        if (!$task) return;
+        if (!$task)
+            return;
 
         // Notification au manager du projet
         if ($task->project && $task->project->manager_id) {
@@ -386,7 +440,8 @@ class NotificationService
     public function subtaskProgressUpdated(Subtask $subtask)
     {
         $task = $subtask->task;
-        if (!$task) return;
+        if (!$task)
+            return;
 
         // Notification au manager du projet si la progression a significativement changé
         if ($task->project && $task->project->manager_id) {
@@ -398,4 +453,8 @@ class NotificationService
             );
         }
     }
-} 
+
+
+
+
+}

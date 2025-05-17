@@ -31,7 +31,7 @@ class UserRequest extends FormRequest
             'email' => 'required|string|email|max:255|unique:users,email,' . $this->route('id') . '',
             'password' => 'required|string|min:8',
             'role' => 'required|string|in:manager,employee',
-            'number' => 'required|string|max:255',
+            'number' => 'required|integer|min:10|max:10',
             
         ];
     }

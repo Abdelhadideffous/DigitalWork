@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\Team;
 use App\Services\ProjectStatusUpdater;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -32,6 +33,11 @@ class ProjectController extends Controller
                 ], 401);
             }
 
+            Project::where('status_id', 1)                        // 1 = « à faire »
+                ->whereDate('start_date', '<=', Carbon::today())
+                ->update(['status_id' => 2]);
+
+
             $query = Project::query();
 
             if ($user->role === 'admin') {
@@ -44,9 +50,9 @@ class ProjectController extends Controller
                         $q->whereHas('team', function ($teamQuery) use ($user) {
                             $teamQuery->where('manager_id', $user->id);
                         })
-                        ->orWhereHas('team.members', function ($memberQuery) use ($user) {
-                            $memberQuery->where('users.id', $user->id);
-                        });
+                            ->orWhereHas('team.members', function ($memberQuery) use ($user) {
+                                $memberQuery->where('users.id', $user->id);
+                            });
                     })
                     ->get();
             }
@@ -101,6 +107,15 @@ class ProjectController extends Controller
         $validated = $request->validate(app(ProjectRequest::class)->rules());
 
         $project->update($validated);
+
+        /* ——— LOGIQUE DE RETOUR AU STATUT 1 ——— */
+        if (
+            $project->status_id == 2 &&                                    // était « en cours »
+            Carbon::parse($project->start_date)->gt(Carbon::today())       // nouvelle date > aujourd'hui
+        ) {
+            $project->status_id = 1;      // repasse à « à venir »
+            $project->save();
+        }
 
 
 

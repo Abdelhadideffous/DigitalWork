@@ -8,10 +8,19 @@ use App\Http\Requests\SubtaskRequest;
 use App\Http\Requests\SubtasksRequst;
 use App\Http\Resources\SubtasksResource;
 use App\Http\Resources\TaskResource;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class SubtaskController extends Controller
 {
+
+
+    private NotificationService $notifier;
+
+    public function __construct(NotificationService $notifier)
+    {
+        $this->notifier = $notifier;    // Service dispo partout dans le contrôleur
+    }
 
     public function index()
     {
@@ -32,6 +41,8 @@ class SubtaskController extends Controller
 
         $subtask = $task->subtasks()->create($request->validated());
         $task->calculateProgress();
+
+        $this->notifier->subtaskCreated($subtask);
 
         return response()->json([
             'success' => true,
@@ -83,6 +94,9 @@ class SubtaskController extends Controller
 
         $subtask->update($validated);
 
+
+        $this->notifier->subtaskProgressUpdated($subtask);
+
         // if ($subtask->task && method_exists($subtask->task, 'calculateProgress')) {
         //     $subtask->task->calculateProgress();
         // }
@@ -114,6 +128,8 @@ class SubtaskController extends Controller
             $task->calculateProgress();
         }
 
+        $this->notifier->subtaskDeleted($subtask);   // ← NEW
+
         return response()->json([
             'success' => true,
             'message' => 'Sous-tâche supprimée avec succès',
@@ -135,6 +151,9 @@ class SubtaskController extends Controller
         $subtask->status_id = '3'; // ID du statut "terminé"
         $subtask->progress = 100; // Très important ici
         $subtask->save();
+
+        $this->notifier->subtaskCompleted($subtask);   // ← NEW
+
 
         return response()->json([
             'success' => true,

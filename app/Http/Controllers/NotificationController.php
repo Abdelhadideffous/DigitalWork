@@ -10,7 +10,7 @@ class NotificationController extends Controller
 {
     public function index()
     {
-        $notifications = Auth::user()->notifications()
+        $notifications = Notification::where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->get();
         
@@ -31,7 +31,7 @@ class NotificationController extends Controller
 
     public function markAllAsRead()
     {
-        Auth::user()->notifications()->update(['is_read' => true]);
+        Notification::where('user_id', Auth::id())->update(['is_read' => true]);
         return response()->json(['message' => 'All notifications marked as read']);
     }
 
@@ -49,7 +49,7 @@ class NotificationController extends Controller
 
     public function destroyAll()
     {
-        Auth::user()->notifications()->delete();
+        Notification::where('user_id', Auth::id())->delete();
         return response()->json(['message' => 'All notifications deleted']);
     }
 }

@@ -26,6 +26,15 @@ class StatusController extends Controller
         return response()->json($statuses);
     }
 
+    public function gettedbstatus()
+    {
+        $statuses = Statuses::whereIn('id', [6, 7])->get();
 
+        return response()->json([
+            'data' => $statuses
+        ]);
+
+
+    }
 
 }

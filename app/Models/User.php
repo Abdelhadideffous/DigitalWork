@@ -154,4 +154,10 @@ class User extends Authenticatable
     {
         return $this->notifications()->where('is_read', false);
     }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
 }

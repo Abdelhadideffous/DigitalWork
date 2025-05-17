@@ -15,7 +15,7 @@ class TaskRequest extends FormRequest
             'description' => 'nullable|string',
             'project_id' => 'required|exists:projects,id',
             'assigned_to' => 'nullable|exists:users,id',
-            'status_id' => 'required|exists:statuses,id',
+            // 'status_id' => 'required|exists:statuses,id',
             'priority_id' => 'required|exists:priorities,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',

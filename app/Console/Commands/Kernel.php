@@ -11,8 +11,13 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule)
     {
+
+        dd('kernel loaded');
         // Exécuter tous les jours à minuit
-        $schedule->command('projects:update-status')->everyMinute();
+        $schedule->command('statuses:update')->everyMinute();
+
+
+
 
 
         // Pour tester rapidement : exécuter toutes les minutes
@@ -30,7 +35,7 @@ class Kernel extends ConsoleKernel
         // …
         'role' => \App\Http\Middleware\RoleMiddleware::class,
     ];
-    
+
 }
 
 

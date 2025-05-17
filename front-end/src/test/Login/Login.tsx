@@ -526,26 +526,6 @@ const Login: React.FC = () => {
                             >
                                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Se connecter'}
                             </Button>
-
-                            <Box sx={{ textAlign: 'center', mt: 2 }}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Vous n'avez pas de compte?{' '}
-                                    <Link
-                                        href="#"
-                                        underline="none"
-                                        sx={{
-                                            color: '#16A249',
-                                            fontWeight: 600,
-                                            '&:hover': {
-                                                textDecoration: 'underline',
-                                            },
-                                        }}
-                                        onClick={(e) => e.preventDefault()}
-                                    >
-                                        S'inscrire
-                                    </Link>
-                                </Typography>
-                            </Box>
                         </Box>
                     </Box>
                 </Box>

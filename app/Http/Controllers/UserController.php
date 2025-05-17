@@ -28,13 +28,17 @@ class UserController extends Controller
 
     public function getAllUsers()
     {
-        // $user = Auth::user();
+        $user = Auth::user();
 
-        // if ($user->role !== 'admin') {
-        //     return response()->json(['message' => 'Accès refusé'], 403);
-        // }
+        if ($user->role === 'admin') {
+            // Si admin : retour de tous les utilisateurs
+            $users = User::all();
+        } else {
+            // Sinon : on exclut les utilisateurs admins
+            $users = User::where('role', '!=', 'admin')->get();
+        }
 
-        $users = User::all();
+        
         return response()->json([
             'success' => true,
             'data' => UserResource::collection($users)

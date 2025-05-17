@@ -11,9 +11,9 @@ class TasktStatusUpdater
 {
     public static function update()
     {
-        $now = Carbon::now();
+        $today = Carbon::today();
         Task::where('status_id', 1)
-            ->whereDate('start_date', '<=', $now)
+            ->whereDate('start_date', '<=', $today)
             ->update(['status_id' => 2]);
     }
 }

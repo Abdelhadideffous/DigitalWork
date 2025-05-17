@@ -69,7 +69,7 @@ const BootstrapDialog = styled(Dialog)(({ theme }) => ({
     },
 }));
 
-const TaskPage: React.FC = () => {
+const Task: React.FC = () => {
     // État pour l'utilisateur connecté
     const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -1771,31 +1771,7 @@ const TaskPage: React.FC = () => {
                             </Box>
                         </Box>
 
-                        {/* Boutons d'action */}
-                        {currentUser && currentUser.role === 'admin' && (
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2 }}>
-                                {selectedTask && (
-                                    <Button
-                                        onClick={() => handleEditTaskDialogOpen(selectedTask.id)}
-                                        variant="contained"
-                                        color="success"
-                                        startIcon={<EditIcon />}
-                                        sx={{
-                                            bgcolor: '#16A249',
-                                            border: '1px solid #16A249',
-                                            textTransform: 'none',
-                                            borderRadius: 1,
-                                            '&:hover': {
-                                                bgcolor: '#138a3c',
-                                                borderColor: '#138a3c',
-                                            },
-                                        }}
-                                    >
-                                        Modifier la tâche
-                                    </Button>
-                                )}
-                            </Box>
-                        )}
+
                     </>
                 ) : (
                     // Vue liste des tâches
@@ -1869,6 +1845,8 @@ const TaskPage: React.FC = () => {
                                 >
                                     Filtres
                                 </Button>
+                                {currentUser && 
+                                  (currentUser.role === 'admin' || currentUser.role === 'manager') && (
                                 <Button
                                     variant="contained"
                                     color="success"
@@ -1878,6 +1856,7 @@ const TaskPage: React.FC = () => {
                                 >
                                     Nouvelle tâche
                                 </Button>
+                                  )}
                             </Box>
                         </Box>
 
@@ -2261,7 +2240,7 @@ const TaskPage: React.FC = () => {
                             )}
                         </FormControl>
 
-                        <FormControl fullWidth error={newTaskErrors.status_id}>
+                        {/* <FormControl fullWidth error={newTaskErrors.status_id}>
                             <InputLabel id="status-label">Statut</InputLabel>
                             <Select
                                 labelId="status-label"
@@ -2292,7 +2271,7 @@ const TaskPage: React.FC = () => {
                                     Le statut est requis
                                 </Typography>
                             )}
-                        </FormControl>
+                        </FormControl> */}
                         <FormControl fullWidth error={newTaskErrors.priority_id}>
                             <InputLabel id="priority-label">Priorité</InputLabel>
                             <Select
@@ -2561,7 +2540,7 @@ const TaskPage: React.FC = () => {
                                 </Typography>
                             )}
                         </FormControl>
-                        <FormControl fullWidth error={editTaskErrors.status_id}>
+                        {/* <FormControl fullWidth error={editTaskErrors.status_id}>
                             <InputLabel id="status-label">Statut</InputLabel>
                             <Select
                                 labelId="status-label"
@@ -2592,7 +2571,7 @@ const TaskPage: React.FC = () => {
                                     Le statut est requis
                                 </Typography>
                             )}
-                        </FormControl>
+                        </FormControl> */}
                         <FormControl fullWidth error={editTaskErrors.priority_id}>
                             <InputLabel id="priority-label">Priorité</InputLabel>
                             <Select
@@ -2646,19 +2625,21 @@ const TaskPage: React.FC = () => {
                                 <MenuItem value="">
                                     <em>Sélectionner un utilisateur</em>
                                 </MenuItem>
-                                {editTaskData.project_id && projectMembers && projectMembers.length > 0
-                                    ? projectMembers.map((user) => (
+                                {editTaskData.project_id && projectMembers && projectMembers.length > 0 &&
+                                // ?
+                                     projectMembers.map((user) => (
                                           <MenuItem key={user.id} value={user.id}>
                                               {user.name}
                                           </MenuItem>
                                       ))
-                                    : users &&
-                                      users.length > 0 &&
-                                      users.map((user) => (
-                                          <MenuItem key={user.id} value={user.id}>
-                                              {user.name}
-                                          </MenuItem>
-                                      ))}
+                                    // : users &&
+                                    //   users.length > 0 &&
+                                    //   users.map((user) => (
+                                    //       <MenuItem key={user.id} value={user.id}>
+                                    //           {user.name}
+                                    //       </MenuItem>
+                                    //   ))
+                                }
                             </Select>
                             {editTaskErrors.user_id && (
                                 <Typography variant="caption" color="error">
@@ -2979,21 +2960,27 @@ const TaskPage: React.FC = () => {
                     </ListItemIcon>
                     <ListItemText primary="Détails" />
                 </MenuItem>
+                {currentUser && 
+                   (currentUser.role === 'admin' || currentUser.role === 'manager') && (
                 <MenuItem onClick={() => handleEditTaskDialogOpen(selectedTaskId || 0)}>
                     <ListItemIcon>
                         <EditIcon fontSize="small" sx={{ color: '#16A249' }} />
                     </ListItemIcon>
                     <ListItemText primary="Modifier" />
                 </MenuItem>
+                   )}
+                {currentUser && 
+                   (currentUser.role === 'admin' || currentUser.role === 'manager') && (
                 <MenuItem onClick={() => handleDeleteTaskDialogOpen(selectedTaskId || 0)}>
                     <ListItemIcon>
                         <DeleteIcon fontSize="small" color="error" />
                     </ListItemIcon>
                     <ListItemText primary="Supprimer" sx={{ color: 'error.main' }} />
                 </MenuItem>
+                  )}
             </Menu>
         </AppLayout>
     );
 };
 
-export default TaskPage;
+export default Task;

@@ -21,7 +21,7 @@ api.interceptors.request.use(
     },
     (error) => {
         return Promise.reject(error);
-    }
+    },
 );
 
 // Intercepteur pour gérer les erreurs d'authentification
@@ -34,7 +34,7 @@ api.interceptors.response.use(
             window.location.href = '/test/login';
         }
         return Promise.reject(error);
-    }
+    },
 );
 
 // Types pour les projets
@@ -519,13 +519,13 @@ export const userApi = {
         }
     },
 
-    getProjectMembers : async (projectId: number) => {
+    getProjectMembers: async (projectId: number) => {
         try {
-          const response = await api.get(`/projects/${projectId}/members`);
-          return response.data.data || [];
+            const response = await api.get(`/projects/${projectId}/members`);
+            return response.data.data || [];
         } catch (error) {
-          console.error(`Erreur lors de la récupération des membres du projet ${projectId}:`, error);
-          throw error;
+            console.error(`Erreur lors de la récupération des membres du projet ${projectId}:`, error);
+            throw error;
         }
     },
 };

@@ -51,7 +51,7 @@ const Home: React.FC = () => {
                     '&:hover': { backgroundColor: '#27672a' },
                 }}
                 onClick={() => {
-                    window.location.href = '/test/00';
+                    window.location.href = '/test/login';
                 }}
             >
                 Connexion

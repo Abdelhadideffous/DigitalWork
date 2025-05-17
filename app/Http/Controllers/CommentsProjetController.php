@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\CommentsProject;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -38,7 +39,7 @@ class CommentsProjetController extends Controller
     /**
      * Créer un nouveau commentaire
      */
-    public function store(Request $request)
+    public function store(Request $request, NotificationService $notifier)
     {
         try {
             // Validation
@@ -71,6 +72,9 @@ class CommentsProjetController extends Controller
 
             // Charger l'utilisateur pour le retourner avec le commentaire
             $comment->load('user');
+
+            $notifier->commentPosted($comment);
+
 
             return response()->json([
                 'success' => true,

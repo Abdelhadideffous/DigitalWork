@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Project;
 use App\Services\TasktStatusUpdater;
 use App\Services\NotificationService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -28,6 +29,10 @@ class TaskController extends Controller
         if (!$user)
             return response()->json(['message' => 'Unauthenticated'], 401);
 
+        Task::where('status_id', 1)                        // 1 = « à faire »
+            ->whereDate('start_date', '<=', Carbon::today())
+            ->update(['status_id' => 2]);
+
         if ($user->role === 'admin') {
             $tasks = Task::with(['project', 'status', 'priority', 'assignedUser'])->get();
 
@@ -45,7 +50,7 @@ class TaskController extends Controller
                         return false;
 
                     // OK si manager du projet
-                    if ($user->isManagerOfProject($project))
+                    if ($project->team && $project->team->manager_id === $user->id)
                         return true;
 
                     // OK si la tâche lui est assignée
@@ -72,6 +77,7 @@ class TaskController extends Controller
             }
 
             $validated = $request->validate(app(TaskRequest::class)->rules());
+
 
             $task = Task::create($validated);
 
@@ -164,6 +170,15 @@ class TaskController extends Controller
 
             $task->update($validated);
             $task->load(['project', 'assignedUser', 'status', 'priority']);
+
+            /* ——— LOGIQUE DE RETOUR AU STATUT 1 ——— */
+            if (
+                $task->status_id == 2 &&                                    // était « en cours »
+                Carbon::parse($task->start_date)->gt(Carbon::today())       // nouvelle date > aujourd'hui
+            ) {
+                $task->status_id = 1;      // repasse à « à venir »
+                $task->save();
+            }
 
             try {
                 // Notification de changement d'assignation
