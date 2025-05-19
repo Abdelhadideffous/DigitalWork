@@ -225,6 +225,42 @@ class EdbController extends Controller
         ], 200); // OK - Ajouté
     }
 
+    public function downloadAttachment($id, $attachmentId)
+    {
+        $edb = Edb::findOrFail($id);
+
+        $attachment = Attachment::where('edb_id', $id)
+            ->where('id', $attachmentId)
+            ->firstOrFail();
+
+        $path = storage_path('app/public/' . $attachment->file_path);
+        $originalName = $attachment->file_name;
+
+        return response()->download($path, $originalName);
+    }
+
+
+
+    public function previewAttachment(int $edbId, int $attachmentId)
+    {
+        $attachment = Attachment::where('edb_id', $edbId)->findOrFail($attachmentId);
+
+        // ① Récupérer le disque
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('public');
+
+        // ② Déterminer le type (ou récupérer la colonne mime_type si tu l’as ajoutée)
+        $mime = $disk->mimeType($attachment->file_path) ?? 'application/octet-stream';
+
+        // ③ Streamer la réponse
+        return $disk->response(
+            $attachment->file_path,
+            $attachment->file_name,
+            ['Content-Type' => $mime]
+        );
+    }
+
+
 
 
 

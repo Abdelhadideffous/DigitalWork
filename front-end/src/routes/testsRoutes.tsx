@@ -11,6 +11,7 @@ import DashboardAdmin from '../test/4/DashboardAdmin';
 import NotificationsPage from '../test/0/NotificationsPage';
 import CreateUser from '../test/10/create-user';
 import Profile from '../test/11/profile';
+import Dashboard from '../test/13/Dashboard';
 
 export const testsRoutes = (
     <Route path="/test">
@@ -26,6 +27,7 @@ export const testsRoutes = (
         <Route path="login" element={<Login />} />
         <Route path="12" element={<CreateUser />} />
         <Route path="13" element={<Profile/>} />
+        <Route path="14" element={<Dashboard/>} />
        
     </Route>
 );

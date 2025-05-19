@@ -644,19 +644,30 @@ const Projet: React.FC = () => {
         const endDateInvalid = !editProjectData.end_date;
         const statusEmpty = !editProjectData.status_id;
         const priorityEmpty = !editProjectData.priority_id;
+        // Validation de cohérence des dates
+        const dateCoherenceInvalid = editProjectData.end_date < editProjectData.start_date;
 
         setEditProjectErrors({
             ...editProjectErrors,
             title: titleEmpty,
             description: descriptionEmpty,
             start_date: startDateInvalid,
-            end_date: endDateInvalid,
+            end_date: endDateInvalid || dateCoherenceInvalid,
             status_id: statusEmpty,
             priority_id: priorityEmpty,
         });
 
+        if (dateCoherenceInvalid) {
+            setSnackbar({
+                open: true,
+                message: 'La date de fin ne peut pas être antérieure à la date de début.',
+                severity: 'error',
+            });
+            return;
+        }
+
         // Si tous les champs sont remplis, procéder à la mise à jour
-        if (!titleEmpty && !descriptionEmpty && !startDateInvalid && !endDateInvalid && !statusEmpty && !priorityEmpty) {
+        if (!titleEmpty && !descriptionEmpty && !startDateInvalid && !endDateInvalid && !statusEmpty && !priorityEmpty && !dateCoherenceInvalid) {
             try {
                 setLoading(true);
                 await projectApi.updateProject(editProjectData.id, editProjectData);
@@ -750,18 +761,29 @@ const Projet: React.FC = () => {
         const startDateInvalid = !newProjectData.start_date;
         const endDateInvalid = !newProjectData.end_date;
         const priorityEmpty = !newProjectData.priority_id;
+        // Validation de cohérence des dates
+        const dateCoherenceInvalid = newProjectData.end_date < newProjectData.start_date;
 
         setNewProjectErrors({
             ...newProjectErrors,
             title: titleEmpty,
             description: descriptionEmpty,
             start_date: startDateInvalid,
-            end_date: endDateInvalid,
+            end_date: endDateInvalid || dateCoherenceInvalid,
             priority_id: priorityEmpty,
         });
 
+        if (dateCoherenceInvalid) {
+            setSnackbar({
+                open: true,
+                message: 'La date de fin ne peut pas être antérieure à la date de début.',
+                severity: 'error',
+            });
+            return;
+        }
+
         // Si tous les champs sont remplis, procéder à la création
-        if (!titleEmpty && !descriptionEmpty && !startDateInvalid && !endDateInvalid && !priorityEmpty) {
+        if (!titleEmpty && !descriptionEmpty && !startDateInvalid && !endDateInvalid && !priorityEmpty && !dateCoherenceInvalid) {
             try {
                 setLoading(true);
                 await projectApi.createProject(newProjectData);
@@ -1112,6 +1134,68 @@ const Projet: React.FC = () => {
                                 <Typography variant="h4" sx={{ flex: 1, fontWeight: 'bold' }}>
                                     {selectedProject?.title}
                                 </Typography>
+                                {/* Boutons Annuler et Terminer */}
+                                {currentUser &&
+                                    selectedProject?.id &&
+                                    (currentUser.role === 'admin' ||
+                                        (projectTeams && projectTeams.some((team) => team.manager && team.manager.id === currentUser.id))) && (
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                onClick={async () => {
+                                                    setLoading(true);
+                                                    try {
+                                                        await projectApi.cancelProject(selectedProject.id);
+                                                        setSnackbar({ open: true, message: 'Projet annulé avec succès', severity: 'success' });
+                                                        await handleViewProjectDetails(selectedProject.id);
+                                                    } catch (error) {
+                                                        setSnackbar({
+                                                            open: true,
+                                                            message: "Erreur lors de l'annulation du projet",
+                                                            severity: 'error',
+                                                        });
+                                                    } finally {
+                                                        setLoading(false);
+                                                    }
+                                                }}
+                                                sx={{
+                                                    textTransform: 'none',
+                                                    borderColor: 'error.main',
+                                                    '&:hover': {
+                                                        backgroundColor: 'error.main',
+                                                        color: 'white',
+                                                        borderColor: 'error.main',
+                                                    },
+                                                }}
+                                            >
+                                                Annuler
+                                            </Button>
+                                            <Button
+                                                variant="contained"
+                                                color="success"
+                                                onClick={async () => {
+                                                    setLoading(true);
+                                                    try {
+                                                        await projectApi.terminerProject(selectedProject.id);
+                                                        setSnackbar({ open: true, message: 'Projet terminé avec succès', severity: 'success' });
+                                                        await handleViewProjectDetails(selectedProject.id);
+                                                    } catch (error) {
+                                                        setSnackbar({
+                                                            open: true,
+                                                            message: 'Erreur lors de la terminaison du projet',
+                                                            severity: 'error',
+                                                        });
+                                                    } finally {
+                                                        setLoading(false);
+                                                    }
+                                                }}
+                                                sx={{ textTransform: 'none', borderRadius: 1, px: 2, ml: 1 }}
+                                            >
+                                                Terminer
+                                            </Button>
+                                        </Box>
+                                    )}
                             </Box>
                         </Box>
 
@@ -1792,12 +1876,9 @@ const Projet: React.FC = () => {
                                                                 variant="outlined"
                                                                 size="small"
                                                                 color="success"
-                                                                component={Link}
-                                                                href={`/teams/${team.id}`}
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    // Navigation vers la page de l'équipe
-                                                                    // Cette fonctionnalité pourrait être implémentée ultérieurement
+                                                                onClick={() => {
+                                                                    sessionStorage.setItem('selectedTeamId', String(team.id));
+                                                                    window.location.href = '/test/5';
                                                                 }}
                                                                 sx={{
                                                                     textTransform: 'none',
@@ -2023,15 +2104,15 @@ const Projet: React.FC = () => {
                                                                                     <Button
                                                                                         size="small"
                                                                                         variant="outlined"
-                                                                                        color="error"
                                                                                         onClick={handleCancelEditComment}
                                                                                         sx={{
                                                                                             textTransform: 'none',
-                                                                                            borderColor: 'error.main',
+                                                                                            color: '#6B7280',
+                                                                                            borderColor: '#6B7280',
                                                                                             '&:hover': {
-                                                                                                backgroundColor: 'error.main',
+                                                                                                backgroundColor: '#6B7280',
                                                                                                 color: 'white',
-                                                                                                borderColor: 'error.main',
+                                                                                                borderColor: '#6B7280',
                                                                                             },
                                                                                         }}
                                                                                     >
@@ -2123,16 +2204,16 @@ const Projet: React.FC = () => {
                                                                                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                                                                     <Button
                                                                                         variant="outlined"
-                                                                                        color="error"
                                                                                         size="small"
                                                                                         onClick={handleCancelReply}
                                                                                         sx={{
                                                                                             textTransform: 'none',
-                                                                                            borderColor: 'error.main',
+                                                                                            color: '#6B7280',
+                                                                                            borderColor: '#6B7280',
                                                                                             '&:hover': {
-                                                                                                backgroundColor: 'error.main',
+                                                                                                backgroundColor: '#6B7280',
                                                                                                 color: 'white',
-                                                                                                borderColor: 'error.main',
+                                                                                                borderColor: '#6B7280',
                                                                                             },
                                                                                         }}
                                                                                     >
@@ -2876,15 +2957,15 @@ const Projet: React.FC = () => {
                 <DialogActions>
                     <Button
                         onClick={handleNewProjectDialogClose}
-                        color="error"
                         variant="outlined"
                         sx={{
                             textTransform: 'none',
-                            borderColor: 'error.main',
+                            color: '#6B7280',
+                            borderColor: '#6B7280',
                             '&:hover': {
-                                backgroundColor: 'error.main',
+                                backgroundColor: '#6B7280',
                                 color: 'white',
-                                borderColor: 'error.main',
+                                borderColor: '#6B7280',
                             },
                         }}
                     >
@@ -3064,15 +3145,15 @@ const Projet: React.FC = () => {
                 <DialogActions>
                     <Button
                         onClick={handleEditProjectDialogClose}
-                        color="error"
                         variant="outlined"
                         sx={{
                             textTransform: 'none',
-                            borderColor: 'error.main',
+                            color: '#6B7280', // Tailwind Gray-500
+                            borderColor: '#6B7280',
                             '&:hover': {
-                                backgroundColor: 'error.main',
+                                backgroundColor: '#6B7280',
                                 color: 'white',
-                                borderColor: 'error.main',
+                                borderColor: '#6B7280',
                             },
                         }}
                     >

@@ -56,15 +56,20 @@ class TeamController extends Controller
     {
         $validated = $request->validated();
 
-        $team = Team::create($validated);
+        $manager = User::findOrFail($validated['manager_id']);
 
-        // Ajouter des membres si présents dans la requête
-        if (isset($validated['members']) && is_array($validated['members'])) {
-            $memberIds = collect($validated['members'])->pluck('user_id')->toArray();
-            $team->members()->attach($memberIds);
+        if ($manager->role !== 'manager') {
+            $manager->role = 'manager';
+            $manager->save();
         }
 
-        // Envoyer les notifications de création d'équipe
+        $team = Team::create($validated);
+
+        // if (isset($validated['members']) && is_array($validated['members'])) {
+        //     $memberIds = collect($validated['members'])->pluck('user_id')->toArray();
+        //     $team->members()->attach($memberIds);
+        // }
+
         $this->notificationController->teamCreated($team);
 
         return response()->json([
@@ -93,6 +98,7 @@ class TeamController extends Controller
 
     public function update($id, TeamRequest $request)
     {
+
         $team = Team::find($id);
 
         if (!$team) {
@@ -105,82 +111,96 @@ class TeamController extends Controller
         $validated = $request->validated();
         $changes = array_diff_assoc($validated, $team->toArray());
 
-        // Vérifier si le manager a changé
-        if (isset($validated['manager_id']) && $team->manager_id != $validated['manager_id']) {
-            $oldManager = User::find($team->manager_id);
-            $newManager = User::find($validated['manager_id']);
-            
-            // Vérifier si le nouveau manager était un membre
-            $newManagerWasMember = $team->members()->where('user_id', $validated['manager_id'])->exists();
 
-            // Si le nouveau manager était un membre, le retirer de la liste des membres
+
+        if (isset($validated['manager_id']) && $team->manager_id != $validated['manager_id']) {
+
+            $oldManager = User::find($team->manager_id);
+            $newManager = User::findOrFail($validated['manager_id']);
+
+            $newManagerWasMember = $team->members()
+                ->where('user_id', $validated['manager_id'])
+                ->exists();
+
             if ($newManagerWasMember) {
                 $team->members()->detach($validated['manager_id']);
             }
 
-            // Envoyer les notifications de changement de manager
+            if ($newManager->role !== 'manager') {
+                $newManager->role = 'manager';
+                $newManager->save();
+            }
+
+
             $this->notificationController->managerChanged($team, $oldManager, $newManager);
         }
 
+
+
         $team->update($validated);
 
-        // Mettre à jour les membres si présents dans la requête
+
         if (isset($validated['members']) && is_array($validated['members'])) {
-            $memberIds = collect($validated['members'])->pluck('user_id')->toArray();
-            // Assurez-vous que le manager n'est pas dans la liste des membres
-            $memberIds = array_filter($memberIds, function ($id) use ($validated) {
-                return $id != $validated['manager_id'];
-            });
+            $memberIds = collect($validated['members'])
+                ->pluck('user_id')
+                ->diff([$team->manager_id])           // on retire le manager
+                ->toArray();
+
             $team->members()->sync($memberIds);
         }
 
-        // Envoyer les notifications de mise à jour d'équipe
+
+        if (isset($oldManager) && $oldManager) {
+            $stillManager = Team::where('manager_id', $oldManager->id)->exists();
+
+            if (!$stillManager && $oldManager->role === 'manager') {
+                $oldManager->role = 'employee';                    // adapte le nom
+                $oldManager->save();
+            }
+        }
+
+
         $this->notificationController->teamUpdated($team, $changes);
 
-        return response()->noContent();
+        return response()->noContent();   // 204
     }
+
     public function destroy($id)
     {
         $team = Team::find($id);
-
         if (!$team) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Équipe non trouvée'
-            ], 404);
+            return response()->json(['success' => false, 'message' => 'Équipe non trouvée'], 404);
         }
 
-        // Commencer une transaction pour s'assurer que tout est supprimé correctement
-        DB::beginTransaction();
-        try {
-            // D'abord, supprimer les entrées de la table pivot team_user
-            DB::table('team_user')->where('team_id', $id)->delete();
+        $managerId = $team->manager_id;
 
-            // Ensuite, supprimer l'équipe elle-même
-            $team->delete();
+        /* 1) Détacher si PAS de cascade */
+        $team->members()->detach();        // inutile si tu as ON DELETE CASCADE
 
-            // Valider la transaction
-            DB::commit();
+        /* 2) Supprimer l’équipe (soft-delete ou forceDelete) */
+        $team->delete();                   // ou ->forceDelete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Équipe et ses membres supprimés avec succès'
-            ]);
-        } catch (\Exception $e) {
-            // En cas d'erreur, annuler la transaction
-            DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la suppression de l\'équipe',
-                'error' => $e->getMessage()
-            ], 500);
+        /* 3) Rétrograder le manager si besoin */
+        $stillManager = Team::where('manager_id', $managerId)->exists();
+        if (!$stillManager) {
+            $manager = User::find($managerId);
+            if ($manager && $manager->role === 'manager') {
+                $manager->role = 'employee';
+                $manager->save();
+            }
         }
+
+        /* 4) Notification */
+        // $this->notificationController->teamDeleted($id);
+
+        return response()->json(['success' => true, 'message' => 'Équipe supprimée avec succès']);
     }
+
 
     // Ajouter un membre à l'équipe
     public function addMember($teamId, Request $request)
     {
+
         $request->validate([
             'user_id' => 'required|exists:users,id'
         ]);

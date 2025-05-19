@@ -95,7 +95,7 @@ class SubtaskController extends Controller
         $subtask->update($validated);
 
 
-        $this->notifier->subtaskProgressUpdated($subtask);
+        // $this->notifier->subtaskProgressUpdated($subtask);
 
         // if ($subtask->task && method_exists($subtask->task, 'calculateProgress')) {
         //     $subtask->task->calculateProgress();
@@ -128,7 +128,7 @@ class SubtaskController extends Controller
             $task->calculateProgress();
         }
 
-        $this->notifier->subtaskDeleted($subtask);   // ← NEW
+        // $this->notifier->subtaskDeleted($subtask);   // ← NEW
 
         return response()->json([
             'success' => true,
@@ -152,7 +152,7 @@ class SubtaskController extends Controller
         $subtask->progress = 100; // Très important ici
         $subtask->save();
 
-        $this->notifier->subtaskCompleted($subtask);   // ← NEW
+        // $this->notifier->subtaskCompleted($subtask);   // ← NEW
 
 
         return response()->json([

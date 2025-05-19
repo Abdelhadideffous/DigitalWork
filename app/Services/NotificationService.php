@@ -231,20 +231,11 @@ class NotificationService
 
     public function taskCompleted(Task $task)
     {
-        // Notification au créateur
-        $this->sendNotification(
-            $task->creator_id,
-            'Tâche terminée',
-            "La tâche '{$task->title}' a été marquée comme terminée",
-            'success'
-        );
-
-        // Notification à l'assigné si différent du créateur
-        if ($task->assignee_id && $task->assignee_id !== $task->creator_id) {
+        if ($task->assigned_to) {
             $this->sendNotification(
-                $task->assignee_id,
+                $task->assigned_to,
                 'Tâche terminée',
-                "Vous avez terminé la tâche '{$task->title}'",
+                "La tâche '{$task->title}' a été marquée comme terminée",
                 'success'
             );
         }
@@ -252,25 +243,25 @@ class NotificationService
 
     public function taskUpdated(Task $task)
     {
-        // Notification au créateur si la mise à jour vient de l'assigné
-        if ($task->assignee_id && $task->assignee_id !== $task->creator_id) {
-            $this->sendNotification(
-                $task->creator_id,
-                'Tâche mise à jour',
-                "La tâche '{$task->title}' a été mise à jour",
-                'info'
-            );
-        }
+        // // Notification au créateur si la mise à jour vient de l'assigné
+        // if ($task->assignee_id && $task->assignee_id !== $task->creator_id) {
+        //     $this->sendNotification(
+        //         $task->creator_id,
+        //         'Tâche mise à jour',
+        //         "La tâche '{$task->title}' a été mise à jour",
+        //         'info'
+        //     );
+        // }
 
-        // Notification à l'assigné si la mise à jour vient du créateur
-        if ($task->assignee_id && $task->assignee_id !== $task->creator_id) {
-            $this->sendNotification(
-                $task->assignee_id,
-                'Tâche mise à jour',
-                "La tâche '{$task->title}' a été mise à jour",
-                'info'
-            );
-        }
+        // // Notification à l'assigné si la mise à jour vient du créateur
+        // if ($task->assignee_id && $task->assignee_id !== $task->creator_id) {
+        //     $this->sendNotification(
+        //         $task->assignee_id,
+        //         'Tâche mise à jour',
+        //         "La tâche '{$task->title}' a été mise à jour",
+        //         'info'
+        //     );
+        // }
     }
 
     public function notifyManagerNewTask(Task $task, User $manager)
@@ -332,7 +323,7 @@ class NotificationService
         if (!$task)
             return;
 
-            
+
         // Notification au manager du projet
         if ($task->project && $task->project->manager_id) {
             $this->sendNotification(

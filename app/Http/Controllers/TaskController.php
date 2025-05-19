@@ -62,19 +62,19 @@ class TaskController extends Controller
         return response()->json([
             'success' => true,
             'data' => TaskResource::collection($tasks)
-        ]);
+        ],200);
     }
 
     public function store(Request $request)
     {
-        try {
+        // try {
             $user = Auth::user();
 
-            if (!$user || !in_array($user->role, ['admin', 'manager'])) {
-                return response()->json([
-                    'message' => 'Accès refusé : seuls les managers et administrateurs peuvent créer une tâche.'
-                ], 403);
-            }
+            // if (!$user || !in_array($user->role, ['admin', 'manager'])) {
+            //     return response()->json([
+            //         'message' => 'Accès refusé : seuls les managers et administrateurs peuvent créer une tâche.'
+            //     ], 403);
+            // }
 
             $validated = $request->validate(app(TaskRequest::class)->rules());
 
@@ -82,26 +82,26 @@ class TaskController extends Controller
             $task = Task::create($validated);
 
             // Notifications lors de la création d'une tâche
-            if ($task->assigned_to) {
-                try {
-                    // Notification à l'utilisateur assigné
-                    $assignee = User::find($task->assigned_to);
-                    if ($assignee) {
-                        $this->notificationService->taskAssigned($task, $assignee);
-                    }
+            // if ($task->assigned_to) {
+            //     try {
+            //         // Notification à l'utilisateur assigné
+            //         $assignee = User::find($task->assigned_to);
+            //         if ($assignee) {
+            //             $this->notificationService->taskAssigned($task, $assignee);
+            //         }
 
-                    // Notification au manager du projet
-                    $project = Project::find($task->project_id);
-                    if ($project && $project->manager_id) {
-                        $manager = User::find($project->manager_id);
-                        if ($manager) {
-                            $this->notificationService->notifyManagerNewTask($task, $manager);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
-                }
-            }
+            //         // Notification au manager du projet
+            //         $project = Project::find($task->project_id);
+            //         if ($project && $project->manager_id) {
+            //             $manager = User::find($project->manager_id);
+            //             if ($manager) {
+            //                 $this->notificationService->notifyManagerNewTask($task, $manager);
+            //             }
+            //         }
+            //     } catch (\Exception $e) {
+            //         Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
+            //     }
+            // }
 
             return response()->json([
                 'success' => true,
@@ -109,14 +109,14 @@ class TaskController extends Controller
                 'data' => new TaskResource($task)
             ], 201);
 
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la création de la tâche: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Une erreur est survenue lors de la création de la tâche',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        // } catch (\Exception $e) {
+        //     Log::error('Erreur lors de la création de la tâche: ' . $e->getMessage());
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Une erreur est survenue lors de la création de la tâche',
+        //         'error' => $e->getMessage()
+        //     ], 500);
+        // }
     }
 
     public function show($id)
@@ -249,6 +249,7 @@ class TaskController extends Controller
         try {
             $task = Task::findOrFail($id);
             $task->status_id = 3; // ID du statut "terminé"
+            $task->progress = 100; // Mettre la progression à 100%
             $task->save();
 
             try {
@@ -256,13 +257,13 @@ class TaskController extends Controller
                 $this->notificationService->taskCompleted($task);
 
                 // Notification au manager du projet
-                $project = Project::find($task->project_id);
-                if ($project && $project->manager_id) {
-                    $manager = User::find($project->manager_id);
-                    if ($manager) {
-                        $this->notificationService->notifyTaskCompleted($task, $manager);
-                    }
-                }
+                // $project = Project::find($task->project_id);
+                // if ($project && $project->manager_id) {
+                //     $manager = User::find($project->manager_id);
+                //     if ($manager) {
+                //         $this->notificationService->notifyTaskCompleted($task, $manager);
+                //     }
+                // }
             } catch (\Exception $e) {
                 Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
             }
@@ -291,14 +292,14 @@ class TaskController extends Controller
                 // Notification d'annulation à l'utilisateur
                 $this->notificationService->taskUpdated($task);
 
-                // Notification au manager du projet
-                $project = Project::find($task->project_id);
-                if ($project && $project->manager_id) {
-                    $manager = User::find($project->manager_id);
-                    if ($manager) {
-                        $this->notificationService->notifyTaskCancelled($task, $manager);
-                    }
-                }
+                // // Notification au manager du projet
+                // $project = Project::find($task->project_id);
+                // if ($project && $project->manager_id) {
+                //     $manager = User::find($project->manager_id);
+                //     if ($manager) {
+                //         $this->notificationService->notifyTaskCancelled($task, $manager);
+                //     }
+                // }
             } catch (\Exception $e) {
                 Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
             }

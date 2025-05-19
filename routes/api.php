@@ -44,105 +44,109 @@ Route::middleware('auth:sanctum')->get('/projects/{id}/members', [ProjectControl
 
 
 
-//route User
-
-// Route::get('/users', [UserController::class, 'index']);
-Route::post('/users', [UserController::class, 'store']);
-Route::get('/users/{id}', [UserController::class, 'show']);
-Route::put('/users/{id}', [UserController::class, 'update']);
-Route::delete('/users/{id}', [UserController::class, 'destroy']);
-
-//route login 
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-
-// route priority
-Route::get('/priority', [PriorityController::class, 'index']);
-Route::get('/priorities', [PriorityController::class, 'getAllPriorities']);
-
-// route statues
-Route::get('/statuses', [StatusController::class, 'index']);
-Route::get('/statusesprojetetask', [StatusController::class, 'getStatusProjetetTask']);
-
-//route projects
-Route::post('/projects', [ProjectController::class, 'store']);
-Route::get('/projects/{id}', [ProjectController::class, 'show']);
-Route::put('/projects/{id}', [ProjectController::class, 'update']);
-Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
-Route::get('/projects/{id}/teams', [ProjectController::class, 'getProjectTeams']);
-Route::patch('/edbs/{id}/annuler', [ProjectController::class, 'projetanuule']);
-Route::patch('/edbs/{id}/teminer', [ProjectController::class, 'projetterminer']);
-Route::get('projects/{id}/tasks', [ProjectController::class, 'getProjectTasks']);
-Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgress']);
-Route::post('/projects/{id}/cancel', [ProjectController::class, 'cancelProject']);
-Route::get('/projects/update-all-statuses', [ProjectController::class, 'updateAllProjectsStatus']);
-Route::get('/projects/filter', [ProjectController::class, 'filterProjects']);
 
 
+    //route User
 
-//route team 
-Route::post('/teams', [TeamController::class, 'store']);
-Route::get('/teams/{id}', [TeamController::class, 'show']);
-Route::put('/teams/{id}', [TeamController::class, 'update']);
-Route::delete('/teams/{id}', [TeamController::class, 'destroy']);
-Route::post('/teams/{teamId}/members', [TeamController::class, 'addMember']);
-Route::delete('/teams/{teamId}/members/{userId}', [TeamController::class, 'removeMember']);
-Route::get('/available-projects', [TeamController::class, 'getAvailableProjects']);
-Route::get('users/search', [UserController::class, 'searchUsers']);
+    // Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+    Route::get('/users/{id}', [UserController::class, 'show']);
+    Route::put('/users/{id}', [UserController::class, 'update']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
+
+    //route login 
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+    // route priority
+    Route::get('/priority', [PriorityController::class, 'index']);
+    Route::get('/priorities', [PriorityController::class, 'getAllPriorities']);
+
+    // route statues
+    Route::get('/statuses', [StatusController::class, 'index']);
+    Route::get('/statusesprojetetask', [StatusController::class, 'getStatusProjetetTask']);
+
+    //route projects
+    Route::post('/projects', [ProjectController::class, 'store']);
+    Route::get('/projects/{id}', [ProjectController::class, 'show']);
+    Route::put('/projects/{id}', [ProjectController::class, 'update']);
+    Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
+    Route::get('/projects/{id}/teams', [ProjectController::class, 'getProjectTeams']);
+    Route::patch('/projects/{id}/annuler', [ProjectController::class, 'projetanuule']);
+    Route::patch('/projects/{id}/teminer', [ProjectController::class, 'projetterminer']);
+    Route::get('projects/{id}/tasks', [ProjectController::class, 'getProjectTasks']);
+    Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgress']);
+    Route::post('/projects/{id}/cancel', [ProjectController::class, 'cancelProject']);
+    Route::get('/projects/update-all-statuses', [ProjectController::class, 'updateAllProjectsStatus']);
+    Route::get('/projects/filter', [ProjectController::class, 'filterProjects']);
 
 
 
-//Routes pour commentaire d'un projet
-Route::get('/projects/{projectId}/comments', [CommentsProjetController::class, 'index']);
-Route::post('/comments', [CommentsProjetController::class, 'store']);
-Route::get('/comments/{id}', [CommentsProjetController::class, 'show']);
-Route::put('/comments/{id}', [CommentsProjetController::class, 'update']);
-Route::delete('/comments/{id}', [CommentsProjetController::class, 'destroy']);
-Route::post('/comments/{id}/like', [CommentsProjetController::class, 'like']);
-Route::post('/comments/{id}/unlike', [CommentsProjetController::class, 'unlike']);
+    //route team 
+    Route::post('/teams', [TeamController::class, 'store']);
+    Route::get('/teams/{id}', [TeamController::class, 'show']);
+    Route::put('/teams/{id}', [TeamController::class, 'update']);
+    Route::delete('/teams/{id}', [TeamController::class, 'destroy']);
+    Route::post('/teams/{teamId}/members', [TeamController::class, 'addMember']);
+    Route::delete('/teams/{teamId}/members/{userId}', [TeamController::class, 'removeMember']);
+    Route::get('/available-projects', [TeamController::class, 'getAvailableProjects']);
+    Route::get('users/search', [UserController::class, 'searchUsers']);
 
 
 
-//route pour Task
+    //Routes pour commentaire d'un projet
+    Route::get('/projects/{projectId}/comments', [CommentsProjetController::class, 'index']);
+    Route::post('/comments', [CommentsProjetController::class, 'store']);
+    Route::get('/comments/{id}', [CommentsProjetController::class, 'show']);
+    Route::put('/comments/{id}', [CommentsProjetController::class, 'update']);
+    Route::delete('/comments/{id}', [CommentsProjetController::class, 'destroy']);
+    Route::post('/comments/{id}/like', [CommentsProjetController::class, 'like']);
+    Route::post('/comments/{id}/unlike', [CommentsProjetController::class, 'unlike']);
+
+
+
+    //route pour Task
 // Route::get('/tasks', [TaskController::class, 'index']);
 // Route::post('/tasks', [TaskController::class, 'store']);
-Route::get('/tasks/{task}', [TaskController::class, 'show']);
-Route::put('/tasks/{task}', [TaskController::class, 'update']);
-Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+    Route::get('/tasks/{task}', [TaskController::class, 'show']);
+    Route::put('/tasks/{task}', [TaskController::class, 'update']);
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+    Route::post('/tasks/{taskId}/annuler', [TaskController::class, 'Taskanuule']);
+    Route::post('/tasks/{taskId}/terminer', [TaskController::class, 'Taskterminer']);
 
-//route subtask
-Route::get('/tasks/{taskId}/subtasks', [SubtaskController::class, 'index']);
-Route::post('/tasks/{taskId}/subtasks', [SubtaskController::class, 'store']);
-Route::get('/subtasks/{id}', [SubtaskController::class, 'show']);
-Route::put('/subtasks/{id}', [SubtaskController::class, 'update']);
-Route::delete('/subtasks/{id}', [SubtaskController::class, 'destroy']);
-Route::patch('/subtasks/{id}/cancel', [SubtaskController::class, 'cancelSubtask']);
-Route::post('/subtasks/{id}/complete', [SubtaskController::class, 'completeSubtask']);
-
-
-// route pour edb 
-
-Route::get('/edbs/{id}', [EdbController::class, 'show']);
-Route::put('/edbs/{id}', [EdbController::class, 'update']);
-Route::delete('/edbs/{id}', [EdbController::class, 'destroy']);
-Route::patch('/edbs/{id}/approve', [EdbController::class, 'approveEdb']);
-Route::patch('/edbs/{id}/reject', [EdbController::class, 'rejectEdb']);
-Route::post('/edbs/{id}/attachments', [EDBController::class, 'uploadMultipleAttachments']);
-Route::get('/edbs/{id}/attachments', [EdbController::class, 'getAttachments']);
-Route::delete('/edbs/{id}/attachments/{attachmentId}', [EdbController::class, 'deleteAttachment']);
-// Route::get('/edbs/{id}/export-pdf', [EdbController::class, 'exportPdf']);
-
-Route::get('edbstatus', [EdbController::class, 'getEdbStatus']);
+    //route subtask
+    Route::get('/tasks/{taskId}/subtasks', [SubtaskController::class, 'index']);
+    Route::post('/tasks/{taskId}/subtasks', [SubtaskController::class, 'store']);
+    Route::get('/subtasks/{id}', [SubtaskController::class, 'show']);
+    Route::put('/subtasks/{id}', [SubtaskController::class, 'update']);
+    Route::delete('/subtasks/{id}', [SubtaskController::class, 'destroy']);
+    Route::patch('/subtasks/{id}/cancel', [SubtaskController::class, 'cancelSubtask']);
+    Route::post('/subtasks/{id}/complete', [SubtaskController::class, 'completeSubtask']);
 
 
+    // route pour edb 
 
-// routes/api.php
-Route::post('/tasks/{id}/calculate-progress', [TaskController::class, 'calculateProgress']);
-Route::post('/projects/{id}/calculate-progress', [ProjectController::class, 'calculateProjectProgress']);
+    Route::get('/edbs/{id}', [EdbController::class, 'show']);
+    Route::put('/edbs/{id}', [EdbController::class, 'update']);
+    Route::delete('/edbs/{id}', [EdbController::class, 'destroy']);
+    Route::patch('/edbs/{id}/approve', [EdbController::class, 'approveEdb']);
+    Route::patch('/edbs/{id}/reject', [EdbController::class, 'rejectEdb']);
+    Route::post('/edbs/{id}/attachments', [EDBController::class, 'uploadMultipleAttachments']);
+    Route::get('/edbs/{id}/attachments', [EdbController::class, 'getAttachments']);
+    Route::delete('/edbs/{id}/attachments/{attachmentId}', [EdbController::class, 'deleteAttachment']);
+    // Route::get('/edbs/{id}/export-pdf', [EdbController::class, 'exportPdf']);
+
+    Route::get('edbstatus', [EdbController::class, 'getEdbStatus']);
 
 
 
-Route::get('/dashboard/performance-summary', [DashboardController::class, 'getPerformanceSummary']);
+    // routes/api.php
+    Route::post('/tasks/{id}/calculate-progress', [TaskController::class, 'calculateProgress']);
+    Route::post('/projects/{id}/calculate-progress', [ProjectController::class, 'calculateProjectProgress']);
+
+
+
+    Route::get('/dashboard/performance-summary', [DashboardController::class, 'getPerformanceSummary']);
 
 
 
@@ -160,3 +164,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::delete('/notifications', [NotificationController::class, 'destroyAll']);
 });
+
+
+    Route::prefix('edbs/{edb}')->group(function () {
+        // …tes routes existantes
+        
+        Route::get ('attachments/{attachment}',             [EdbController::class, 'previewAttachment']);
+        Route::get ('attachments/{attachment}/download',    [EdbController::class, 'downloadAttachment']);
+    });

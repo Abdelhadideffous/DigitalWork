@@ -101,7 +101,54 @@ class ProjectSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ]);
+            [
+                'title' => 'Archivage numérique',
+                'description' => 'Digitalisation des archives physiques.',
+                'start_date' => '2025-05-01',
+                'end_date' => '2025-07-01',
+                'priority_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'title' => 'Migration vers cloud',
+                'description' => 'Déplacement des services internes vers une infrastructure cloud.',
+                'start_date' => '2025-04-20',
+                'end_date' => '2025-08-20',
+                'priority_id' => 3,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'title' => 'Tableau de bord BI',
+                'description' => 'Création de tableaux de bord pour les indicateurs clés.',
+                'start_date' => '2025-04-15',
+                'end_date' => '2025-06-15',
+                'priority_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'title' => 'Intégration API Partenaires',
+                'description' => 'Connexion avec les systèmes des partenaires via API.',
+                'start_date' => '2025-04-18',
+                'end_date' => '2025-07-18',
+                'priority_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'title' => 'Portail interne RH',
+                'description' => 'Nouvel outil de communication RH interne.',
+                'start_date' => '2025-04-22',
+                'end_date' => '2025-07-22',
+                'priority_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]
+        );
+        
     }
 }
 

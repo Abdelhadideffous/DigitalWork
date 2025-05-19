@@ -11,6 +11,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Team;
+use App\Models\User;
 use App\Services\ProjectStatusUpdater;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -108,12 +109,11 @@ class ProjectController extends Controller
 
         $project->update($validated);
 
-        /* ——— LOGIQUE DE RETOUR AU STATUT 1 ——— */
         if (
-            $project->status_id == 2 &&                                    // était « en cours »
-            Carbon::parse($project->start_date)->gt(Carbon::today())       // nouvelle date > aujourd'hui
+            $project->status_id == 2 &&                                    
+            Carbon::parse($project->start_date)->gt(Carbon::today())      
         ) {
-            $project->status_id = 1;      // repasse à « à venir »
+            $project->status_id = 1;      
             $project->save();
         }
 
@@ -145,8 +145,8 @@ class ProjectController extends Controller
 
     public function destroy($id)
     {
-        $project = Project::find($id);
 
+        $project = Project::find($id);
         if (!$project) {
             return response()->json([
                 'success' => false,
@@ -155,22 +155,39 @@ class ProjectController extends Controller
         }
 
 
-        // // Récupérer toutes les équipes associées à ce projet
-        // $teams = Team::where('project_id', $id)->get();
+        $teams = Team::where('project_id', $id)->get();
 
-        // // Supprimer toutes les équipes associées à ce projet
-        // foreach ($teams as $team) {
+        foreach ($teams as $team) {
 
-        //     $team->delete();
-        // }
+            $team->members()->detach();
 
+
+            $managerId = $team->manager_id;
+
+
+            $team->delete();
+
+            $stillManager = Team::where('manager_id', $managerId)->exists();
+            if (!$stillManager) {
+                $manager = User::find($managerId);
+                if ($manager && $manager->role === 'manager') {
+                    $manager->role = 'employee';  // adapte le nom
+                    $manager->save();
+                }
+            }
+
+            /*── c) Notification équipe supprimée ──*/
+            // $this->notificationController->teamDeleted($team->id);
+        }
 
 
         $project->delete();
 
+
+
         return response()->json([
             'success' => true,
-            'message' => 'Projet supprimé avec succès'
+            'message' => 'Projet et équipes associés supprimés avec succès'
         ]);
     }
 
@@ -221,7 +238,7 @@ class ProjectController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'projet teminer'
-        ], 200); // OK - Ajouté
+        ], 200);
     }
 
 
@@ -247,7 +264,6 @@ class ProjectController extends Controller
 
 
 
-    // Ajouter cette méthode
     public function calculateProjectProgress($id)
     {
         $project = Project::find($id);
@@ -274,14 +290,14 @@ class ProjectController extends Controller
         }
 
         if ($user->role === 'admin') {
-            $projects = Project::all(); // admin voit tout
+            $projects = Project::all();
         } elseif ($user->role === 'manager') {
-            // manager : projets dont l'équipe est gérée par lui
+
             $projects = Project::whereHas('team', function ($query) use ($user) {
                 $query->where('manager_id', $user->id);
             })->get();
         } else {
-            return response()->json([], 200); // employé = aucun
+            return response()->json([], 200);
         }
 
         return response()->json([
@@ -304,14 +320,12 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Projet ou équipe introuvable'], 404);
         }
 
-        // ⚠️ Seul le vrai manager ou l'admin peut voir les membres
         if ($user->id !== $project->team->manager_id && $user->role !== 'admin') {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
         $team = $project->team;
 
-        // ✅ Inclure le manager + tous les membres
         $allUsers = collect($team->members)->push($team->manager)->unique('id');
 
         return response()->json([

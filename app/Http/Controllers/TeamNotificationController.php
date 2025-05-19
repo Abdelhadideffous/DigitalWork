@@ -8,6 +8,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification as FacadesNotification;
 
 class TeamNotificationController extends Controller
 {
@@ -24,7 +26,7 @@ class TeamNotificationController extends Controller
                 'type' => $type
             ]);
         } catch (\Exception $e) {
-            \Log::error('Erreur lors de l\'envoi de la notification: ' . $e->getMessage());
+            Log::error('Erreur lors de l\'envoi de la notification: ' . $e->getMessage());
         }
     }
 
@@ -155,4 +157,43 @@ class TeamNotificationController extends Controller
             );
         }
     }
-} 
+
+
+    public function teamDeleted(int $teamId): void
+    {
+        // 1) Récupérer (soft-deleted) l’équipe pour le nom (si SoftDeletes activé)
+        $team = Team::withTrashed()->find($teamId);
+        $teamName = $team ? $team->name : 'cette équipe';
+
+        // 2) Récupérer les destinataires
+        //    – ex-manager
+        //    – ex-membres (pivot team_user)
+        $recipientIds = collect();
+
+        if ($team) {
+            $recipientIds->push($team->manager_id);
+            $recipientIds = $recipientIds->merge(
+                $team->members()->pluck('users.id')->toArray()
+            );
+        }
+
+        // ▶️ Si tu n’utilises PAS SoftDeletes, tu auras sans doute déjà
+        //    l’instance $team avant la suppression. Dans ce cas, passe-la
+        //    directement à la méthode : teamDeleted(Team $team)
+        //    et adapte le code.
+
+        // 3) Dédupliquer
+        $recipientIds = $recipientIds->filter()->unique();
+
+        // 4) Insérer la notification pour chaque destinataire
+        foreach ($recipientIds as $userId) {
+            $this->sendNotification(
+                $userId,
+                'Équipe supprimée',
+                "L’équipe « {$teamName} » a été supprimée.",
+                'error'                              // ou 'danger', selon ta palette
+            );
+        }
+    }
+
+}

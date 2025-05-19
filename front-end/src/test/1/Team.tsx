@@ -10,6 +10,7 @@ import {
     Person,
     RemoveCircleOutline as RemoveCircleOutlineIcon,
     Search as SearchIcon,
+    Send as SendIcon,
     Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import {
@@ -64,6 +65,7 @@ interface TeamMember {
     id: number;
     name: string;
     email: string;
+    number?: string; // Numéro d'employé (téléphone)
     status?: string;
     projects?: string[];
     isManager?: boolean;
@@ -316,6 +318,12 @@ const Team: React.FC = () => {
         fetchTeams();
         fetchUsers();
         fetchProjects();
+        // Ajout : navigation directe vers une équipe si selectedTeamId est présent dans sessionStorage
+        const storedTeamId = sessionStorage.getItem('selectedTeamId');
+        if (storedTeamId) {
+            sessionStorage.removeItem('selectedTeamId');
+            handleViewTeamDetails(Number(storedTeamId));
+        }
     }, []);
 
     // Filtrage des équipes par recherche
@@ -1074,6 +1082,15 @@ const Team: React.FC = () => {
         };
     }, []);
 
+    // Fonction pour naviguer vers la page Projet et afficher le projet correspondant
+    const handleViewProjectDetails = (projectId?: number) => {
+        if (!projectId) return;
+        // Stocker l'ID du projet dans le sessionStorage pour récupération côté Projet.tsx
+        sessionStorage.setItem('selectedProjectId', String(projectId));
+        // Naviguer vers la page Projet (SPA)
+        window.location.href = '/test/2';
+    };
+
     // Afficher un indicateur de chargement pendant le chargement initial
     if (initialLoading) {
         return (
@@ -1209,7 +1226,11 @@ const Team: React.FC = () => {
                                             py: 2,
                                         },
                                         '& .Mui-selected': {
+                                            color: '#16A249 !important',
                                             fontWeight: 'bold',
+                                        },
+                                        '& .MuiTabs-indicator': {
+                                            backgroundColor: '#16A249', // green underline
                                         },
                                     }}
                                 >
@@ -1235,6 +1256,7 @@ const Team: React.FC = () => {
                                                         placeholder="Rechercher un membre..."
                                                         size="small"
                                                         value={searchMemberQuery}
+                                                        color="success"
                                                         onChange={(e) => setSearchMemberQuery(e.target.value)}
                                                         InputProps={{
                                                             startAdornment: (
@@ -1254,7 +1276,7 @@ const Team: React.FC = () => {
                                                         <TableRow>
                                                             <TableCell sx={{ fontWeight: 'bold' }}>Nom</TableCell>
                                                             <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
-                                                            <TableCell sx={{ fontWeight: 'bold' }}>némuro de téléphone</TableCell>
+                                                            <TableCell sx={{ fontWeight: 'bold' }}>Numéro</TableCell>
                                                             <TableCell sx={{ fontWeight: 'bold' }} align="right">
                                                                 Actions
                                                             </TableCell>
@@ -1322,25 +1344,7 @@ const Team: React.FC = () => {
                                                                             {member.email}
                                                                         </Typography>
                                                                     </TableCell>
-                                                                    <TableCell>
-                                                                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                                                            {member.projects && member.projects.length > 0 ? (
-                                                                                member.projects.map((project: string, index: number) => (
-                                                                                    <Chip
-                                                                                        key={index}
-                                                                                        label={project}
-                                                                                        size="small"
-                                                                                        variant="outlined"
-                                                                                        sx={{ fontWeight: 'medium' }}
-                                                                                    />
-                                                                                ))
-                                                                            ) : (
-                                                                                <Typography variant="body2" color="text.secondary">
-                                                                                    Aucun projet
-                                                                                </Typography>
-                                                                            )}
-                                                                        </Box>
-                                                                    </TableCell>
+                                                                    <TableCell>{member.number || ''}</TableCell>
                                                                     <TableCell align="right">
                                                                         {!member.isManager ? (
                                                                             canDeletMembers() ? (
@@ -1394,7 +1398,6 @@ const Team: React.FC = () => {
                                                         Liste des projets sur lesquels travaille l'équipe {selectedTeam?.name}
                                                     </Typography>
                                                 </Box>
-                                                {/* <Button variant="outlined">Voir tous les projets</Button> */}
                                             </Box>
 
                                             {selectedTeam?.project ? (
@@ -1416,7 +1419,16 @@ const Team: React.FC = () => {
                                                                 {selectedTeam.project.title}
                                                             </Typography>
                                                         </Box>
-                                                        <Button variant="outlined" size="small">
+                                                        <Button
+                                                            variant="outlined"
+                                                            size="small"
+                                                            sx={{
+                                                                color: '#16A249',
+                                                                borderColor: '#16A249',
+                                                                '&:hover': { bgcolor: '#e8f5e9', borderColor: '#138a3c', color: '#138a3c' },
+                                                            }}
+                                                            onClick={() => handleViewProjectDetails(selectedTeam?.project?.id)}
+                                                        >
                                                             Voir les détails
                                                         </Button>
                                                     </Box>
@@ -1608,6 +1620,7 @@ const Team: React.FC = () => {
                         id="name"
                         name="name"
                         label="Nom de l'équipe"
+                        color="success"
                         type="text"
                         fullWidth
                         variant="outlined"
@@ -1615,6 +1628,16 @@ const Team: React.FC = () => {
                         onChange={handleNewTeamInputChange}
                         error={newTeamErrors.name}
                         helperText={newTeamErrors.name ? "Le nom de l'équipe est requis" : ''}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                    borderColor: 'darkgreen',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#16A249',
+                                },
+                            },
+                        }}
                         required
                     />
                     <Autocomplete
@@ -1630,9 +1653,20 @@ const Team: React.FC = () => {
                                 margin="dense"
                                 name="leader"
                                 label="Chef d'équipe"
+                                color="success"
                                 variant="outlined"
                                 error={newTeamErrors.leader}
                                 helperText={newTeamErrors.leader ? "Le chef d'équipe est requis" : ''}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                            borderColor: 'darkgreen',
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderColor: '#16A249',
+                                        },
+                                    },
+                                }}
                                 required
                                 InputProps={{
                                     ...params.InputProps,
@@ -1683,9 +1717,20 @@ const Team: React.FC = () => {
                                 margin="dense"
                                 name="project"
                                 label="Projet"
+                                color="success"
                                 variant="outlined"
                                 error={newTeamErrors.projectId}
                                 helperText={newTeamErrors.projectId ? 'Le projet est requis' : ''}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                            borderColor: 'darkgreen',
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderColor: '#16A249',
+                                        },
+                                    },
+                                }}
                                 required
                             />
                         )}
@@ -1707,6 +1752,7 @@ const Team: React.FC = () => {
                         id="description"
                         name="description"
                         label="Description"
+                        color="success"
                         type="text"
                         fullWidth
                         multiline
@@ -1716,12 +1762,54 @@ const Team: React.FC = () => {
                         onChange={handleNewTeamInputChange}
                         error={newTeamErrors.description}
                         helperText={newTeamErrors.description ? 'La description est requise' : ''}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                    borderColor: 'darkgreen',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#16A249',
+                                },
+                            },
+                        }}
                         required
                     />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleNewTeamDialogClose}>Annuler</Button>
-                    <Button variant="contained" color="success" sx={{ bgcolor: '#16A249' }} onClick={handleCreateNewTeam} disabled={loading}>
+                    <Button
+                        onClick={handleNewTeamDialogClose}
+                        variant="outlined"
+                        sx={{
+                            textTransform: 'none',
+                            color: '#6B7280', // Tailwind Gray-500
+                            borderColor: '#6B7280',
+                            '&:hover': {
+                                backgroundColor: '#6B7280',
+                                color: 'white',
+                                borderColor: '#6B7280',
+                            },
+                        }}
+                    >
+                        Annuler
+                    </Button>
+                    <Button
+                        onClick={handleCreateNewTeam}
+                        disabled={loading}
+                        variant="contained"
+                        color="success"
+                        endIcon={<SendIcon />}
+                        sx={{
+                            bgcolor: '#16A249',
+                            border: '1px solid #16A249',
+                            textTransform: 'none',
+                            borderRadius: 1,
+                            px: 2,
+                            '&:hover': {
+                                bgcolor: '#138a3c', // a slightly darker green for hover
+                                borderColor: '#138a3c',
+                            },
+                        }}
+                    >
                         Créer l'équipe
                     </Button>
                 </DialogActions>
@@ -1736,6 +1824,7 @@ const Team: React.FC = () => {
                         id="name"
                         name="name"
                         label="Nom de l'équipe"
+                        color="success"
                         type="text"
                         fullWidth
                         variant="outlined"
@@ -1743,6 +1832,16 @@ const Team: React.FC = () => {
                         onChange={handleEditTeamInputChange}
                         error={editTeamErrors.name}
                         helperText={editTeamErrors.name ? "Le nom de l'équipe est requis" : ''}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                    borderColor: 'darkgreen',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#16A249',
+                                },
+                            },
+                        }}
                         required
                     />
                     <Autocomplete
@@ -1758,9 +1857,20 @@ const Team: React.FC = () => {
                                 margin="dense"
                                 name="leader"
                                 label="Chef d'équipe"
+                                color="success"
                                 variant="outlined"
                                 error={editTeamErrors.leader}
                                 helperText={editTeamErrors.leader ? "Le chef d'équipe est requis" : ''}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                            borderColor: 'darkgreen',
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderColor: '#16A249',
+                                        },
+                                    },
+                                }}
                                 required
                                 InputProps={{
                                     ...params.InputProps,
@@ -1827,9 +1937,20 @@ const Team: React.FC = () => {
                                 margin="dense"
                                 name="project"
                                 label="Projet"
+                                color="success"
                                 variant="outlined"
                                 error={editTeamErrors.projectId}
                                 helperText={editTeamErrors.projectId ? 'Le projet est requis' : ''}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                            borderColor: 'darkgreen',
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderColor: '#16A249',
+                                        },
+                                    },
+                                }}
                                 required
                             />
                         )}
@@ -1851,6 +1972,7 @@ const Team: React.FC = () => {
                         id="description"
                         name="description"
                         label="Description"
+                        color="success"
                         type="text"
                         fullWidth
                         multiline
@@ -1860,11 +1982,36 @@ const Team: React.FC = () => {
                         onChange={handleEditTeamInputChange}
                         error={editTeamErrors.description}
                         helperText={editTeamErrors.description ? 'La description est requise' : ''}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                    borderColor: 'darkgreen',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#16A249',
+                                },
+                            },
+                        }}
                         required
                     />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleEditTeamDialogClose}>Annuler</Button>
+                    <Button
+                        onClick={handleEditTeamDialogClose}
+                        variant="outlined"
+                        sx={{
+                            textTransform: 'none',
+                            color: '#6B7280', // Tailwind Gray-500
+                            borderColor: '#6B7280',
+                            '&:hover': {
+                                backgroundColor: '#6B7280',
+                                color: 'white',
+                                borderColor: '#6B7280',
+                            },
+                        }}
+                    >
+                        Annuler
+                    </Button>
                     <Button onClick={handleUpdateTeam} variant="contained" color="success" sx={{ bgcolor: '#16A249' }} disabled={loading}>
                         Mettre à jour
                     </Button>
@@ -1877,7 +2024,24 @@ const Team: React.FC = () => {
                     <Typography variant="body1">Êtes-vous sûr de vouloir supprimer cette équipe ? Cette action est irréversible.</Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleDeleteTeamDialogClose}>Annuler</Button>
+                    <Button
+                        onClick={handleDeleteTeamDialogClose}
+                        color="success"
+                        variant="outlined"
+                        sx={{
+                            border: '1px solid #16A249',
+                            textTransform: 'none',
+                            borderRadius: 1,
+                            px: 2,
+                            '&:hover': {
+                                color: 'white',
+                                bgcolor: '#138a3c', // a slightly darker green for hover
+                                borderColor: '#138a3c',
+                            },
+                        }}
+                    >
+                        Annuler
+                    </Button>
                     <Button onClick={handleDeleteTeam} variant="contained" color="error" disabled={loading}>
                         {loading ? <CircularProgress size={24} color="inherit" /> : 'Supprimer'}
                     </Button>
@@ -2103,37 +2267,24 @@ const Team: React.FC = () => {
                             </Paper>
                         </>
                     )}
-
-                    {/* {availableProjects.length > 0 && (
-                        <Box sx={{ mt: 3 }}>
-                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                                Assigner à un projet (optionnel)
-                            </Typography>
-                            <FormControl fullWidth>
-                                <InputLabel id="batch-project-select-label">Projet</InputLabel>
-                                <Select
-                                    labelId="batch-project-select-label"
-                                    id="batch-project"
-                                    name="project"
-                                    value={newMemberData.project}
-                                    label="Projet"
-                                    onChange={handleNewMemberSelectChange}
-                                >
-                                    <MenuItem value="">
-                                        <em>Aucun</em>
-                                    </MenuItem>
-                                    {availableProjects.map((project: string) => (
-                                        <MenuItem key={project} value={project}>
-                                            {project}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Box>
-                    )} */}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleBatchAddDialogClose}>Annuler</Button>
+                    <Button
+                        onClick={handleBatchAddDialogClose}
+                        variant="outlined"
+                        sx={{
+                            textTransform: 'none',
+                            color: '#6B7280', // Tailwind Gray-500
+                            borderColor: '#6B7280',
+                            '&:hover': {
+                                backgroundColor: '#6B7280',
+                                color: 'white',
+                                borderColor: '#6B7280',
+                            },
+                        }}
+                    >
+                        Annuler
+                    </Button>
                     <Button
                         onClick={handleAddBatchMembers}
                         variant="contained"
