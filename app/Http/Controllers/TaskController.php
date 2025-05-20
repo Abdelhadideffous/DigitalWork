@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TaskCancelled;
+use App\Events\TaskCompleted;
+use App\Events\TaskCreated;
+use App\Events\TaskDeleted;
+use App\Events\TaskUpdated;
 use App\Http\Requests\TaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
@@ -14,14 +19,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
+
 class TaskController extends Controller
 {
-    protected $notificationService;
 
-    public function __construct(NotificationService $notificationService)
-    {
-        $this->notificationService = $notificationService;
-    }
+
 
     public function index()
     {
@@ -29,7 +31,7 @@ class TaskController extends Controller
         if (!$user)
             return response()->json(['message' => 'Unauthenticated'], 401);
 
-        Task::where('status_id', 1)                        // 1 = « à faire »
+        Task::where('status_id', 1)
             ->whereDate('start_date', '<=', Carbon::today())
             ->update(['status_id' => 2]);
 
@@ -37,23 +39,18 @@ class TaskController extends Controller
             $tasks = Task::with(['project', 'status', 'priority', 'assignedUser'])->get();
 
         } else {
-            // Cas manager + employé : on récupère toutes les tâches,
-            // puis on filtre en fonction du projet ET du lien réel
 
             $tasks = Task::with(['project.team', 'status', 'priority', 'assignedUser'])
                 ->get()
                 ->filter(function ($task) use ($user) {
                     $project = $task->project;
 
-                    // Si le projet est null → ignorer cette tâche
                     if (!$project)
                         return false;
 
-                    // OK si manager du projet
                     if ($project->team && $project->team->manager_id === $user->id)
                         return true;
 
-                    // OK si la tâche lui est assignée
                     return $task->assigned_to === $user->id;
                 })
                 ->values();
@@ -62,303 +59,220 @@ class TaskController extends Controller
         return response()->json([
             'success' => true,
             'data' => TaskResource::collection($tasks)
-        ],200);
+        ], 200);
     }
 
     public function store(Request $request)
     {
-        // try {
-            $user = Auth::user();
-
-            // if (!$user || !in_array($user->role, ['admin', 'manager'])) {
-            //     return response()->json([
-            //         'message' => 'Accès refusé : seuls les managers et administrateurs peuvent créer une tâche.'
-            //     ], 403);
-            // }
-
-            $validated = $request->validate(app(TaskRequest::class)->rules());
 
 
-            $task = Task::create($validated);
 
-            // Notifications lors de la création d'une tâche
-            // if ($task->assigned_to) {
-            //     try {
-            //         // Notification à l'utilisateur assigné
-            //         $assignee = User::find($task->assigned_to);
-            //         if ($assignee) {
-            //             $this->notificationService->taskAssigned($task, $assignee);
-            //         }
 
-            //         // Notification au manager du projet
-            //         $project = Project::find($task->project_id);
-            //         if ($project && $project->manager_id) {
-            //             $manager = User::find($project->manager_id);
-            //             if ($manager) {
-            //                 $this->notificationService->notifyManagerNewTask($task, $manager);
-            //             }
-            //         }
-            //     } catch (\Exception $e) {
-            //         Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
-            //     }
-            // }
+        $validated = $request->validate(app(TaskRequest::class)->rules());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Tâche créée avec succès',
-                'data' => new TaskResource($task)
-            ], 201);
 
-        // } catch (\Exception $e) {
-        //     Log::error('Erreur lors de la création de la tâche: ' . $e->getMessage());
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'Une erreur est survenue lors de la création de la tâche',
-        //         'error' => $e->getMessage()
-        //     ], 500);
-        // }
+        $task = Task::create($validated);
+
+        event(new TaskCreated($task));
+
+
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tâche créée avec succès',
+            'data' => new TaskResource($task)
+        ], 201);
+
+
     }
 
     public function show($id)
     {
-        try {
-            $task = Task::find($id);
+        $task = Task::find($id);
 
-            if (!$task) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tâche non trouvée'
-                ], 404);
-            }
-
-            $task->load(['project', 'assignedUser', 'status', 'priority']);
-
-            return response()->json([
-                'success' => true,
-                'data' => new TaskResource($task)
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la récupération de la tâche: ' . $e->getMessage());
+        if (!$task) {
             return response()->json([
                 'success' => false,
-                'message' => 'Une erreur est survenue lors de la récupération de la tâche'
-            ], 500);
+                'message' => 'Tâche non trouvée'
+            ], 404);
         }
+
+        $task->load(['project', 'assignedUser', 'status', 'priority']);
+
+        return response()->json([
+            'success' => true,
+            'data' => new TaskResource($task)
+        ], 200);
+
+
     }
 
     public function update($id, Request $request)
     {
-        try {
-            $task = Task::find($id);
 
-            if (!$task) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tâche non trouvée'
-                ], 404);
-            }
+        /** @var \App\Models\Task $task */
 
-            $validated = $request->validate(app(TaskRequest::class)->rules());
+        $task = Task::find($id);
+        $oldAssigneeId = $task->assigned_to;
 
-            // Vérifier si l'assignation a changé
-            $oldAssigneeId = $task->assigned_to;
-            $newAssigneeId = $validated['assigned_to'] ?? null;
-
-            // Vérifier si le statut a changé
-            $oldStatusId = $task->status_id;
-            $newStatusId = $validated['status_id'] ?? null;
-
-            $task->update($validated);
-            $task->load(['project', 'assignedUser', 'status', 'priority']);
-
-            /* ——— LOGIQUE DE RETOUR AU STATUT 1 ——— */
-            if (
-                $task->status_id == 2 &&                                    // était « en cours »
-                Carbon::parse($task->start_date)->gt(Carbon::today())       // nouvelle date > aujourd'hui
-            ) {
-                $task->status_id = 1;      // repasse à « à venir »
-                $task->save();
-            }
-
-            try {
-                // Notification de changement d'assignation
-                if ($newAssigneeId && $oldAssigneeId !== $newAssigneeId) {
-                    $assignee = User::find($newAssigneeId);
-                    if ($assignee) {
-                        $this->notificationService->taskAssigned($task, $assignee);
-                    }
-                }
-
-                // Notification de changement de statut
-                if ($newStatusId && $oldStatusId !== $newStatusId) {
-                    $project = Project::find($task->project_id);
-                    if ($project && $project->manager_id) {
-                        $manager = User::find($project->manager_id);
-                        if ($manager) {
-                            $this->notificationService->notifyStatusChange($task, $manager);
-                        }
-                    }
-                }
-
-                // Notification générale de mise à jour
-                $this->notificationService->taskUpdated($task);
-            } catch (\Exception $e) {
-                Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
-            }
-
-            return response()->noContent();
-
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la mise à jour de la tâche: ' . $e->getMessage());
+        if (!$task) {
             return response()->json([
                 'success' => false,
-                'message' => 'Une erreur est survenue lors de la mise à jour de la tâche'
-            ], 500);
+                'message' => 'Tâche non trouvée'
+            ], 404);
         }
+
+        $validated = $request->validate(app(TaskRequest::class)->rules());
+
+        $old = $task->only(['status_id', 'priority_id', 'start_date', 'end_date']);
+
+        $task->update($validated);
+        $task->load(['project', 'assignedUser', 'status', 'priority']);
+
+
+        $newAssigneeId = $validated['assigned_to'] ?? null;
+
+        // Auto-ajustement du statut
+        if (
+            $task->status_id == 2 &&
+            Carbon::parse($task->start_date)->gt(Carbon::today())
+        ) {
+            $task->status_id = 1;
+            $task->save();
+        }
+
+        // Comparer les champs à notifier
+        $changes = [];
+        foreach (['status_id', 'priority_id', 'start_date', 'end_date'] as $field) {
+            if ($validated[$field] ?? null && $task->$field != $old[$field]) {
+                $changes[$field] = [$old[$field], $task->$field];
+            }
+        }
+
+        if ($oldAssigneeId !== $newAssigneeId) {
+            $changes['assigned_to'] = [$oldAssigneeId, $newAssigneeId];
+        }
+
+        if (!empty($changes)) {
+            event(new TaskUpdated($task, $changes, $oldAssigneeId, $newAssigneeId));
+        }
+
+        return response()->noContent();
+
+
     }
 
     public function destroy($id)
     {
-        try {
-            $task = Task::find($id);
 
-            if (!$task) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tâche non trouvée'
-                ], 404);
-            }
+        /** @var \App\Models\Task $task */
+        $task = Task::find($id);
 
-            $task->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Tâche supprimée avec succès'
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la suppression de la tâche: ' . $e->getMessage());
+        if (!$task) {
             return response()->json([
                 'success' => false,
-                'message' => 'Une erreur est survenue lors de la suppression de la tâche'
-            ], 500);
+                'message' => 'Tâche non trouvée'
+            ], 404);
         }
+
+
+        // Charger les relations nécessaires AVANT suppression
+        $task->load(['assignedUser']); // facultatif
+
+        // Lancer l'event
+        event(new TaskDeleted($task));
+
+        $task->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tâche supprimée avec succès'
+        ], 200);
+
     }
 
     public function Taskterminer($id)
     {
-        try {
-            $task = Task::findOrFail($id);
-            $task->status_id = 3; // ID du statut "terminé"
-            $task->progress = 100; // Mettre la progression à 100%
-            $task->save();
+        
 
-            try {
-                // Notification de complétion à l'utilisateur
-                $this->notificationService->taskCompleted($task);
+        $user = Auth::user();
+        /** @var \App\Models\Task $task */
+        $task = Task::findOrFail($id);
+        $task->status_id = 3; // ID du statut "terminé"
+        $task->progress = 100; // Mettre la progression à 100%
+        $task->save();
 
-                // Notification au manager du projet
-                // $project = Project::find($task->project_id);
-                // if ($project && $project->manager_id) {
-                //     $manager = User::find($project->manager_id);
-                //     if ($manager) {
-                //         $this->notificationService->notifyTaskCompleted($task, $manager);
-                //     }
-                // }
-            } catch (\Exception $e) {
-                Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
-            }
+        event(new TaskCompleted($task, $user->id));
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Tâche terminée'
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de la finalisation de la tâche: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Une erreur est survenue lors de la finalisation de la tâche'
-            ], 500);
-        }
+
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tâche terminée'
+        ], 200);
+
+
     }
 
     public function Taskanuule($id)
     {
-        try {
-            $task = Task::findOrFail($id);
-            $task->status_id = 4; // ID du statut "annulé"
-            $task->save();
+        /** @var \App\Models\Task $task */
+        $task = Task::findOrFail($id);
+        $task->status_id = 4;
+        $task->save();
+        event(new TaskCancelled($task));
 
-            try {
-                // Notification d'annulation à l'utilisateur
-                $this->notificationService->taskUpdated($task);
+        return response()->json([
+            'success' => true,
+            'message' => 'Tâche annulée'
+        ], 200);
 
-                // // Notification au manager du projet
-                // $project = Project::find($task->project_id);
-                // if ($project && $project->manager_id) {
-                //     $manager = User::find($project->manager_id);
-                //     if ($manager) {
-                //         $this->notificationService->notifyTaskCancelled($task, $manager);
-                //     }
-                // }
-            } catch (\Exception $e) {
-                Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Tâche annulée'
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Erreur lors de l\'annulation de la tâche: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Une erreur est survenue lors de l\'annulation de la tâche'
-            ], 500);
-        }
     }
 
     public function calculateProgress($id)
     {
-        try {
-            $task = Task::find($id);
 
-            if (!$task) {
-                return response()->json(['success' => false, 'message' => 'Tâche non trouvée'], 404);
-            }
+        $task = Task::find($id);
 
-            $oldProgress = $task->progress;
-            $task->calculateProgress();
-            $newProgress = $task->progress;
-
-            try {
-                // Notification si la progression a significativement changé
-                if (abs($newProgress - $oldProgress) >= 10) {
-                    $project = Project::find($task->project_id);
-                    if ($project && $project->manager_id) {
-                        $manager = User::find($project->manager_id);
-                        if ($manager) {
-                            $this->notificationService->notifyProgressUpdate($task, $manager);
-                        }
-                    }
-                }
-
-                // Notification générale de mise à jour
-                $this->notificationService->taskUpdated($task);
-            } catch (\Exception $e) {
-                Log::error('Erreur lors de l\'envoi des notifications: ' . $e->getMessage());
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Progression recalculée',
-                'data' => new TaskResource($task)
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Erreur lors du calcul de la progression: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Une erreur est survenue lors du calcul de la progression'
-            ], 500);
+        if (!$task) {
+            return response()->json(['success' => false, 'message' => 'Tâche non trouvée'], 404);
         }
+
+        $oldProgress = $task->progress;
+        $task->calculateProgress();
+        $newProgress = $task->progress;
+
+
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Progression recalculée',
+            'data' => new TaskResource($task)
+        ], 200);
+
     }
+
+
+
+
+
+
+    public function getUpcomingTasks()
+    {
+        $today = Carbon::today();
+        $limitDate = Carbon::today()->addDays(5);
+
+        $tasks = Task::whereDate('end_date', '>=', $today)
+            ->whereDate('end_date', '<=', $limitDate)
+            ->where('status_id', '!=', '3')
+            ->get();
+
+        return response()->json([
+            'count' => $tasks->count(),
+            'message' => 'Tâches avec une échéance dans les 5 prochains jours',
+        ]);
+    }
+
+
+
 }

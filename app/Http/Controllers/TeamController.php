@@ -98,7 +98,7 @@ class TeamController extends Controller
 
     public function update($id, TeamRequest $request)
     {
-
+        /** @var \App\Models\Team $team */
         $team = Team::find($id);
 
         if (!$team) {
@@ -114,8 +114,10 @@ class TeamController extends Controller
 
 
         if (isset($validated['manager_id']) && $team->manager_id != $validated['manager_id']) {
+            /** @var \App\Models\User $oldManager */
 
             $oldManager = User::find($team->manager_id);
+            /** @var \App\Models\User $newManager */
             $newManager = User::findOrFail($validated['manager_id']);
 
             $newManagerWasMember = $team->members()
@@ -205,6 +207,10 @@ class TeamController extends Controller
             'user_id' => 'required|exists:users,id'
         ]);
 
+
+
+        /** @var \App\Models\Team $team */
+
         $team = Team::find($teamId);
 
         if (!$team) {
@@ -231,6 +237,7 @@ class TeamController extends Controller
                 'message' => 'Ce membre fait déjà partie de l\'équipe'
             ], 400);
         }
+        /** @var \App\Models\User $member*/
 
         $member = User::find($request->user_id);
         // Ajouter le membre puisqu'il n'existe pas encore dans l'équipe
@@ -247,6 +254,9 @@ class TeamController extends Controller
     // Retirer un membre de l'équipe
     public function removeMember($teamId, $userId)
     {
+
+        /** @var \App\Models\Team $team */
+
         $team = Team::find($teamId);
 
         if (!$team) {
@@ -255,6 +265,8 @@ class TeamController extends Controller
                 'message' => 'Équipe non trouvée'
             ], 404);
         }
+
+        /** @var \App\Models\User $member*/
 
         $member = User::find($userId);
         $team->members()->detach($userId);

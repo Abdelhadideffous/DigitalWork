@@ -6,15 +6,27 @@ use App\Models\CommentsProject;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\EDB;
+use App\Models\Notification;
 use App\Models\Task;
 use App\Models\Subtask;
 use Illuminate\Support\Facades\DB;
 
 class NotificationService
 {
-    /**
-     * Envoyer une notification
-     */
+    
+
+
+    public static function send($userId, $title, $message, $type = 'info')
+    {
+        Notification::create([
+            'user_id' => $userId,
+            'title'   => $title,
+            'message' => $message,
+            'type'    => $type,
+        ]);
+    }
+
+    
     private function sendNotification($userId, $title, $message, $type = 'info')
     {
         DB::table('notifications')->insert([

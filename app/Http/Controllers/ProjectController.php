@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ProjectDeleted;
+use App\Events\ProjectUpdated;
 use App\Http\Requests\ProjectRequest;
 
 use App\Http\Resources\ProjectResource;
@@ -95,6 +97,8 @@ class ProjectController extends Controller
     public function update($id, Request $request)
     {
 
+
+        /** @var \App\Models\Project $project */
         $project = Project::find($id);
 
         if (!$project) {
@@ -110,12 +114,14 @@ class ProjectController extends Controller
         $project->update($validated);
 
         if (
-            $project->status_id == 2 &&                                    
-            Carbon::parse($project->start_date)->gt(Carbon::today())      
+            $project->status_id == 2 &&
+            Carbon::parse($project->start_date)->gt(Carbon::today())
         ) {
-            $project->status_id = 1;      
+            $project->status_id = 1;
             $project->save();
         }
+
+        event(new ProjectUpdated($project));
 
 
 
@@ -146,6 +152,8 @@ class ProjectController extends Controller
     public function destroy($id)
     {
 
+        
+        /** @var \App\Models\Project $project */
         $project = Project::find($id);
         if (!$project) {
             return response()->json([
@@ -156,6 +164,8 @@ class ProjectController extends Controller
 
 
         $teams = Team::where('project_id', $id)->get();
+
+        event(new ProjectDeleted($project));
 
         foreach ($teams as $team) {
 
@@ -180,8 +190,10 @@ class ProjectController extends Controller
             // $this->notificationController->teamDeleted($team->id);
         }
 
+       
 
         $project->delete();
+
 
 
 

@@ -14,7 +14,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\NotificationController;
-
+use GuzzleHttp\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -31,7 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tasks', [TaskController::class, 'index']);
     Route::post('/tasks', [TaskController::class, 'store']);
     Route::get('/users', [UserController::class, 'getAllUsers']);
-
+    Route::post('/tasks/{taskId}/terminer', [TaskController::class, 'Taskterminer']);
+    Route::post('/tasks/{taskId}/annuler', [TaskController::class, 'Taskanuule']);
 
 
 
@@ -111,8 +112,9 @@ Route::middleware('auth:sanctum')->get('/projects/{id}/members', [ProjectControl
     Route::get('/tasks/{task}', [TaskController::class, 'show']);
     Route::put('/tasks/{task}', [TaskController::class, 'update']);
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
-    Route::post('/tasks/{taskId}/annuler', [TaskController::class, 'Taskanuule']);
-    Route::post('/tasks/{taskId}/terminer', [TaskController::class, 'Taskterminer']);
+    // Route::post('/tasks/{taskId}/annuler', [TaskController::class, 'Taskanuule']);
+    // Route::post('/tasks/{taskId}/terminer', [TaskController::class, 'Taskterminer']);
+    Route::get('/tasks-UpcomingTasks', [TaskController::class, 'getUpcomingTasks']);
 
     //route subtask
     Route::get('/tasks/{taskId}/subtasks', [SubtaskController::class, 'index']);

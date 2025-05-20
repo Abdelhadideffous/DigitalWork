@@ -51,16 +51,15 @@ class EdbController extends Controller
         if ($user->role === 'admin') {
             $edbs = Edb::all();
         } else {
-            // Tous les autres rôles : uniquement leurs propres EDB
+
             $edbs = Edb::where('user_id', $user->id)->get();
-            // Si tu veux que le manager voie tout, enlève la condition sur le rôle
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Edb créé avec succès',
             'data' => EdbResource::collection($edbs)
-        ], 201); // Created - Déjà présent
+        ], 201);
     }
 
     public function store(EdbRequest $request)
@@ -87,13 +86,13 @@ class EdbController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Edb non trouvé'
-            ], 404); // Not Found - Déjà présent
+            ], 404);
         }
 
         return response()->json([
             'success' => true,
             'data' => new EdbResource($edb)
-        ], 200); // OK - Ajouté
+        ], 200);
     }
 
     public function update(EdbRequest $request, $id)
@@ -103,7 +102,7 @@ class EdbController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Edb non trouvé'
-            ], 404); // Not Found - Déjà présent
+            ], 404);
         }
 
         $validated = $request->validated();
@@ -113,34 +112,47 @@ class EdbController extends Controller
             'success' => true,
             'message' => 'Edb mis à jour avec succès',
             'data' => new EdbResource($edb)
-        ], 200); // OK - Remplacé noContent() par une réponse 200 avec données
+        ], 200);
     }
 
     public function destroy($id)
     {
-        $edb = Edb::find($id);
+        $edb = Edb::with('attachments')->find($id); // Charger les attachments liés
+
         if (!$edb) {
             return response()->json([
                 'success' => false,
                 'message' => 'Edb non trouvé'
-            ], 404); // Not Found - Déjà présent
+            ], 404);
         }
 
+        // Supprimer les fichiers du disque
+        foreach ($edb->attachments as $attachment) {
+            if ($attachment->file_path && Storage::exists($attachment->file_path)) {
+                Storage::delete($attachment->file_path);
+            }
+
+            // Supprimer l'enregistrement de l'attachement
+            $attachment->delete();
+        }
+
+        // Supprimer l'EDB
         $edb->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Edb supprimé avec succès'
-        ], 200); // OK - Ajouté
+            'message' => 'EDB et ses pièces jointes ont été supprimés avec succès'
+        ], 200);
     }
 
     public function approveEdb($id)
     {
+        /** @var \App\Models\EDB $edb*/
+
         $edb = Edb::findOrFail($id);
-        $edb->status_id = 6; // ID du statut "approuvé"
+        $edb->status_id = 6;
         $edb->save();
 
-        // Ajouter la notification
         $this->notificationService->edbApproved($edb);
 
         return response()->json([
@@ -151,11 +163,12 @@ class EdbController extends Controller
 
     public function rejectEdb($id)
     {
+        /** @var \App\Models\EDB $edb*/
         $edb = Edb::findOrFail($id);
-        $edb->status_id = 7; // ID du statut "rejeté"
+        $edb->status_id = 7;
         $edb->save();
 
-        // Ajouter la notification
+
         $this->notificationService->edbRejected($edb);
 
         return response()->json([
@@ -189,7 +202,7 @@ class EdbController extends Controller
             'success' => true,
             'message' => 'Fichiers envoyés avec succès.',
             'files' => $paths,
-        ], 201); // Created - Ajouté avec success field
+        ], 201);
     }
 
     public function getAttachments($id)
@@ -200,12 +213,10 @@ class EdbController extends Controller
         return response()->json([
             'success' => true,
             'data' => $attachments
-        ], 200); // OK - Ajouté
+        ], 200);
     }
 
-    /**
-     * Supprimer une pièce jointe
-     */
+
     public function deleteAttachment($id, $attachmentId)
     {
         $edb = Edb::findOrFail($id);
@@ -216,13 +227,12 @@ class EdbController extends Controller
         // Supprimer le fichier physique
         Storage::disk('public')->delete($attachment->file_path);
 
-        // Supprimer l'enregistrement en base de données
         $attachment->delete();
 
         return response()->json([
             'success' => true,
             'message' => 'Fichier supprimé avec succès'
-        ], 200); // OK - Ajouté
+        ], 200);
     }
 
     public function downloadAttachment($id, $attachmentId)
@@ -245,14 +255,12 @@ class EdbController extends Controller
     {
         $attachment = Attachment::where('edb_id', $edbId)->findOrFail($attachmentId);
 
-        // ① Récupérer le disque
+
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
 
-        // ② Déterminer le type (ou récupérer la colonne mime_type si tu l’as ajoutée)
         $mime = $disk->mimeType($attachment->file_path) ?? 'application/octet-stream';
 
-        // ③ Streamer la réponse
         return $disk->response(
             $attachment->file_path,
             $attachment->file_name,
