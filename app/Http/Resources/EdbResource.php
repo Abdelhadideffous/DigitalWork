@@ -21,6 +21,8 @@ class EdbResource extends JsonResource
             'priority_id' => $this->priority_id,
             'priority' => ['name' => $this->priority->name],
             'date_demande' => $this->created_at->format('Y-m-d'),
+            'updated_at' => $this->updated_at->format('Y-m-d'),
+            'created_at' => $this->created_at->format('Y-m-d'),
 
         ];
     }

@@ -34,7 +34,7 @@ class SendProjectUpdatedNotification
             );
         }
 
-        foreach ($project->team->members as $member) {
+        foreach (optional($project->team)->members ?? [] as $member) {
             NotificationService::send(
                 $member->id,
                 'Projet mis à jour',
