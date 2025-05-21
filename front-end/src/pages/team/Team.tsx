@@ -1235,7 +1235,7 @@ const Team: React.FC = () => {
                                     }}
                                 >
                                     <Tab label="Membres de l'équipe"/>
-                                    <Tab label="Projets de l'équipe" />
+                                    <Tab label="Projet de l'équipe" />
                                 </Tabs>
 
                                 {/* Contenu de l'onglet Membres */}
@@ -1394,10 +1394,10 @@ const Team: React.FC = () => {
                                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                                                 <Box>
                                                     <Typography variant="h6" component="h2" fontWeight="bold">
-                                                        Projets de l'équipe
+                                                        Projet de l'équipe
                                                     </Typography>
                                                     <Typography variant="body2" color="text.secondary">
-                                                        Liste des projets sur lesquels travaille l'équipe {selectedTeam?.name}
+                                                         projet sur lesquel travaille l'équipe {selectedTeam?.name}
                                                     </Typography>
                                                 </Box>
                                             </Box>

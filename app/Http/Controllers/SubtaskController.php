@@ -151,6 +151,11 @@ class SubtaskController extends Controller
         $subtask->status_id = '3'; // ID du statut "terminé"
         $subtask->progress = 100; // Très important ici
         $subtask->save();
+        
+        $task = $subtask->task;
+        if ($task && method_exists($task, 'calculateProgress')) {
+            $task->calculateProgress();
+        }
 
         // $this->notifier->subtaskCompleted($subtask);   // ← NEW
 

@@ -26,6 +26,8 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; // ↖ plugin
 import {
     AlertTriangle,
     ArrowLeft,
@@ -106,10 +108,16 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
         }
     };
 
+    const formatDateFR = (dateStr?: string) => {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    };
+
     // Charger les pièces jointes au chargement du composant et lorsque l'onglet change
     useEffect(() => {
-        fetchAttachments()
-      }, [edb?.id])
+        fetchAttachments();
+    }, [edb?.id]);
 
     // Fonction pour changer d'onglet
     const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
@@ -351,6 +359,78 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
             .substring(0, 2);
     };
 
+    const handleExportPdf = () => {
+        if (!edb) return;
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const left = 14; // marge gauche standard
+        let yPos = 20; // position verticale courante
+
+        /* ----------- En-tête ----------- */
+        pdf.setFontSize(16);
+        pdf.setTextColor('#16A249');
+        pdf.text(`Expression de Besoin #${edb.id}`, left, yPos);
+
+        pdf.setFontSize(10);
+        pdf.setTextColor(0, 0, 0);
+        yPos += 8;
+        pdf.text(`Demandeur : ${edb.user?.name ?? '—'}`, left, yPos);
+        yPos += 5;
+        pdf.text(`Date de demande : ${formatDateFR(edb.date_demande)}`, left, yPos);
+        yPos += 10;
+
+        /* ----------- Titre, description, objectifs, contraintes ----------- */
+        const addSection = (title: string, content?: string) => {
+            pdf.setFontSize(12);
+            pdf.setTextColor('#16A249');
+            pdf.text(title, left, yPos);
+            yPos += 6;
+
+            pdf.setFontSize(10);
+            pdf.setTextColor(0, 0, 0);
+
+            const split = pdf.splitTextToSize(content || '—', 180); // 180 mm ≃ pleine largeur A4
+            pdf.text(split, left, yPos);
+            yPos += split.length * 5 + 8; // espace après le bloc
+        };
+
+        addSection('Titre', edb.title);
+        addSection('Description', edb.description);
+        addSection('Objectifs', edb.objectif);
+        addSection('Contraintes', edb.contrainte);
+
+        /* ----------- Pièces jointes (tableau) ----------- */
+        if (attachments.length) {
+            pdf.setFontSize(12);
+            pdf.setTextColor('#16A249');
+            pdf.text(`Pièces jointes (${attachments.length})`, left, yPos);
+            yPos += 4;
+
+            // transformer les attachments en tableau [nom, date]
+            const rows = attachments.map((att) => [att.file_name, formatDateFR(att.created_at)]);
+
+            autoTable(pdf, {
+                head: [['Nom du fichier', 'Ajouté le']],
+                body: rows,
+                startY: yPos,
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [22, 162, 73] },
+                theme: 'grid',
+                margin: { left },
+            });
+            yPos = (pdf as any).lastAutoTable.finalY + 10;
+        }
+
+        /* ----------- Statut & Priorité ----------- */
+        pdf.setFontSize(10);
+        pdf.text(`Statut : ${(edb.status?.name ?? getStatusName(edb.status_id)).toUpperCase()}`, left, yPos);
+        yPos += 5;
+        pdf.text(`Priorité : ${(edb.priority?.name ?? getPriorityName(edb.priority_id)).toUpperCase()}`, left, yPos);
+
+        /* ----------- Téléchargement ----------- */
+        pdf.save(`EDB-${edb.id}.pdf`);
+    };
+
     return (
         <>
             {/* Indicateur de chargement */}
@@ -402,26 +482,16 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
 
                 {/* Bouton retour et titre */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<ArrowLeft size={18} />}
-                        onClick={onBack}
-                        sx={{
-                            mr: 2,
-                            borderRadius: '8px',
-                            borderColor: 'rgba(0,0,0,0.12)',
-                            color: 'text.primary',
-                            '&:hover': {
-                                borderColor: 'rgba(0,0,0,0.24)',
-                                bgcolor: 'rgba(0,0,0,0.04)',
-                            },
-                        }}
-                    >
-                        Retour
-                    </Button>
-                    <Typography variant="h4" component="h1" fontWeight="bold" sx={{ flexGrow: 1 }}>
+                    {/* <IconButton onClick={onBack} sx={{ color: 'grey.700' }}>
+                        <ArrowBackIosNewIcon />
+                    </IconButton> */}
+                    <IconButton onClick={onBack} sx={{ color: 'grey.700' }}>
+                        <ArrowLeft size={25} />
+                    </IconButton>
+
+                    {/* <Typography variant="h4" component="h1" fontWeight="bold" sx={{ flexGrow: 1 }}>
                         {edb?.title}
-                    </Typography>
+                    </Typography> */}
                 </Box>
 
                 {/* Carte d'en-tête avec informations clés */}
@@ -565,6 +635,20 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                         >
                             Rejeter
                         </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={handleExportPdf}
+                            startIcon={<Download size={18} />}
+                            sx={{
+                                textTransform: 'none',
+                                borderRadius: '8px',
+                                borderColor: '#16A249',
+                                color: '#16A249',
+                                '&:hover': { borderColor: '#138a3c', bgcolor: 'rgba(22,162,73,.05)' },
+                            }}
+                        >
+                            Exporter en PDF
+                        </Button>
                     </Box>
                 )}
             </Box>
@@ -624,6 +708,21 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                                     height: '100%',
                                 }}
                             >
+                                <Typography variant="h6" fontWeight="bold" color="#16A249" gutterBottom>
+                                    Titre de l’EDB
+                                </Typography>
+                                <Divider sx={{ mb: 2, borderColor: 'rgba(22, 162, 73, 0.2)' }} />
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        whiteSpace: 'pre-wrap',
+                                        lineHeight: 1.7,
+                                        color: 'text.primary',
+                                        mb: 4,
+                                    }}
+                                >
+                                    {edb?.title || 'Aucun titre fourni.'}
+                                </Typography>
                                 <Typography variant="h6" fontWeight="bold" color="#16A249" gutterBottom>
                                     Description du besoin
                                 </Typography>
@@ -943,7 +1042,7 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                                                             {attachment.file_name}
                                                         </Typography>
                                                         <Typography variant="body2" color="text.secondary">
-                                                            Ajouté le {formatDate(attachment.created_at || '')}
+                                                            Ajouté le {formatDateFR(attachment.created_at || '')}
                                                         </Typography>
                                                     </Box>
                                                 </Box>

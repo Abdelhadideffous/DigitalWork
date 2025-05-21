@@ -18,6 +18,7 @@ class TeamResource extends JsonResource
                     'id' => $this->manager->id,
                     'name' => $this->manager->name,
                     'email' => $this->manager->email,
+                    'number' => $this->manager->number,
                 ];
             }),
             'project' => $this->whenLoaded('project', function () {
@@ -32,12 +33,13 @@ class TeamResource extends JsonResource
                         'id' => $member->id,
                         'name' => $member->name,
                         'email' => $member->email,
+                        'number' => $member->number,
 
                     ];
                 });
             }),
             'created_at' => $this->created_at->format('Y-m-d '),
-            
+
         ];
     }
 }
