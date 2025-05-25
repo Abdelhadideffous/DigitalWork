@@ -67,13 +67,17 @@ class TeamNotificationController extends Controller
             'info'
         );
 
-        // Notification au manager
-        $this->sendNotification(
-            $team->manager_id,
-            'Nouveau membre',
-            "Un nouveau membre a été ajouté à votre équipe '{$team->name}'",
-            'info'
-        );
+        // if ($member->id === $team->manager_id) {
+        //     // Si le membre ajouté est le manager, on ne notifie pas le manager
+        //     return;
+        // }
+        // // Notification au manager
+        // $this->sendNotification(
+        //     $team->manager_id,
+        //     'Nouveau membre',
+        //     "Un nouveau membre a été ajouté à votre équipe '{$team->name}'",
+        //     'info'
+        // );
     }
 
     /**
@@ -161,13 +165,11 @@ class TeamNotificationController extends Controller
 
     public function teamDeleted(int $teamId): void
     {
-        // 1) Récupérer (soft-deleted) l’équipe pour le nom (si SoftDeletes activé)
+        
         $team = Team::withTrashed()->find($teamId);
         $teamName = $team ? $team->name : 'cette équipe';
 
-        // 2) Récupérer les destinataires
-        //    – ex-manager
-        //    – ex-membres (pivot team_user)
+        
         $recipientIds = collect();
 
         if ($team) {
@@ -177,12 +179,8 @@ class TeamNotificationController extends Controller
             );
         }
 
-        // ▶️ Si tu n’utilises PAS SoftDeletes, tu auras sans doute déjà
-        //    l’instance $team avant la suppression. Dans ce cas, passe-la
-        //    directement à la méthode : teamDeleted(Team $team)
-        //    et adapte le code.
-
-        // 3) Dédupliquer
+        
+        
         $recipientIds = $recipientIds->filter()->unique();
 
         // 4) Insérer la notification pour chaque destinataire

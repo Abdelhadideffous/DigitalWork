@@ -1,258 +1,486 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
 import {
+  Assignment as AssignmentIcon,
+  CheckCircle as CheckCircleIcon,
+  Folder as FolderIcon,
+  Group as GroupIcon,
+  KeyboardArrowRight as ArrowRightIcon,
+  MoreVert as MoreIcon,
+  Refresh as RefreshIcon,
+  Task as TaskIcon,
+  Warning as AlertTriangleIcon,
+} from "@mui/icons-material"
+import {
+  Alert,
+  AlertTitle,
+  Avatar,
   Box,
-  Typography,
-  IconButton,
-  Paper,
-  Chip,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  CircularProgress,
+  Divider,
+  IconButton,
   LinearProgress,
+  List,
+  ListItem,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Card,
-  CardContent,
-  CardHeader,
-  Divider,
+  Typography,
   useTheme,
-  Tabs,
-  Tab,
 } from "@mui/material"
-import { styled } from "@mui/material/styles"
-import {
-  Folder as FolderIcon,
-  Task as TaskIcon,
-  People as TeamIcon,
-  Warning as AlertTriangleIcon,
-  MoreVert as MoreHorizontalIcon,
-  KeyboardArrowUp as ChevronUpIcon,
-  KeyboardArrowDown as ChevronDownIcon,
-  KeyboardArrowRight as ArrowRightIcon,
-  FilterList as FilterIcon,
-  AccessTime as ClockIcon,
-  CheckCircle as CheckCircleIcon,
-  RadioButtonUnchecked as CircleDashedIcon,
-  Error as CircleAlertIcon,
-} from "@mui/icons-material"
+import { styled } from "@mui/system"
+import { useEffect, useState } from "react"
+import StatCard from "../../components/dashboard/StatCard"
 import AppLayout from "../../components/layout/AppLayout"
+import { getPriorityColor, getProgressColor, getStatusColor } from "../../utils/colorUtils"
+import { getCurrentUser } from "../login/api"
+import { edbApi, type Edb } from "../edb/apiedb"
+import api from "../notification/axios"
+import { projectApi, type Project } from "../project/apiprojet"
+import { taskApi, type Task } from "../task/apitask"
+import { teamApi } from "../team/apiteam"
 
-// Stats data
-const statsCards = [
-  {
-    icon: <FolderIcon />,
-    label: "Projets actifs",
-    count: 8,
-    trend: "+12%",
-    trendUp: true,
-    bgColor: "#e3f2fd",
-    textColor: "#1976d2",
-  },
-  {
-    icon: <TaskIcon />,
-    label: "Tâches en cours",
-    count: 24,
-    trend: "+5%",
-    trendUp: true,
-    bgColor: "#fff8e1",
-    textColor: "#ff9800",
-  },
-  {
-    icon: <TeamIcon />,
-    label: "Utilisateurs",
-    count: 15,
-    trend: "+8%",
-    trendUp: true,
-    bgColor: "#e8f5e9",
-    textColor: "#4caf50",
-  },
-  {
-    icon: <AlertTriangleIcon />,
-    label: "Projets en retard",
-    count: 2,
-    trend: "-25%",
-    trendUp: false,
-    bgColor: "#ffebee",
-    textColor: "#f44336",
-  },
-]
-
-// Projects data
-const recentProjects = [
-  {
-    id: 1,
-    nom: "Refonte du site web",
-    statut: "En cours",
-    progression: 65,
-    responsable: "Marie Dupont",
-    priorite: "Haute",
-  },
-  {
-    id: 2,
-    nom: "Application mobile",
-    statut: "En cours",
-    progression: 40,
-    responsable: "Jean Martin",
-    priorite: "Moyenne",
-  },
-  {
-    id: 3,
-    nom: "Campagne marketing Q2",
-    statut: "À démarrer",
-    progression: 0,
-    responsable: "Sophie Leclerc",
-    priorite: "Basse",
-  },
-]
-
-// Tasks data for employee dashboard
-const employeeTasks = [
-  {
-    id: 1,
-    title: "Créer les maquettes UI",
-    project: "Refonte du site web",
-    dueDate: "20/05/2025",
-    status: "En cours",
-    priority: "Haute",
-  },
-  {
-    id: 2,
-    title: "Rédiger le contenu SEO",
-    project: "Refonte du site web",
-    dueDate: "25/05/2025",
-    status: "À démarrer",
-    priority: "Moyenne",
-  },
-  {
-    id: 3,
-    title: "Tester l'application sur iOS",
-    project: "Application mobile",
-    dueDate: "15/05/2025",
-    status: "En retard",
-    priority: "Haute",
-  },
-  {
-    id: 4,
-    title: "Préparer la présentation client",
-    project: "Campagne marketing Q2",
-    dueDate: "10/05/2025",
-    status: "Terminé",
-    priority: "Haute",
-  },
-]
-
-// Helper functions
-const getStatusColor = (statut: string) => {
-  switch (statut) {
-    case "À démarrer":
-      return { bg: "#fff8e1", text: "#ff9800" }
-    case "En cours":
-      return { bg: "#e3f2fd", text: "#1976d2" }
-    case "Terminé":
-      return { bg: "#e8f5e9", text: "#4caf50" }
-    case "En retard":
-      return { bg: "#ffebee", text: "#f44336" }
-    default:
-      return { bg: "#f5f5f5", text: "#757575" }
-  }
+interface Notification {
+  id: number
+  title: string
+  message: string
+  type: string
+  is_read: boolean
+  created_at: string
 }
 
-const getPriorityColor = (priorite: string) => {
-  switch (priorite) {
-    case "Haute":
-      return { bg: "#ffebee", text: "#f44336" }
-    case "Moyenne":
-      return { bg: "#fff8e1", text: "#ff9800" }
-    case "Basse":
-      return { bg: "#e8f5e9", text: "#4caf50" }
-    default:
-      return { bg: "#f5f5f5", text: "#757575" }
+interface Team {
+  id: number
+  name: string
+  description: string
+  project?: {
+    id: number
+    title: string
   }
+  manager?: {
+    id: number
+    name: string
+  }
+  members: Array<{
+    id: number
+    name: string
+    email: string
+  }>
 }
 
-const getProgressColor = (progress: number) => {
-  if (progress === 100) return "#4caf50"
-  if (progress < 30) return "#f44336"
-  return "#2196f3"
+interface User {
+  id: number
+  name: string
+  email: string
 }
 
 // Styled components
 const StyledCard = styled(Card)(({ theme }) => ({
-  height: "100%",
   display: "flex",
   flexDirection: "column",
-  transition: "transform 0.2s, box-shadow 0.2s",
   borderRadius: theme.spacing(2),
   overflow: "hidden",
+  boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.05)",
+  transition: "box-shadow 0.2s",
   "&:hover": {
-    transform: "translateY(-4px)",
-    boxShadow: theme.shadows[8],
+    boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.08)",
   },
-}))
-
-const StatCard = styled(Paper)(({ theme }) => ({
-  borderRadius: theme.spacing(2),
-  padding: theme.spacing(2.5),
-  height: "100%",
-  display: "flex",
-  alignItems: "center",
-  transition: "transform 0.2s, box-shadow 0.2s",
-  "&:hover": {
-    transform: "translateY(-4px)",
-    boxShadow: theme.shadows[6],
-  },
-}))
-
-const IconWrapper = styled(Box)<{ bgcolor?: string }>(({ theme, bgcolor }) => ({
-  width: 56,
-  height: 56,
-  borderRadius: "14px",
-  backgroundColor: bgcolor || theme.palette.primary.light,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  marginRight: theme.spacing(2),
 }))
 
 // Employee dashboard component
 export default function DashboardEmployee() {
   const theme = useTheme()
-  const [tabValue, setTabValue] = useState(0)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [edbs, setEdbs] = useState<Edb[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [notifications, setNotifications] = useState<Notification[]>([])
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue)
+  useEffect(() => {
+    const user = getCurrentUser()
+    if (!user) {
+      window.location.href = "/login"
+    } else {
+      setCurrentUser(user)
+    }
+  }, [])
+
+  // Fetch data from APIs
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        console.log("Début du chargement des données pour l'utilisateur:", currentUser?.id)
+
+        // Fetch all data in parallel
+        const [tasksData, allProjects, allEdbs, allTeams] = await Promise.all([
+          taskApi.getAllTasks().catch((err: any) => {
+            console.error("Erreur lors du chargement des tâches:", err)
+            return []
+          }),
+          projectApi.getAllProjects().catch((err: any) => {
+            console.error("Erreur lors du chargement des projets:", err)
+            return []
+          }),
+          edbApi.getAllEdbs().catch((err: any) => {
+            console.error("Erreur lors du chargement des EDBs:", err)
+            return []
+          }),
+          teamApi.getAllTeams().catch((err: any) => {
+            console.error("Erreur lors du chargement des équipes:", err)
+            return []
+          }),
+        ])
+
+        console.log("Données récupérées:")
+        console.log("- Tâches:", tasksData.length)
+        console.log("- Projets:", allProjects.length)
+        console.log("- EDBs:", allEdbs.length)
+        console.log("- Équipes:", allTeams.length)
+
+        // Filter tasks assigned to the current user
+        const employeeTasks = tasksData.filter((task: Task) => {
+          return task.assigned_to === currentUser?.id
+        })
+        console.log("Tâches filtrées pour l'employé:", employeeTasks.length)
+
+        // Filter projects where the current user is involved
+        const userProjects = allProjects.filter((project: Project) => {
+          // Vérifier si l'utilisateur a des tâches dans ce projet
+          const hasTasksInProject = tasksData.some(
+            (task: Task) => task.assigned_to === currentUser?.id && task.project_id === project.id,
+          )
+
+          // Vérifier si l'utilisateur est dans l'équipe du projet (si team_members existe)
+          const isTeamMember = project.team_members?.some((member: any) => member.id === currentUser?.id)
+
+          // Vérifier si l'utilisateur est dans une équipe qui travaille sur ce projet
+          const isInProjectTeam = allTeams.some(
+            (team: Team) =>
+              team.project?.id === project.id &&
+              (team.members?.some((member: any) => member.id === currentUser?.id) ||
+                team.manager?.id === currentUser?.id),
+          )
+
+          return hasTasksInProject || isTeamMember || isInProjectTeam
+        })
+        console.log("Projets filtrés pour l'employé:", userProjects.length)
+
+        // Filter EDBs created by the current user
+        const userEdbs = allEdbs.filter((edb: Edb) => edb.user_id === currentUser?.id)
+        console.log("EDBs filtrées pour l'employé:", userEdbs.length)
+
+        // Filter teams where the current user is a member or manager
+        const userTeams = allTeams.filter((team: Team) => {
+          const isMember = team.members?.some((member: any) => member.id === currentUser?.id)
+          const isManager = team.manager?.id === currentUser?.id
+          return isMember || isManager
+        })
+        console.log("Équipes filtrées pour l'employé:", userTeams.length)
+
+        setProjects(userProjects)
+        setTasks(employeeTasks)
+        setEdbs(userEdbs)
+        setTeams(userTeams)
+        await fetchNotifications()
+        setLoading(false)
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err)
+        setError("Erreur lors du chargement des données")
+        setLoading(false)
+      }
+    }
+
+    if (currentUser) {
+      fetchData()
+    }
+  }, [currentUser])
+
+  const fetchNotifications = async () => {
+    try {
+      const token = sessionStorage.getItem("token")
+      if (token) {
+        const response = await api.get("/notifications", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        setNotifications(response.data.slice(0, 4))
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err)
+      // Mock notifications for demo
+      const mockNotifications: Notification[] = [
+        {
+          id: 1,
+          title: "Nouvelle tâche assignée",
+          message: "Une nouvelle tâche vous a été assignée",
+          type: "info",
+          is_read: false,
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          title: "EDB approuvée",
+          message: "Votre expression de besoin a été approuvée",
+          type: "success",
+          is_read: false,
+          created_at: new Date(Date.now() - 3600000).toISOString(),
+        },
+        {
+          id: 3,
+          title: "Échéance approche",
+          message: "La tâche arrive à échéance demain",
+          type: "warning",
+          is_read: true,
+          created_at: new Date(Date.now() - 7200000).toISOString(),
+        },
+      ]
+      setNotifications(mockNotifications)
+    }
+  }
+
+  const formatNotificationDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (diffInSeconds < 60) {
+      return "À l'instant"
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60)
+      return `Il y a ${minutes} minute${minutes > 1 ? "s" : ""}`
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600)
+      return `Il y a ${hours} heure${hours > 1 ? "s" : ""}`
+    } else {
+      return `Il y a ${Math.floor(diffInSeconds / 86400)} jour${Math.floor(diffInSeconds / 86400) > 1 ? "s" : ""}`
+    }
+  }
+
+  const handleRetry = () => {
+    setError(null)
+    setLoading(true)
+    // Trigger data refetch
+    if (currentUser) {
+      const fetchData = async () => {
+        try {
+          const [tasksData, allProjects, allEdbs, allTeams] = await Promise.all([
+            taskApi.getAllTasks(),
+            projectApi.getAllProjects(),
+            edbApi.getAllEdbs(),
+            teamApi.getAllTeams(),
+          ])
+
+          const employeeTasks = tasksData.filter((task: Task) => task.assigned_to === currentUser?.id)
+          const userProjects = allProjects.filter((project: Project) => {
+            const hasTasksInProject = tasksData.some(
+              (task: Task) => task.assigned_to === currentUser?.id && task.project_id === project.id,
+            )
+            const isTeamMember = project.team_members?.some((member: any) => member.id === currentUser?.id)
+            const isInProjectTeam = allTeams.some(
+              (team: Team) =>
+                team.project?.id === project.id &&
+                (team.members?.some((member: any) => member.id === currentUser?.id) ||
+                  team.manager?.id === currentUser?.id),
+            )
+            return hasTasksInProject || isTeamMember || isInProjectTeam
+          })
+          const userEdbs = allEdbs.filter((edb: Edb) => edb.user_id === currentUser?.id)
+          const userTeams = allTeams.filter((team: Team) => {
+            const isMember = team.members?.some((member: any) => member.id === currentUser?.id)
+            const isManager = team.manager?.id === currentUser?.id
+            return isMember || isManager
+          })
+
+          setProjects(userProjects)
+          setTasks(employeeTasks)
+          setEdbs(userEdbs)
+          setTeams(userTeams)
+          setLoading(false)
+        } catch (err) {
+          console.error("Error fetching dashboard data:", err)
+          setError("Erreur lors du chargement des données")
+          setLoading(false)
+        }
+      }
+      fetchData()
+    }
+  }
+
+  // Prepare stats cards data
+  const statsCards = [
+    {
+      icon: <FolderIcon />,
+      label: "Projets assignés",
+      count: projects.length,
+      bgColor: "#e3f2fd",
+      textColor: "#1976d2",
+    },
+    {
+      icon: <TaskIcon />,
+      label: "Tâches en cours",
+      count: tasks.filter((t: Task) => t.status?.name === "En cours").length,
+      bgColor: "#fff8e1",
+      textColor: "#ff9800",
+    },
+    {
+      icon: <CheckCircleIcon />,
+      label: "Tâches terminées",
+      count: tasks.filter((t: Task) => t.status?.name === "Terminé").length,
+      bgColor: "#e8f5e9",
+      textColor: "#4caf50",
+    },
+    {
+      icon: <AssignmentIcon />,
+      label: "EDBs soumises",
+      count: edbs.length,
+      bgColor: "#f3e5f5",
+      textColor: "#9c27b0",
+    },
+    {
+      icon: <GroupIcon />,
+      label: "Équipes",
+      count: teams.length,
+      bgColor: "#e0f2f1",
+      textColor: "#00695c",
+    },
+    {
+      icon: <AlertTriangleIcon />,
+      label: "Tâches en retard",
+      count: tasks.filter((t: Task) => {
+        const today = new Date()
+        const endDate = new Date(t.end_date)
+        return endDate < today && t.status?.name !== "Terminé"
+      }).length,
+      bgColor: "#ffebee",
+      textColor: "#f44336",
+    },
+  ]
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+          <CircularProgress color="success" />
+        </Box>
+      </AppLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <Box sx={{ p: 3 }}>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <AlertTitle>Erreur</AlertTitle>
+            {error}
+          </Alert>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+            Mon tableau de bord
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Impossible de charger les données du tableau de bord. Veuillez réessayer plus tard.
+          </Typography>
+          <Button variant="contained" color="primary" onClick={handleRetry} startIcon={<RefreshIcon />}>
+            Réessayer
+          </Button>
+        </Box>
+      </AppLayout>
+    )
   }
 
   return (
     <AppLayout>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
         {/* Dashboard Header */}
         <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                Tableau de bord employé
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Suivez vos tâches et projets assignés
-              </Typography>
-            </Box>
-          </Box>
-
           <Box
-            sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              p: 3,
+              mb: 3,
+              borderRadius: 2,
+              bgcolor: "success.main",
+              color: "white",
+            }}
           >
-            <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 2 }}>
-              <Tab label="Vue d'ensemble" />
-              <Tab label="Projets" />
-              <Tab label="Tâches" />
-              <Tab label="Analytiques" />
-            </Tabs>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+              Bonjour, {currentUser?.name || "Employé"} 👋
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              {new Date().toLocaleDateString("fr-FR", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 3 }}>
+              Voici un aperçu de votre activité aujourd'hui. Vous avez {projects.length} projets assignés,{" "}
+              {tasks.filter((t: Task) => t.status?.name === "En cours").length} tâches en cours et {edbs.length} EDBs
+              soumises.
+            </Typography>
+
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+              <Button
+                variant="outlined"
+                startIcon={<TaskIcon />}
+                sx={{
+                  borderColor: "white",
+                  color: "white",
+                  "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                }}
+                onClick={() => (window.location.href = "/4")}
+              >
+                Voir mes tâches
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<AssignmentIcon />}
+                sx={{
+                  borderColor: "white",
+                  color: "white",
+                  "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                }}
+                onClick={() => (window.location.href = "/edb")}
+              >
+                Mes EDBs
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<GroupIcon />}
+                sx={{
+                  borderColor: "white",
+                  color: "white",
+                  "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                }}
+                onClick={() => (window.location.href = "/3")}
+              >
+                Mes équipes
+              </Button>
+            </Box>
           </Box>
         </Box>
 
@@ -260,188 +488,685 @@ export default function DashboardEmployee() {
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, mb: 4 }}>
           {statsCards.map((card, index) => (
             <Box key={index} sx={{ flex: "1 1 220px", minWidth: { xs: "100%", sm: "220px" } }}>
-              <StatCard elevation={2}>
-                <IconWrapper bgcolor={card.bgColor}>
-                  <Box sx={{ color: card.textColor }}>{card.icon}</Box>
-                </IconWrapper>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    {card.count}
-                  </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {card.label}
-                    </Typography>
-                    <Chip
-                      size="small"
-                      icon={card.trendUp ? <ChevronUpIcon fontSize="small" /> : <ChevronDownIcon fontSize="small" />}
-                      label={card.trend}
-                      sx={{
-                        backgroundColor: card.trendUp ? "#e8f5e9" : "#ffebee",
-                        color: card.trendUp ? "#4caf50" : "#f44336",
-                        fontWeight: 600,
-                        fontSize: "0.7rem",
-                        height: 22,
-                      }}
-                    />
-                  </Box>
-                </Box>
-              </StatCard>
+              <StatCard
+                icon={card.icon}
+                label={card.label}
+                count={card.count}
+                bgColor={card.bgColor}
+                textColor={card.textColor}
+              />
             </Box>
           ))}
         </Box>
 
-        {/* Projects and Tasks */}
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, mb: 4 }}>
-          <Box sx={{ flex: "1 1 30%", minWidth: { xs: "100%", md: "30%" } }}>
-            <StyledCard>
+        {/* Main Content */}
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, mb: 3 }}>
+          {/* Left Column */}
+          <Box sx={{ flex: "1 1 65%", minWidth: { xs: "100%", md: "65%" } }}>
+            {/* Projects Table */}
+            <StyledCard sx={{ mb: 3 }}>
               <CardHeader
                 title={
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Mes projets actifs
+                    Mes projets
                   </Typography>
                 }
                 subheader="Projets sur lesquels vous travaillez"
               />
               <Divider />
-              <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {recentProjects.slice(0, 3).map((project) => {
-                    const statusColor = getStatusColor(project.statut)
-                    const progressColor = getProgressColor(project.progression)
+              <TableContainer>
+                <Table>
+                  <TableHead sx={{ bgcolor: theme.palette.background.default }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600 }}>Nom du projet</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Statut</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Priorité</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Progression</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }} align="right">
+                        Actions
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {projects.length > 0 ? (
+                      projects.slice(0, 5).map((project: Project) => {
+                        const statusColor = getStatusColor(project.status?.name || "")
+                        const priorityColor = getPriorityColor(project.priority?.name || "")
+                        const progressColor = getProgressColor(project.progress || 0)
 
-                    return (
-                      <Paper key={project.id} sx={{ p: 2, borderRadius: 2 }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                          <Typography variant="subtitle2">{project.nom}</Typography>
-                          <Chip
-                            label={project.statut}
-                            size="small"
-                            sx={{
-                              backgroundColor: statusColor.bg,
-                              color: statusColor.text,
-                              fontWeight: 600,
-                              borderRadius: "6px",
-                              height: 24,
-                            }}
-                          />
-                        </Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                          <LinearProgress
-                            variant="determinate"
-                            value={project.progression}
-                            sx={{
-                              flexGrow: 1,
-                              height: 8,
-                              borderRadius: 4,
-                              bgcolor: theme.palette.grey[200],
-                              "& .MuiLinearProgress-bar": {
-                                bgcolor: progressColor,
-                                borderRadius: 4,
-                              },
-                            }}
-                          />
-                          <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                            {project.progression}%
+                        return (
+                          <TableRow key={project.id} hover>
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {project.title}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={project.status?.name || "Non défini"}
+                                size="small"
+                                sx={{
+                                  backgroundColor: statusColor.bg,
+                                  color: statusColor.text,
+                                  fontWeight: 600,
+                                  borderRadius: "6px",
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={project.priority?.name || "Non défini"}
+                                size="small"
+                                sx={{
+                                  backgroundColor: priorityColor.bg,
+                                  color: priorityColor.text,
+                                  fontWeight: 600,
+                                  borderRadius: "6px",
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={project.progress || 0}
+                                  sx={{
+                                    width: 100,
+                                    height: 8,
+                                    borderRadius: 4,
+                                    bgcolor: theme.palette.grey[200],
+                                    "& .MuiLinearProgress-bar": {
+                                      bgcolor: progressColor,
+                                      borderRadius: 4,
+                                    },
+                                  }}
+                                />
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {project.progress || 0}%
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton size="small">
+                                <MoreIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center">
+                          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                            Aucun projet assigné
                           </Typography>
-                        </Box>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Responsable: {project.responsable}
-                          </Typography>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                            <ClockIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
-                            <Typography variant="caption" color="text.secondary">
-                              Échéance: 15/06/2025
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </Paper>
-                    )
-                  })}
-                </Box>
-              </CardContent>
-              <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Box
+                sx={{
+                  p: 2,
+                  display: "flex",
+                  justifyContent: "center",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              >
                 <Button
-                  fullWidth
                   endIcon={<ArrowRightIcon />}
+                  href="/2"
                   sx={{
+                    color: "#16A249",
                     textTransform: "none",
                     fontWeight: 600,
                   }}
                 >
-                  Voir tous mes projets
+                  Voir tous les projets
                 </Button>
               </Box>
             </StyledCard>
-          </Box>
-          <Box sx={{ flex: "1 1 65%", minWidth: { xs: "100%", md: "65%" } }}>
+
+            {/* Teams Section - Moved above EDBs */}
+            <StyledCard sx={{ mb: 3 }}>
+              <CardHeader
+                title={
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Mes équipes
+                  </Typography>
+                }
+                subheader="Équipes dont vous faites partie"
+              />
+              <Divider />
+              <CardContent sx={{ p: 0 }}>
+                {teams.length > 0 ? (
+                  <List>
+                    {teams.slice(0, 4).map((team: Team) => (
+                      <ListItem
+                        key={team.id}
+                        sx={{
+                          py: 1.5,
+                          px: 2,
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          "&:last-child": { borderBottom: "none" },
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+                          <Avatar
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              bgcolor: "#16A249",
+                              fontSize: "1rem",
+                              fontWeight: 600,
+                              mr: 2,
+                            }}
+                          >
+                            <GroupIcon />
+                          </Avatar>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                              {team.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {team.members?.length || 0} membres • Chef: {team.manager?.name || "Non défini"}
+                            </Typography>
+                            {team.project && (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                Projet: {team.project.title}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </ListItem>
+                    ))}
+                  </List>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: "center" }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Vous ne faites partie d'aucune équipe
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+              <Box
+                sx={{
+                  p: 2,
+                  display: "flex",
+                  justifyContent: "center",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                <Button
+                  endIcon={<ArrowRightIcon />}
+                  href="/3"
+                  sx={{
+                    color: "#16A249",
+                    textTransform: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  Voir toutes mes équipes
+                </Button>
+              </Box>
+            </StyledCard>
+
+            {/* EDBs Section - Moved below Teams */}
             <StyledCard>
               <CardHeader
                 title={
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Tâches à venir
+                    Mes expressions de besoin
                   </Typography>
                 }
-                subheader="Tâches prévues pour les prochains jours"
+                subheader="EDBs que vous avez soumises"
               />
               <Divider />
-              <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {employeeTasks.slice(0, 4).map((task) => {
-                    const priorityColor = getPriorityColor(task.priority)
+              <TableContainer>
+                <Table>
+                  <TableHead sx={{ bgcolor: theme.palette.background.default }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600 }}>Titre</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Statut</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Priorité</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {edbs.length > 0 ? (
+                      edbs.slice(0, 5).map((edb: Edb) => {
+                        const statusColor = getStatusColor(edb.status?.name || "")
+                        const priorityColor = getPriorityColor(edb.priority?.name || "")
 
-                    let statusIcon
-                    if (task.status === "Terminé") {
-                      statusIcon = <CheckCircleIcon sx={{ color: "#4caf50" }} />
-                    } else if (task.status === "En retard") {
-                      statusIcon = <CircleAlertIcon sx={{ color: "#f44336" }} />
-                    } else {
-                      statusIcon = <CircleDashedIcon sx={{ color: "#2196f3" }} />
-                    }
-
-                    return (
-                      <Paper key={task.id} sx={{ p: 2, borderRadius: 2 }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                            {statusIcon}
-                            <Box>
-                              <Typography variant="subtitle2">{task.title}</Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {task.project}
+                        return (
+                          <TableRow key={edb.id} hover>
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {edb.title}
                               </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={edb.status?.name || "Non défini"}
+                                size="small"
+                                sx={{
+                                  backgroundColor: statusColor.bg,
+                                  color: statusColor.text,
+                                  fontWeight: 600,
+                                  borderRadius: "6px",
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={edb.priority?.name || "Non défini"}
+                                size="small"
+                                sx={{
+                                  backgroundColor: priorityColor.bg,
+                                  color: priorityColor.text,
+                                  fontWeight: 600,
+                                  borderRadius: "6px",
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {new Date(edb.date_demande).toLocaleDateString("fr-FR")}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                            Aucune EDB soumise
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Box
+                sx={{
+                  p: 2,
+                  display: "flex",
+                  justifyContent: "center",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                <Button
+                  endIcon={<ArrowRightIcon />}
+                  href="/edb"
+                  sx={{
+                    color: "#16A249",
+                    textTransform: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  Voir toutes mes EDBs
+                </Button>
+              </Box>
+            </StyledCard>
+          </Box>
+
+          {/* Right Column */}
+          <Box sx={{ flex: "1 1 30%", minWidth: { xs: "100%", md: "30%" } }}>
+            {/* Notifications */}
+            <StyledCard sx={{ mb: 3 }}>
+              <CardHeader
+                title={
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Notifications
+                  </Typography>
+                }
+                subheader="Dernières notifications"
+                action={
+                  <IconButton size="small" onClick={fetchNotifications}>
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                }
+              />
+              <Divider />
+              <CardContent sx={{ p: 0 }}>
+                {notifications.length > 0 ? (
+                  <Box>
+                    {notifications.map((notification: Notification, index: number) => {
+                      const getNotificationConfig = (type: string) => {
+                        switch (type) {
+                          case "success":
+                            return {
+                              bgColor: "rgba(76, 175, 80, 0.1)",
+                              iconColor: "#4caf50",
+                              icon: <CheckCircleIcon sx={{ fontSize: 16 }} />,
+                              chipLabel: "Succès",
+                              chipBg: "rgba(76, 175, 80, 0.1)",
+                              chipColor: "#4caf50",
+                            }
+                          case "warning":
+                            return {
+                              bgColor: "rgba(255, 152, 0, 0.1)",
+                              iconColor: "#ff9800",
+                              icon: <AlertTriangleIcon sx={{ fontSize: 16 }} />,
+                              chipLabel: "Attention",
+                              chipBg: "rgba(255, 152, 0, 0.1)",
+                              chipColor: "#ff9800",
+                            }
+                          case "error":
+                            return {
+                              bgColor: "rgba(244, 67, 54, 0.1)",
+                              iconColor: "#f44336",
+                              icon: <AlertTriangleIcon sx={{ fontSize: 16 }} />,
+                              chipLabel: "Erreur",
+                              chipBg: "rgba(244, 67, 54, 0.1)",
+                              chipColor: "#f44336",
+                            }
+                          default:
+                            return {
+                              bgColor: "rgba(33, 150, 243, 0.1)",
+                              iconColor: "#2196f3",
+                              icon: <TaskIcon sx={{ fontSize: 16 }} />,
+                              chipLabel: "Info",
+                              chipBg: "rgba(33, 150, 243, 0.1)",
+                              chipColor: "#2196f3",
+                            }
+                        }
+                      }
+
+                      const config = getNotificationConfig(notification.type)
+
+                      return (
+                        <Box
+                          key={notification.id}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2,
+                            p: 2,
+                            borderBottom:
+                              index < notifications.length - 1 ? `1px solid ${theme.palette.divider}` : "none",
+                            backgroundColor: notification.is_read ? "transparent" : "rgba(22, 162, 73, 0.02)",
+                            transition: "all 0.2s ease",
+                            "&:hover": {
+                              backgroundColor: "rgba(22, 162, 73, 0.04)",
+                              transform: "translateX(4px)",
+                            },
+                          }}
+                        >
+                          <Avatar
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              backgroundColor: config.bgColor,
+                              color: config.iconColor,
+                              position: "relative",
+                            }}
+                          >
+                            {config.icon}
+                            {!notification.is_read && (
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: -2,
+                                  right: -2,
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: "50%",
+                                  backgroundColor: "#16A249",
+                                  border: `2px solid ${theme.palette.background.paper}`,
+                                }}
+                              />
+                            )}
+                          </Avatar>
+
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box
+                              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}
+                            >
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: notification.is_read ? 500 : 600,
+                                  color: notification.is_read ? "text.secondary" : "text.primary",
+                                  fontSize: "0.875rem",
+                                  lineHeight: 1.2,
+                                }}
+                                noWrap
+                              >
+                                {notification.title}
+                              </Typography>
+                              <Chip
+                                label={config.chipLabel}
+                                size="small"
+                                sx={{
+                                  height: 18,
+                                  fontSize: "0.7rem",
+                                  fontWeight: 600,
+                                  backgroundColor: config.chipBg,
+                                  color: config.chipColor,
+                                  borderRadius: "9px",
+                                  ml: 1,
+                                }}
+                              />
                             </Box>
-                          </Box>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <Chip
-                              label={task.priority}
-                              size="small"
-                              sx={{
-                                backgroundColor: priorityColor.bg,
-                                color: priorityColor.text,
-                                fontWeight: 600,
-                                borderRadius: "6px",
-                                height: 24,
-                              }}
-                            />
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                              <ClockIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
-                              <Typography variant="caption" color="text.secondary">
-                                {task.dueDate}
+
+                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{
+                                  fontSize: "0.75rem",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    width: 4,
+                                    height: 4,
+                                    borderRadius: "50%",
+                                    backgroundColor: "text.secondary",
+                                    opacity: 0.6,
+                                  }}
+                                />
+                                {formatNotificationDate(notification.created_at)}
                               </Typography>
+
+                              {!notification.is_read && (
+                                <Chip
+                                  label="Nouveau"
+                                  size="small"
+                                  sx={{
+                                    height: 16,
+                                    fontSize: "0.65rem",
+                                    fontWeight: 700,
+                                    backgroundColor: "rgba(22, 162, 73, 0.1)",
+                                    color: "#16A249",
+                                    borderRadius: "8px",
+                                  }}
+                                />
+                              )}
                             </Box>
                           </Box>
                         </Box>
-                      </Paper>
-                    )
-                  })}
-                </Box>
+                      )
+                    })}
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      py: 4,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                    }}
+                  >
+                    <Avatar
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        backgroundColor: "rgba(158, 158, 158, 0.1)",
+                        color: "#9e9e9e",
+                        mb: 2,
+                      }}
+                    >
+                      <AlertTriangleIcon sx={{ fontSize: 24 }} />
+                    </Avatar>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
+                      Aucune notification récente
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Les nouvelles activités apparaîtront ici
+                    </Typography>
+                  </Box>
+                )}
               </CardContent>
-              <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+              <Box
+                sx={{
+                  p: 1.5,
+                  display: "flex",
+                  justifyContent: "center",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              >
                 <Button
-                  fullWidth
-                  endIcon={<ArrowRightIcon />}
+                  size="small"
                   sx={{
+                    textTransform: "none",
+                    fontWeight: 500,
+                    color: "#16A249",
+                    fontSize: "0.875rem",
+                  }}
+                  onClick={() => (window.location.href = "/8")}
+                >
+                  Voir tout
+                </Button>
+              </Box>
+            </StyledCard>
+
+            {/* My Tasks */}
+            <StyledCard>
+              <CardHeader
+                title={
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Mes tâches récentes
+                  </Typography>
+                }
+                subheader="Tâches qui vous sont assignées"
+              />
+              <Divider />
+              <CardContent sx={{ p: 0 }}>
+                {tasks.length > 0 ? (
+                  <List>
+                    {tasks.slice(0, 5).map((task: Task) => {
+                      const statusColor = getStatusColor(task.status?.name || "")
+                      const priorityColor = getPriorityColor(task.priority?.name || "")
+
+                      return (
+                        <ListItem
+                          key={task.id}
+                          sx={{
+                            py: 1.5,
+                            px: 2,
+                            borderBottom: `1px solid ${theme.palette.divider}`,
+                            "&:last-child": { borderBottom: "none" },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+                            <Avatar
+                              sx={{
+                                width: 40,
+                                height: 40,
+                                bgcolor: statusColor.bg,
+                                color: statusColor.text,
+                                fontSize: "1rem",
+                                fontWeight: 600,
+                                mr: 2,
+                              }}
+                            >
+                              <TaskIcon />
+                            </Avatar>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                                {task.title}
+                              </Typography>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
+                                <Chip
+                                  label={task.status?.name}
+                                  size="small"
+                                  sx={{
+                                    height: 20,
+                                    fontSize: "0.7rem",
+                                    backgroundColor: statusColor.bg,
+                                    color: statusColor.text,
+                                    fontWeight: 600,
+                                  }}
+                                />
+                                <Chip
+                                  label={task.priority?.name}
+                                  size="small"
+                                  sx={{
+                                    height: 20,
+                                    fontSize: "0.7rem",
+                                    backgroundColor: priorityColor.bg,
+                                    color: priorityColor.text,
+                                    fontWeight: 600,
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                            <Box sx={{ textAlign: "right" }}>
+                              <Typography variant="caption" color="text.secondary">
+                                {task.progress || 0}%
+                              </Typography>
+                              <LinearProgress
+                                variant="determinate"
+                                value={task.progress || 0}
+                                sx={{
+                                  width: 60,
+                                  height: 4,
+                                  borderRadius: 2,
+                                  mt: 0.5,
+                                  bgcolor: theme.palette.grey[200],
+                                  "& .MuiLinearProgress-bar": {
+                                    bgcolor: getProgressColor(task.progress || 0),
+                                    borderRadius: 2,
+                                  },
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                        </ListItem>
+                      )
+                    })}
+                  </List>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: "center" }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Aucune tâche assignée
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+              <Box
+                sx={{
+                  p: 2,
+                  display: "flex",
+                  justifyContent: "center",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                <Button
+                  endIcon={<ArrowRightIcon />}
+                  href="/4"
+                  sx={{
+                    color: "#16A249",
                     textTransform: "none",
                     fontWeight: 600,
                   }}
@@ -452,87 +1177,6 @@ export default function DashboardEmployee() {
             </StyledCard>
           </Box>
         </Box>
-
-        {/* Employee Tasks */}
-        <StyledCard>
-          <CardHeader
-            title={
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Mes tâches
-              </Typography>
-            }
-            subheader="Tâches assignées et leur statut"
-            action={
-              <Button variant="outlined" size="small" startIcon={<FilterIcon />} sx={{ textTransform: "none" }}>
-                Filtrer
-              </Button>
-            }
-          />
-          <Divider />
-          <TableContainer>
-            <Table>
-              <TableHead sx={{ bgcolor: theme.palette.background.default }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Tâche</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Projet</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Date limite</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Statut</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Priorité</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }} align="right">
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {employeeTasks.map((task) => {
-                  const statusColor = getStatusColor(task.status)
-                  const priorityColor = getPriorityColor(task.priority)
-
-                  return (
-                    <TableRow key={task.id} hover>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {task.title}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{task.project}</TableCell>
-                      <TableCell>{task.dueDate}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={task.status}
-                          size="small"
-                          sx={{
-                            backgroundColor: statusColor.bg,
-                            color: statusColor.text,
-                            fontWeight: 600,
-                            borderRadius: "6px",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={task.priority}
-                          size="small"
-                          sx={{
-                            backgroundColor: priorityColor.bg,
-                            color: priorityColor.text,
-                            fontWeight: 600,
-                            borderRadius: "6px",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton size="small">
-                          <MoreHorizontalIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </StyledCard>
       </Box>
     </AppLayout>
   )

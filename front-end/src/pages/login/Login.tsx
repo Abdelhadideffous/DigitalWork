@@ -132,7 +132,7 @@ const Login: React.FC = () => {
         // setAuthToken(response.token)
 
         // Rediriger vers la page d'accueil ou le tableau de bord
-        navigate("/1")
+        navigate("/dashboard")
       } else {
         setError(response.message || "Erreur lors de la connexion")
         setOpenSnackbar(true)
@@ -582,7 +582,7 @@ const Login: React.FC = () => {
                   },
                 }}
               >
-                {loading ? <CircularProgress size={24} color="inherit" /> : "Se connecter"}
+                {loading ? <CircularProgress size={24} color="success" /> : "Se connecter"}
               </Button>
             </Box>
           </Box>

@@ -97,9 +97,9 @@ class SubtaskController extends Controller
 
         // $this->notifier->subtaskProgressUpdated($subtask);
 
-        // if ($subtask->task && method_exists($subtask->task, 'calculateProgress')) {
-        //     $subtask->task->calculateProgress();
-        // }
+        if ($subtask->task && method_exists($subtask->task, 'calculateProgress')) {
+            $subtask->task->calculateProgress();
+        }
 
         return response()->json([
             'success' => true,

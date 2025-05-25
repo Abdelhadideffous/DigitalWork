@@ -1666,7 +1666,7 @@ const Team: React.FC = () => {
                                     ...params.InputProps,
                                     endAdornment: (
                                         <>
-                                            {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                                            {loading ? <CircularProgress color="success" size={20} /> : null}
                                             {params.InputProps.endAdornment}
                                         </>
                                     ),
@@ -1868,7 +1868,7 @@ const Team: React.FC = () => {
                                     ...params.InputProps,
                                     endAdornment: (
                                         <>
-                                            {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                                            {loading ? <CircularProgress color="success" size={20} /> : null}
                                             {params.InputProps.endAdornment}
                                         </>
                                     ),
@@ -2032,7 +2032,7 @@ const Team: React.FC = () => {
                     </Button>
                     <Button onClick={handleDeleteTeam} 
                     variant="contained" color="error" disabled={loading}>
-                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Supprimer'}
+                        {loading ? <CircularProgress size={24} color="success" /> : 'Supprimer'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -2280,7 +2280,7 @@ const Team: React.FC = () => {
                         sx={{ bgcolor: '#16A249' }}
                     >
                         {loading ? (
-                            <CircularProgress size={24} color="inherit" />
+                            <CircularProgress size={24} color="success" />
                         ) : (
                             `Ajouter ${selectedUsers.length} membre${selectedUsers.length > 1 ? 's' : ''}`
                         )}

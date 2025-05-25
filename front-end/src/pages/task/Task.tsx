@@ -61,6 +61,7 @@ import AppLayout from '../../components/layout/AppLayout';
 import { getCurrentUser } from '../login/api';
 import { projectApi, subtaskApi, taskApi, userApi, type Priority, type Project, type Status, type Subtask, type Task } from './apitask';
 import { teamApi } from './apitask';
+import { getStatusColor, getPriorityColor, getProgressColor } from '../../utils/colorUtils';
 
 
 // Define the styled dialog component
@@ -415,7 +416,15 @@ const Task: React.FC = () => {
         fetchData();
     }, []);
 
-    // Surveiller les changements d'utilisateur dans le localStorage
+    // Ouvre la modale de création si flag sessionStorage
+    useEffect(() => {
+        if (sessionStorage.getItem('openNewTaskDialog') === 'true') {
+            setOpen(true);
+            sessionStorage.removeItem('openNewTaskDialog');
+        }
+    }, []);
+
+    // Surveiller les changements d'utilisateur dans le sessionStorage
     useEffect(() => {
         const handleStorageChange = () => {
             const user = getCurrentUser();
@@ -1155,22 +1164,7 @@ const Task: React.FC = () => {
     };
 
     // Fonction pour obtenir la couleur du statut
-    const getStatusColor = (statut: string) => {
-        switch (statut) {
-            case 'En attente':
-                return { bg: '#FFF59D', color: '#F57C00' };
-            case 'En cours':
-                return { bg: '#BBDEFB', color: '#1976D2' };
-            case 'Terminée':
-                return { bg: '#C8E6C9', color: '#388E3C' };
-            case 'Annulé':
-                return { bg: '#FFCDD2', color: '#D32F2F' };
-            case 'En pause':
-                return { bg: '#FFEB3B', color: '#F57C00' };
-            default:
-                return { bg: '#B0BEC5', color: '#37474F' };
-        }
-    };
+
 
     // Fonction pour obtenir la couleur de la priorité
 
@@ -1422,16 +1416,8 @@ const Task: React.FC = () => {
                                         </Typography>
                                         <Chip
                                             label={selectedTask?.status?.name || getStatusName(selectedTask?.status_id || 0)}
-                                            color={
-                                                selectedTask?.status?.name === 'En cours' ||
-                                                getStatusName(selectedTask?.status_id || 0) === 'En cours'
-                                                    ? 'success'
-                                                    : selectedTask?.status?.name === 'À faire' ||
-                                                        getStatusName(selectedTask?.status_id || 0) === 'À faire'
-                                                      ? 'warning'
-                                                      : 'default'
-                                            }
-                                            sx={{ fontWeight: 'medium' }}
+                                            size="small"
+                                            sx={{ bgcolor: getStatusColor(selectedTask?.status?.name || getStatusName(selectedTask?.status_id || 0)).bg, color: getStatusColor(selectedTask?.status?.name || getStatusName(selectedTask?.status_id || 0)).text, fontWeight: 'bold' }}
                                         />
                                     </Box>
 
@@ -1451,14 +1437,8 @@ const Task: React.FC = () => {
                                             </Typography>
                                             <Chip
                                                 label={selectedTask?.priority?.name || getPriorityName(selectedTask?.priority_id || 0)}
-                                                color={
-                                                    selectedTask?.priority?.name === 'Haute' ||
-                                                    getPriorityName(selectedTask?.priority_id || 0) === 'Haute'
-                                                        ? 'error'
-                                                        : 'success'
-                                                }
                                                 size="small"
-                                                sx={{ fontWeight: 'medium' }}
+                                                sx={{ bgcolor: getPriorityColor(selectedTask?.priority?.name || getPriorityName(selectedTask?.priority_id || 0)).bg, color: getPriorityColor(selectedTask?.priority?.name || getPriorityName(selectedTask?.priority_id || 0)).text, fontWeight: 'bold' }}
                                             />
                                         </Box>
 
@@ -1734,7 +1714,7 @@ const Task: React.FC = () => {
                                                 }}
                                                 disabled={loading}
                                             >
-                                                {loading ? <CircularProgress size={24} color="inherit" /> : 'Ajouter'}
+                                                {loading ? <CircularProgress size={24} color="success" /> : 'Ajouter'}
                                             </Button>
                                         </DialogActions>
                                     </Dialog>
@@ -1792,8 +1772,7 @@ const Task: React.FC = () => {
                                                                     backgroundColor: getStatusColor(
                                                                         subtask.status?.name || getStatusName(subtask.status_id),
                                                                     ).bg,
-                                                                    color: getStatusColor(subtask.status?.name || getStatusName(subtask.status_id))
-                                                                        .color,
+                                                                    color: getStatusColor(subtask.status?.name || getStatusName(subtask.status_id)).text,
                                                                 }}
                                                             />
                                                         </Box>
@@ -2168,25 +2147,15 @@ const Task: React.FC = () => {
                                                 <TableCell>
                                                     <Chip
                                                         label={task.priority?.name || getPriorityName(task.priority_id)}
-                                                        color={
-                                                            task.priority?.name === 'Haute' || getPriorityName(task.priority_id) === 'Haute'
-                                                                ? 'error'
-                                                                : 'success'
-                                                        }
                                                         size="small"
+                                                        sx={{ bgcolor: getPriorityColor(task.priority?.name || getPriorityName(task.priority_id)).bg, color: getPriorityColor(task.priority?.name || getPriorityName(task.priority_id)).text, fontWeight: 'bold' }}
                                                     />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Chip
                                                         label={task.status?.name || getStatusName(task.status_id)}
-                                                        color={
-                                                            task.status?.name === 'En cours' || getStatusName(task.status_id) === 'En cours'
-                                                                ? 'success'
-                                                                : task.status?.name === 'À faire' || getStatusName(task.status_id) === 'À faire'
-                                                                  ? 'warning'
-                                                                  : 'default'
-                                                        }
                                                         size="small"
+                                                        sx={{ bgcolor: getStatusColor(task.status?.name || getStatusName(task.status_id)).bg, color: getStatusColor(task.status?.name || getStatusName(task.status_id)).text, fontWeight: 'bold' }}
                                                     />
                                                 </TableCell>
                                                 <TableCell>
@@ -2200,7 +2169,7 @@ const Task: React.FC = () => {
                                                                 borderRadius: 5,
                                                                 backgroundColor: '#e0f2f1',
                                                                 '& .MuiLinearProgress-bar': {
-                                                                    backgroundColor: '#16A249',
+                                                                    backgroundColor: getProgressColor(task.progress || 0),
                                                                 },
                                                                 mr: 1,
                                                             }}
@@ -2857,7 +2826,7 @@ const Task: React.FC = () => {
                         }}
                         disabled={loading}
                     >
-                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Supprimer'}
+                        {loading ? <CircularProgress size={24} color="success" /> : 'Supprimer'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -2948,7 +2917,7 @@ const Task: React.FC = () => {
                         }}
                         disabled={loading}
                     >
-                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Mettre à jour'}
+                        {loading ? <CircularProgress size={24} color="success" /> : 'Mettre à jour'}
                     </Button>
                 </DialogActions>
             </Dialog>

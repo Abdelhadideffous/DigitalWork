@@ -62,6 +62,7 @@ import { useEffect, useRef, useState } from 'react';
 import AppLayout from '../../components/layout/AppLayout';
 import { getCurrentUser } from '../login/api';
 import { projectApi, type Comment, type Priority, type Project, type Status, type Task } from './apiprojet';
+import { getStatusColor, getPriorityColor, getProgressColor } from '../../utils/colorUtils';
 
 const Projet: React.FC = () => {
     // État pour le menu d'actions des projets
@@ -202,10 +203,11 @@ const Projet: React.FC = () => {
     // Récupérer l'utilisateur connecté au chargement du composant
     useEffect(() => {
         checkAuthentication();
-
-        // Configurer une vérification périodique de l'authentification (toutes les 5 minutes)
-        // authCheckIntervalRef.current = setInterval(checkAuthentication, 5 * 60 * 1000);
-
+        // Ouvre la modale de création si flag sessionStorage
+        if (sessionStorage.getItem('openNewProjectDialog') === 'true') {
+            setOpenNewProjectDialog(true);
+            sessionStorage.removeItem('openNewProjectDialog');
+        }
         // Nettoyer l'intervalle lors du démontage du composant
         return () => {
             if (authCheckIntervalRef.current) {
@@ -1248,16 +1250,8 @@ const Projet: React.FC = () => {
                                                             </Typography>
                                                             <Chip
                                                                 label={selectedProject?.status?.name || getStatusName(selectedProject?.status_id)}
-                                                                color={
-                                                                    selectedProject?.status?.name === 'En cours' ||
-                                                                    getStatusName(selectedProject?.status_id) === 'En cours'
-                                                                        ? 'success'
-                                                                        : selectedProject?.status?.name === 'En attente' ||
-                                                                            getStatusName(selectedProject?.status_id) === 'En attente'
-                                                                          ? 'warning'
-                                                                          : 'default'
-                                                                }
-                                                                sx={{ fontWeight: 'medium' }}
+                                                                size="small"
+                                                                sx={{ bgcolor: getStatusColor(selectedProject?.status?.name || getStatusName(selectedProject?.status_id)).bg, color: getStatusColor(selectedProject?.status?.name || getStatusName(selectedProject?.status_id)).text, fontWeight: 'bold' }}
                                                             />
                                                         </Box>
 
@@ -1283,14 +1277,8 @@ const Projet: React.FC = () => {
                                                                         selectedProject?.priority?.name ||
                                                                         getPriorityName(selectedProject?.priority_id)
                                                                     }
-                                                                    color={
-                                                                        selectedProject?.priority?.name === 'Haute' ||
-                                                                        getPriorityName(selectedProject?.priority_id) === 'Haute'
-                                                                            ? 'error'
-                                                                            : 'success'
-                                                                    }
                                                                     size="small"
-                                                                    sx={{ fontWeight: 'medium' }}
+                                                                    sx={{ bgcolor: getPriorityColor(selectedProject?.priority?.name || getPriorityName(selectedProject?.priority_id)).bg, color: getPriorityColor(selectedProject?.priority?.name || getPriorityName(selectedProject?.priority_id)).text, fontWeight: 'bold' }}
                                                                 />
                                                             </Box>
 
@@ -1714,28 +1702,15 @@ const Projet: React.FC = () => {
                                                                     <TableCell>
                                                                         <Chip
                                                                             label={task.status?.name || getStatusName(task.status_id)}
-                                                                            color={
-                                                                                task.status?.name === 'En cours' ||
-                                                                                getStatusName(task.status_id) === 'En cours'
-                                                                                    ? 'success'
-                                                                                    : task.status?.name === 'En attente' ||
-                                                                                        getStatusName(task.status_id) === 'En attente'
-                                                                                      ? 'warning'
-                                                                                      : 'default'
-                                                                            }
                                                                             size="small"
+                                                                            sx={{ bgcolor: getStatusColor(task.status?.name || getStatusName(task.status_id)).bg, color: getStatusColor(task.status?.name || getStatusName(task.status_id)).text, fontWeight: 'bold' }}
                                                                         />
                                                                     </TableCell>
                                                                     <TableCell>
                                                                         <Chip
                                                                             label={task.priority?.name || getPriorityName(task.priority_id)}
-                                                                            color={
-                                                                                task.priority?.name === 'Haute' ||
-                                                                                getPriorityName(task.priority_id) === 'Haute'
-                                                                                    ? 'error'
-                                                                                    : 'success'
-                                                                            }
                                                                             size="small"
+                                                                            sx={{ bgcolor: getPriorityColor(task.priority?.name || getPriorityName(task.priority_id)).bg, color: getPriorityColor(task.priority?.name || getPriorityName(task.priority_id)).text, fontWeight: 'bold' }}
                                                                         />
                                                                     </TableCell>
                                                                     <TableCell>
@@ -2623,26 +2598,15 @@ const Projet: React.FC = () => {
                                                 <TableCell>
                                                     <Chip
                                                         label={project.status?.name || getStatusName(project.status_id)}
-                                                        color={
-                                                            project.status?.name === 'En cours' || getStatusName(project.status_id) === 'En cours'
-                                                                ? 'success'
-                                                                : project.status?.name === 'En attente' ||
-                                                                    getStatusName(project.status_id) === 'En attente'
-                                                                  ? 'warning'
-                                                                  : 'default'
-                                                        }
                                                         size="small"
+                                                        sx={{ bgcolor: getStatusColor(project.status?.name || getStatusName(project.status_id)).bg, color: getStatusColor(project.status?.name || getStatusName(project.status_id)).text, fontWeight: 'bold' }}
                                                     />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Chip
                                                         label={project.priority?.name || getPriorityName(project.priority_id)}
-                                                        color={
-                                                            project.priority?.name === 'Haute' || getPriorityName(project.priority_id) === 'Haute'
-                                                                ? 'error'
-                                                                : 'success'
-                                                        }
                                                         size="small"
+                                                        sx={{ bgcolor: getPriorityColor(project.priority?.name || getPriorityName(project.priority_id)).bg, color: getPriorityColor(project.priority?.name || getPriorityName(project.priority_id)).text, fontWeight: 'bold' }}
                                                     />
                                                 </TableCell>
                                                 <TableCell>
@@ -2656,7 +2620,7 @@ const Projet: React.FC = () => {
                                                                 borderRadius: 5,
                                                                 backgroundColor: '#e0f2f1',
                                                                 '& .MuiLinearProgress-bar': {
-                                                                    backgroundColor: '#16A249',
+                                                                    backgroundColor: getProgressColor(project.progress || 0),
                                                                 },
                                                                 mr: 1,
                                                             }}

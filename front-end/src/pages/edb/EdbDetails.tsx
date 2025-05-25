@@ -49,6 +49,7 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentUser } from '../login/api';
 import { edbApi, type Attachment, type Edb, type Priority, type Status } from './apiedb';
+import { getStatusColor, getPriorityColor } from '../../utils/colorUtils';
 
 interface EdbDetailsProps {
     edb: Edb;
@@ -292,35 +293,9 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
         return `${day}/${month}/${year}`;
     };
 
-    // Fonction pour obtenir la couleur du statut
-    const getStatusColor = (statusName: string) => {
-        switch (statusName.toLowerCase()) {
-            case 'en cours':
-                return '#2196f3';
-            case 'en attente':
-                return '#ff9800';
-            case 'validé':
-                return '#4caf50';
-            case 'rejeté':
-                return '#f44336';
-            default:
-                return '#757575';
-        }
-    };
 
-    // Fonction pour obtenir la couleur de la priorité
-    const getPriorityColor = (priorityName: string) => {
-        switch (priorityName.toLowerCase()) {
-            case 'haute':
-                return '#f44336';
-            case 'moyenne':
-                return '#ff9800';
-            case 'basse':
-                return '#4caf50';
-            default:
-                return '#757575';
-        }
-    };
+
+   
 
     // Fonction pour obtenir l'icône du type de fichier
     const getFileIcon = (fileName: string) => {
@@ -569,11 +544,12 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                             <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, mb: 2 }}>
                                 <Chip
                                     label={edb?.status?.name || getStatusName(edb?.status_id)}
+                                    size="medium"
                                     sx={{
                                         fontWeight: 'bold',
-                                        color: 'white',
-                                        bgcolor: getStatusColor(edb?.status?.name || getStatusName(edb?.status_id)),
-                                        fontSize: '0.9rem',
+                                        color: getStatusColor(edb?.status?.name || getStatusName(edb?.status_id)).text,
+                                        bgcolor: getStatusColor(edb?.status?.name || getStatusName(edb?.status_id)).bg,
+                                        fontSize: '1rem',
                                         py: 2.5,
                                         px: 1,
                                         '& .MuiChip-label': { px: 2 },
@@ -583,11 +559,12 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                             <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
                                 <Chip
                                     label={`Priorité ${edb?.priority?.name || getPriorityName(edb?.priority_id)}`}
+                                    size="medium"
                                     sx={{
                                         fontWeight: 'medium',
-                                        color: 'white',
-                                        bgcolor: getPriorityColor(edb?.priority?.name || getPriorityName(edb?.priority_id)),
-                                        fontSize: '0.85rem',
+                                        color: getPriorityColor(edb?.priority?.name || getPriorityName(edb?.priority_id)).text,
+                                        bgcolor: getPriorityColor(edb?.priority?.name || getPriorityName(edb?.priority_id)).bg,
+                                        fontSize: '0.95rem',
                                         py: 1.5,
                                     }}
                                 />
@@ -659,14 +636,18 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                     value={activeTab}
                     onChange={handleTabChange}
                     aria-label="edb tabs"
+                    variant="fullWidth"
                     sx={{
                         mb: 3,
+                        borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
                         '& .MuiTab-root': {
                             textTransform: 'none',
                             fontWeight: 'medium',
                             fontSize: '1rem',
+                            py: 2,
                             minWidth: 120,
                             px: 3,
+                            borderRadius: '8px 8px 0 0',
                         },
                         '& .Mui-selected': {
                             color: '#16A249 !important',
@@ -679,7 +660,7 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                         },
                     }}
                 >
-                    <Tab label="Détails" icon={<FileText size={18} />} iconPosition="start" sx={{ borderRadius: '8px 8px 0 0' }} />
+                    <Tab label="Détails" icon={<FileText size={18} />} iconPosition="start" />
                     <Tab
                         label={
                             <Badge badgeContent={attachments.length} color="success" sx={{ '& .MuiBadge-badge': { fontWeight: 'bold' } }}>
@@ -688,7 +669,6 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                         }
                         icon={<Paperclip size={18} />}
                         iconPosition="start"
-                        sx={{ borderRadius: '8px 8px 0 0' }}
                     />
                 </Tabs>
 
@@ -709,7 +689,7 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                                 }}
                             >
                                 <Typography variant="h6" fontWeight="bold" color="#16A249" gutterBottom>
-                                    Titre de l’EDB
+                                    Titre de l'EDB
                                 </Typography>
                                 <Divider sx={{ mb: 2, borderColor: 'rgba(22, 162, 73, 0.2)' }} />
                                 <Typography
@@ -829,8 +809,8 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                                                 size="small"
                                                 sx={{
                                                     fontWeight: 'medium',
-                                                    color: 'white',
-                                                    bgcolor: getStatusColor(edb?.status?.name || getStatusName(edb?.status_id)),
+                                                    color: getStatusColor(edb?.status?.name || getStatusName(edb?.status_id)).text,
+                                                    bgcolor: getStatusColor(edb?.status?.name || getStatusName(edb?.status_id)).bg,
                                                 }}
                                             />
                                         </Box>
@@ -844,8 +824,8 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                                                 size="small"
                                                 sx={{
                                                     fontWeight: 'medium',
-                                                    color: 'white',
-                                                    bgcolor: getPriorityColor(edb?.priority?.name || getPriorityName(edb?.priority_id)),
+                                                    color: getPriorityColor(edb?.priority?.name || getPriorityName(edb?.priority_id)).text,
+                                                    bgcolor: getPriorityColor(edb?.priority?.name || getPriorityName(edb?.priority_id)).bg,
                                                 }}
                                             />
                                         </Box>
@@ -1008,7 +988,7 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
 
                         {loading ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                                <CircularProgress size={40} sx={{ color: '#16A249' }} />
+                                <CircularProgress size={40} color="success" />
                             </Box>
                         ) : attachments.length > 0 ? (
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
@@ -1273,7 +1253,7 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                         onClick={handleUploadFiles}
                         variant="contained"
                         disabled={selectedFiles.length === 0 || loading}
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Upload size={16} />}
+                        startIcon={loading ? <CircularProgress size={16} color="success" /> : <Upload size={16} />}
                         sx={{
                             textTransform: 'none',
                             borderRadius: '8px',
@@ -1363,7 +1343,7 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                         onClick={handleDeleteAttachment}
                         variant="contained"
                         color="error"
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Trash2 size={16} />}
+                        startIcon={loading ? <CircularProgress size={16} color="success" /> : <Trash2 size={16} />}
                         sx={{
                             textTransform: 'none',
                             borderRadius: '8px',

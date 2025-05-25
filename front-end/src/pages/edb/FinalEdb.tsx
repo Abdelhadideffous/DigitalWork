@@ -53,6 +53,7 @@ import { edbApi, type Edb, type Priority, type Status } from "./apiedb"
 import { getCurrentUser } from "../login/api"
 import AppLayout from "../../components/layout/AppLayout"
 import EdbDetails from "./EdbDetails"
+import { getStatusColor, getPriorityColor } from '../../utils/colorUtils'
 
 const FinalEdb: React.FC = () => {
   // État pour l'utilisateur connecté
@@ -879,29 +880,15 @@ const FinalEdb: React.FC = () => {
                         <TableCell>
                           <Chip
                             label={edb.status?.name || getStatusName(edb.status_id)}
-                            color={
-                              edb.status?.name === "En cours" || getStatusName(edb.status_id) === "En cours"
-                                ? "success"
-                                : edb.status?.name === "En attente" || getStatusName(edb.status_id) === "En attente"
-                                  ? "warning"
-                                  : edb.status?.name === "Validé" || getStatusName(edb.status_id) === "Validé"
-                                    ? "success"
-                                    : edb.status?.name === "Rejeté" || getStatusName(edb.status_id) === "Rejeté"
-                                      ? "error"
-                                      : "default"
-                            }
                             size="small"
+                            sx={{ bgcolor: getStatusColor(edb.status?.name || getStatusName(edb.status_id)).bg, color: getStatusColor(edb.status?.name || getStatusName(edb.status_id)).text, fontWeight: 'bold' }}
                           />
                         </TableCell>
                         <TableCell>
                           <Chip
                             label={edb.priority?.name || getPriorityName(edb.priority_id)}
-                            color={
-                              edb.priority?.name === "Haute" || getPriorityName(edb.priority_id) === "Haute"
-                                ? "error"
-                                : "success"
-                            }
                             size="small"
+                            sx={{ bgcolor: getPriorityColor(edb.priority?.name || getPriorityName(edb.priority_id)).bg, color: getPriorityColor(edb.priority?.name || getPriorityName(edb.priority_id)).text, fontWeight: 'bold' }}
                           />
                         </TableCell>
                         <TableCell align="right">
@@ -1182,7 +1169,7 @@ const FinalEdb: React.FC = () => {
             }}
             required
           />
-          <TextField
+          {/* <TextField
             label="Date de la demande"
             type="date"
             name="date_demande"
@@ -1205,7 +1192,7 @@ const FinalEdb: React.FC = () => {
               },
             }}
             required
-          />
+          /> */}
           {/* Vérifier que les options de priorité sont correctes */}
           <FormControl fullWidth margin="dense" error={newEdbErrors.priority_id} color="success">
             <InputLabel id="priority-label">Priorité</InputLabel>
@@ -1513,7 +1500,7 @@ const FinalEdb: React.FC = () => {
             }}
             disabled={loading}
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : "Supprimer"}
+            {loading ? <CircularProgress size={24} color="success" /> : "Supprimer"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -29,9 +29,11 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import NotificationBell from "../notification/NotificationBell"
 import { authApi } from "../../pages/login/api"
+import { userService } from "../../pages/users/api-service"
+import { getCurrentUser } from "../../pages/login/api"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -50,15 +52,27 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const openProfileMenu = Boolean(anchorEl)
 
+  // État pour l'utilisateur courant
+  const [currentUser, setCurrentUser] = useState<any>(getCurrentUser())
+
+  // Mettre à jour currentUser sur event 'user-updated'
+  useEffect(() => {
+    const updateUser = () => setCurrentUser(getCurrentUser())
+    window.addEventListener('user-updated', updateUser)
+    return () => window.removeEventListener('user-updated', updateUser)
+  }, [])
+
   // Structure du menu avec icônes appropriées
   const menuItems = [
-    { text: "Tableau de bord", icon: <LayoutDashboard {...iconProps} />, path: "/1" },
+    { text: "Tableau de bord", icon: <LayoutDashboard {...iconProps} />, path: "/dashboard" },
     { text: "Projets", icon: <FolderKanban {...iconProps} />, path: "/2" },
     { text: "Expressions de Besoin", icon: <ClipboardList {...iconProps} />, path: "/3" },
     { text: "Tâches", icon: <CheckSquare {...iconProps} />, path: "/4" },
     { text: "Équipe", icon: <Users {...iconProps} />, path: "/5" },
-    { text: "Users", icon: <User {...iconProps} />, path: "/6" },
-
+    // 'Users' only for admin
+    ...(currentUser?.role === 'admin' ? [
+      { text: "Users", icon: <User {...iconProps} />, path: "/6" },
+    ] : []),
   ]
 
   // Détection de l'élément actif à partir de l'URL
@@ -128,6 +142,37 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     </>
   )
 
+  // Polling global pour rafraîchir les infos utilisateur dans sessionStorage
+  useEffect(() => {
+    const pollUser = () => {
+      const userStr = sessionStorage.getItem('user');
+      if (!userStr) return;
+      let user;
+      try {
+        user = JSON.parse(userStr);
+      } catch {
+        return;
+      }
+      if (!user?.id) return;
+      userService.getUserById(user.id).then(response => {
+        if (response.success && response.data) {
+          const updatedUser = response.data;
+          const updatedUserStr = JSON.stringify(updatedUser);
+          if (updatedUserStr !== userStr) {
+            sessionStorage.setItem('user', updatedUserStr);
+            // Déclencher un event pour informer les autres onglets/pages
+            window.dispatchEvent(new Event('user-updated'));
+          }
+        }
+      }).catch(() => {});
+    };
+    // Premier appel immédiat
+    pollUser();
+    // Puis toutes les 2 minutes
+    const interval = setInterval(pollUser, 1 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f5f5f5" }}>
       {/* AppBar - Barre de navigation supérieure */}
@@ -177,7 +222,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               size="small"
               sx={{ ml: 2 }}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: "#16A249" }}>M</Avatar>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: "#16A249" }}>
+                {currentUser?.name ? currentUser.name.charAt(0) : 'M'}
+              </Avatar>
             </IconButton>
           </Box>
           <MuiMenu

@@ -15,15 +15,17 @@ import DashboardAdmin from '../pages/dashboard/DashboardAdmin';
 import DashboardManager from '../pages/dashboard/DashboardManager';
 import DashboardEmployee from '../pages/dashboard/DashboardEmployee';
 import NotificationsPage from "../pages/notification/NotificationsPage";
+import FirstDirection from "../pages/dashboard/FirstDirection";
 
 export const router = createBrowserRouter(
     createRoutesFromElements(
         <>
             <Route path="/" element={<Home />} />
-            <Route path="login" element={<Login />} />
-            <Route path="1" element={<DashboardAdmin/>} />
-            <Route path="11" element={<DashboardManager/>} />
-            <Route path="111" element={<DashboardEmployee/>} />
+            <Route path="login" element={<Login />} /> 
+            <Route path="dashboard" element={<FirstDirection />} /> 
+            <Route path="dashboard/admin" element={<DashboardAdmin/>} />
+            <Route path="dashboard/manager" element={<DashboardManager/>} />
+            <Route path="dashboard/employee" element={<DashboardEmployee/>} />
             <Route path="2" element={<Projet />} />
             <Route path="3" element={<FinalEdb />} />
             <Route path="4" element={<Task />} />

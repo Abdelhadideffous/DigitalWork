@@ -2,29 +2,34 @@ import axios from "axios"
 
 const API_URL = "http://localhost:8000/api"
 
-// Configuration de base d'Axios
-const apiClient = axios.create({
+// Création d'une instance axios avec une URL de base
+const api = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },
 })
 
-// Intercepteur pour ajouter le token d'authentification
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = sessionStorage.getItem("token")
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
+// Ajout du token d'authentification à chaque requête
+api.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem("token")
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  config.headers.Accept = "application/json"
+  return config
+})
+
+// Gestion globale des erreurs
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    console.error("API Error:", error.response || error.message || error)
     return Promise.reject(error)
   },
 )
 
-// Interfaces pour les types de données
+// Types pour le dashboard
 export interface RecentProject {
   id: number
   title: string
@@ -49,7 +54,6 @@ export interface RecentTask {
   end_date: string
   status?: { id: number; name: string }
   priority?: { id: number; name: string }
-  // Supprimer la référence directe à project qui n'existe pas
 }
 
 export interface User {
@@ -61,86 +65,36 @@ export interface User {
 
 export interface TeamPerformance {
   id: number
-  team: string // Changer de 'name' à 'team'
+  team: string
   tasksCompleted: number
   tasksTotal: number
   progress: number
   onTime: string
-  lead: string // Changer de 'manager' à 'lead'
+  lead: string
 }
 
-export interface DashboardStats {
-  activeProjects: number
-  pendingTasks: number
-  totalUsers: number
-  delayedProjects: number
-}
-
-// Définir les fonctions API
 export const dashboardApi = {
-  getRecentProjects: async () => {
-    try {
-      const response = await apiClient.get("/projects")
-      return response.data.data as RecentProject[]
-    } catch (error) {
-      console.error("Erreur lors de la récupération des projets récents:", error)
-      throw error
-    }
+  getRecentProjects: async (): Promise<RecentProject[]> => {
+    const response = await api.get("/projects")
+    return response.data.data
   },
 
-  getUserTasks: async (userId: number) => {
-    try {
-      const response = await apiClient.get(`/users/${userId}/tasks`)
-      return response.data.data as RecentTask[]
-    } catch (error) {
-      console.error("Erreur lors de la récupération des tâches de l'utilisateur:", error)
-      throw error
-    }
+  getManagedProjects: async (): Promise<RecentProject[]> => {
+    const response = await api.get("/projects/managed")
+    return response.data.data
   },
 
-  getAllUsers: async () => {
-    try {
-      const response = await apiClient.get("/users")
-      return response.data.data as User[]
-    } catch (error) {
-      console.error("Erreur lors de la récupération des utilisateurs:", error)
-      throw error
-    }
+  getUserTasks: async (userId: number): Promise<RecentTask[]> => {
+    // Cette route existe : /users/{id}/tasks
+    const response = await api.get(`/users/${userId}/tasks`)
+    return response.data.data
   },
 
-  getTeamPerformance: async () => {
-    try {
-      const response = await apiClient.get("/dashboard/performance-summary")
-      return response.data as TeamPerformance[]
-    } catch (error) {
-      console.error("Erreur lors de la récupération des performances des équipes:", error)
-      throw error
-    }
+  getAllUsers: async (): Promise<User[]> => {
+    const response = await api.get("/users")
+    return response.data.data
   },
 
-  getStats: async () => {
-    try {
-      // Adaptez cette URL à votre endpoint réel pour les statistiques du tableau de bord
-      const response = await apiClient.get("/dashboard/stats")
-      return response.data as DashboardStats
-    } catch (error) {
-      console.error("Erreur lors de la récupération des statistiques du tableau de bord:", error)
-      return {
-        activeProjects: 0,
-        pendingTasks: 0,
-        totalUsers: 0,
-        delayedProjects: 0,
-      }
-    }
-  },
-
-  getManagedProjects: async () => {
-    try {
-      const response = await apiClient.get("/projects/managed")
-      return response.data.data as RecentProject[]
-    } catch (error) {
-      console.error("Erreur lors de la récupération des projets gérés:", error)
-      throw error
-    }
-  },
 }
+
+export default api
