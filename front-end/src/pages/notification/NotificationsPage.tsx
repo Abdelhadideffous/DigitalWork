@@ -23,8 +23,23 @@ import {
   Tabs,
   Typography,
   useTheme,
+  CircularProgress,
 } from "@mui/material"
-import { AlertCircle, Bell, Calendar, Check, CheckCircle2, ChevronDown, Clock, Filter, Info, RefreshCw, Trash2, XCircle, AlertTriangle } from 'lucide-react'
+import {
+  AlertCircle,
+  Bell,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Filter,
+  Info,
+  RefreshCw,
+  Trash2,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react"
 import axios from "./axios"
 import { alpha } from "@mui/material/styles"
 import AppLayout from "../../components/layout/AppLayout"
@@ -54,9 +69,18 @@ interface DeleteDialogProps {
   onClose: () => void
   onConfirm: () => void
   isSingle?: boolean
+  loading?: boolean
 }
 
-const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, title, content, onClose, onConfirm, isSingle = true }) => {
+const DeleteDialog: React.FC<DeleteDialogProps> = ({
+  open,
+  title,
+  content,
+  onClose,
+  onConfirm,
+  isSingle = true,
+  loading = false,
+}) => {
   return (
     <Dialog
       open={open}
@@ -93,6 +117,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, title, content, onClo
         <Button
           onClick={onClose}
           variant="outlined"
+          disabled={loading}
           sx={{
             borderRadius: 2,
             textTransform: "none",
@@ -106,7 +131,8 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, title, content, onClo
           onClick={onConfirm}
           variant="contained"
           color="error"
-          startIcon={<Trash2 size={16} />}
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Trash2 size={16} />}
           sx={{
             borderRadius: 2,
             textTransform: "none",
@@ -115,7 +141,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({ open, title, content, onClo
             boxShadow: "0 4px 12px rgba(244, 67, 54, 0.2)",
           }}
         >
-          {isSingle ? "Supprimer" : "Tout supprimer"}
+          {loading ? "Suppression..." : isSingle ? "Supprimer" : "Tout supprimer"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -148,17 +174,22 @@ function a11yProps(index: number) {
 const NotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+
+  // États de chargement individuels pour chaque action
+  const [markAsReadLoading, setMarkAsReadLoading] = useState<number | null>(null)
+  const [markAllAsReadLoading, setMarkAllAsReadLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteAllLoading, setDeleteAllLoading] = useState(false)
+
   const [tabValue, setTabValue] = useState(0)
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null)
   const [timeFilter, setTimeFilter] = useState("all")
   const [snackbar, setSnackbar] = useState<{
     open: boolean
     message: string
-    severity: "success" | "error" | "info" | "warning"
   }>({
     open: false,
     message: "",
-    severity: "success",
   })
 
   // États pour la boîte de dialogue de suppression
@@ -195,7 +226,6 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Erreur lors de la récupération des notifications",
-        severity: "error",
       })
     } finally {
       setLoading(false)
@@ -206,7 +236,7 @@ const NotificationsPage: React.FC = () => {
     fetchNotifications()
   }, [])
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue)
   }
 
@@ -231,6 +261,7 @@ const NotificationsPage: React.FC = () => {
         return
       }
 
+      setMarkAsReadLoading(id)
       await axios.post(
         `/notifications/${id}/mark-as-read`,
         {},
@@ -248,7 +279,6 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Notification marquée comme lue",
-        severity: "success",
       })
     } catch (error: any) {
       console.error("Erreur lors du marquage de la notification comme lue:", error)
@@ -259,8 +289,9 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Erreur lors du marquage de la notification",
-        severity: "error",
       })
+    } finally {
+      setMarkAsReadLoading(null)
     }
   }
 
@@ -272,6 +303,7 @@ const NotificationsPage: React.FC = () => {
         return
       }
 
+      setMarkAllAsReadLoading(true)
       await axios.post(
         "/notifications/mark-all-as-read",
         {},
@@ -285,7 +317,6 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Toutes les notifications ont été marquées comme lues",
-        severity: "success",
       })
     } catch (error: any) {
       console.error("Erreur lors du marquage de toutes les notifications comme lues:", error)
@@ -296,8 +327,9 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Erreur lors du marquage des notifications",
-        severity: "error",
       })
+    } finally {
+      setMarkAllAsReadLoading(false)
     }
   }
 
@@ -332,6 +364,7 @@ const NotificationsPage: React.FC = () => {
         return
       }
 
+      setDeleteLoading(true)
       await axios.delete(`/notifications/${notificationToDelete}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -341,7 +374,6 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Notification supprimée avec succès",
-        severity: "success",
       })
       closeDeleteDialog()
     } catch (error: any) {
@@ -353,9 +385,10 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Erreur lors de la suppression de la notification",
-        severity: "error",
       })
       closeDeleteDialog()
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -367,6 +400,7 @@ const NotificationsPage: React.FC = () => {
         return
       }
 
+      setDeleteAllLoading(true)
       await axios.delete("/notifications", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -376,7 +410,6 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Toutes les notifications ont été supprimées",
-        severity: "success",
       })
       closeDeleteAllDialog()
     } catch (error: any) {
@@ -388,9 +421,10 @@ const NotificationsPage: React.FC = () => {
       setSnackbar({
         open: true,
         message: "Erreur lors de la suppression des notifications",
-        severity: "error",
       })
       closeDeleteAllDialog()
+    } finally {
+      setDeleteAllLoading(false)
     }
   }
 
@@ -529,619 +563,627 @@ const NotificationsPage: React.FC = () => {
 
   return (
     <AppLayout>
-    <Box sx={{ p: { xs: 2, md: 4 } }}>
-      <Box sx={{ maxWidth: 900, mx: "auto" }}>
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-            mb: 4,
-            borderRadius: 2,
-            backgroundImage: `linear-gradient(135deg, ${alpha(GREEN_COLOR, 0.05)} 0%, ${alpha(GREEN_COLOR, 0.1)} 100%)`,
-            border: `1px solid ${alpha(GREEN_COLOR, 0.1)}`,
-          }}
-        >
-          <Box
-            sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}
+      <Box sx={{ p: { xs: 2, md: 4 } }}>
+        <Box sx={{ maxWidth: 900, mx: "auto" }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              mb: 4,
+              borderRadius: 2,
+              backgroundImage: `linear-gradient(135deg, ${alpha(GREEN_COLOR, 0.05)} 0%, ${alpha(GREEN_COLOR, 0.1)} 100%)`,
+              border: `1px solid ${alpha(GREEN_COLOR, 0.1)}`,
+            }}
           >
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Avatar
-                sx={{
-                  width: 48,
-                  height: 48,
-                  backgroundColor: alpha(GREEN_COLOR, 0.1),
-                  color: GREEN_COLOR,
-                  mr: 2,
-                }}
-              >
-                <Bell size={24} />
-              </Avatar>
-              <Box>
-                <Typography variant="h5" component="h1" fontWeight="bold" color={GREEN_COLOR}>
-                  Centre de Notifications
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  Gérez vos notifications et restez informé
-                </Typography>
+            <Box
+              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <Avatar
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    backgroundColor: alpha(GREEN_COLOR, 0.1),
+                    color: GREEN_COLOR,
+                    mr: 2,
+                  }}
+                >
+                  <Bell size={24} />
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" component="h1" fontWeight="bold" color={GREEN_COLOR}>
+                    Centre de Notifications
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    Gérez vos notifications et restez informé
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <Button
-                variant="outlined"
-                startIcon={<RefreshCw size={16} />}
-                onClick={fetchNotifications}
-                disabled={loading}
-                sx={{
-                  borderRadius: 2,
-                  textTransform: "none",
-                  fontWeight: 500,
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-                  borderColor: alpha(GREEN_COLOR, 0.5),
-                  color: GREEN_COLOR,
-                  "&:hover": {
-                    borderColor: GREEN_COLOR,
-                    backgroundColor: alpha(GREEN_COLOR, 0.05),
-                  },
-                }}
-              >
-                Actualiser
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<Filter size={16} />}
-                endIcon={<ChevronDown size={14} />}
-                onClick={handleFilterClick}
-                sx={{
-                  borderRadius: 2,
-                  textTransform: "none",
-                  fontWeight: 500,
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-                  borderColor: alpha(GREEN_COLOR, 0.5),
-                  color: GREEN_COLOR,
-                  "&:hover": {
-                    borderColor: GREEN_COLOR,
-                    backgroundColor: alpha(GREEN_COLOR, 0.05),
-                  },
-                }}
-              >
-                {getTimeFilterLabel()}
-              </Button>
-              <Menu
-                anchorEl={filterAnchorEl}
-                open={Boolean(filterAnchorEl)}
-                onClose={handleFilterClose}
-                PaperProps={{
-                  elevation: 3,
-                  sx: {
-                    borderRadius: 2,
-                    minWidth: 180,
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-                  },
-                }}
-              >
-                <MenuItem
-                  onClick={() => handleTimeFilterChange("all")}
-                  selected={timeFilter === "all"}
-                  sx={{ py: 1.5 }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Calendar size={16} />
-                    <Typography sx={{ ml: 1.5 }}>Tout le temps</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem
-                  onClick={() => handleTimeFilterChange("today")}
-                  selected={timeFilter === "today"}
-                  sx={{ py: 1.5 }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Calendar size={16} />
-                    <Typography sx={{ ml: 1.5 }}>Aujourd'hui</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem
-                  onClick={() => handleTimeFilterChange("yesterday")}
-                  selected={timeFilter === "yesterday"}
-                  sx={{ py: 1.5 }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Calendar size={16} />
-                    <Typography sx={{ ml: 1.5 }}>Hier</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem
-                  onClick={() => handleTimeFilterChange("thisWeek")}
-                  selected={timeFilter === "thisWeek"}
-                  sx={{ py: 1.5 }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Calendar size={16} />
-                    <Typography sx={{ ml: 1.5 }}>Cette semaine</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem
-                  onClick={() => handleTimeFilterChange("thisMonth")}
-                  selected={timeFilter === "thisMonth"}
-                  sx={{ py: 1.5 }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Calendar size={16} />
-                    <Typography sx={{ ml: 1.5 }}>Ce mois-ci</Typography>
-                  </Box>
-                </MenuItem>
-              </Menu>
-            </Box>
-          </Box>
-
-          <Divider sx={{ my: 2 }} />
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="body2" color="text.secondary">
-              {filteredNotifications.length} notification{filteredNotifications.length !== 1 ? "s" : ""}
-              {unreadCount > 0 && ` (${unreadCount} non lue${unreadCount !== 1 ? "s" : ""})`}
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              {unreadCount > 0 && (
+              <Box sx={{ display: "flex", gap: 1 }}>
                 <Button
-                  variant="contained"
-                  startIcon={<Check size={16} />}
-                  onClick={markAllAsRead}
-                  size="small"
+                  variant="outlined"
+                  startIcon={<RefreshCw size={16} />}
+                  onClick={fetchNotifications}
+                  disabled={loading}
                   sx={{
                     borderRadius: 2,
                     textTransform: "none",
                     fontWeight: 500,
-                    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-                    backgroundColor: GREEN_COLOR,
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+                    borderColor: alpha(GREEN_COLOR, 0.5),
+                    color: GREEN_COLOR,
                     "&:hover": {
-                      backgroundColor: alpha(GREEN_COLOR, 0.9),
+                      borderColor: GREEN_COLOR,
+                      backgroundColor: alpha(GREEN_COLOR, 0.05),
                     },
                   }}
                 >
-                  Tout marquer comme lu
+                  Actualiser
                 </Button>
-              )}
-              {notifications.length > 0 && (
                 <Button
                   variant="outlined"
-                  color="error"
-                  startIcon={<Trash2 size={16} />}
-                  onClick={openDeleteAllDialog}
-                  size="small"
+                  startIcon={<Filter size={16} />}
+                  endIcon={<ChevronDown size={14} />}
+                  onClick={handleFilterClick}
                   sx={{
                     borderRadius: 2,
                     textTransform: "none",
                     fontWeight: 500,
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+                    borderColor: alpha(GREEN_COLOR, 0.5),
+                    color: GREEN_COLOR,
+                    "&:hover": {
+                      borderColor: GREEN_COLOR,
+                      backgroundColor: alpha(GREEN_COLOR, 0.05),
+                    },
                   }}
                 >
-                  Tout supprimer
+                  {getTimeFilterLabel()}
                 </Button>
-              )}
-            </Box>
-          </Box>
-        </Paper>
-
-        <Paper
-          elevation={2}
-          sx={{
-            borderRadius: 2,
-            overflow: "hidden",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-          }}
-        >
-          <Box sx={{ borderBottom: 1, borderColor: "divider", backgroundColor: alpha(GREEN_COLOR, 0.03) }}>
-            <Tabs
-              value={tabValue}
-              onChange={handleTabChange}
-              aria-label="notification tabs"
-              variant="scrollable"
-              scrollButtons="auto"
-              TabIndicatorProps={{
-                style: { backgroundColor: GREEN_COLOR },
-              }}
-              sx={{
-                "& .MuiTab-root": {
-                  textTransform: "none",
-                  fontWeight: 500,
-                  fontSize: "0.95rem",
-                  minHeight: 56,
-                },
-                "& .Mui-selected": {
-                  fontWeight: 600,
-                  color: `${GREEN_COLOR} !important`,
-                },
-              }}
-            >
-              <Tab
-                label={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Bell size={18} />
-                    <Typography sx={{ ml: 1 }}>Toutes</Typography>
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 1,
-                        backgroundColor: alpha(GREEN_COLOR, 0.1),
-                        color: GREEN_COLOR,
-                        borderRadius: 10,
-                        px: 1,
-                        py: 0.2,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {notifications.length}
-                    </Box>
-                  </Box>
-                }
-                {...a11yProps(0)}
-              />
-              <Tab
-                label={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Bell size={18} />
-                    <Typography sx={{ ml: 1 }}>Non lues</Typography>
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 1,
-                        backgroundColor: alpha(GREEN_COLOR, 0.1),
-                        color: GREEN_COLOR,
-                        borderRadius: 10,
-                        px: 1,
-                        py: 0.2,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {unreadCount}
-                    </Box>
-                  </Box>
-                }
-                {...a11yProps(1)}
-              />
-              <Tab
-                label={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Info size={18} />
-                    <Typography sx={{ ml: 1 }}>Informations</Typography>
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 1,
-                        backgroundColor: alpha(theme.palette.info.main, 0.1),
-                        color: theme.palette.info.main,
-                        borderRadius: 10,
-                        px: 1,
-                        py: 0.2,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {infoCount}
-                    </Box>
-                  </Box>
-                }
-                {...a11yProps(2)}
-              />
-              <Tab
-                label={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <CheckCircle2 size={18} />
-                    <Typography sx={{ ml: 1 }}>Succès</Typography>
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 1,
-                        backgroundColor: alpha(GREEN_COLOR, 0.1),
-                        color: GREEN_COLOR,
-                        borderRadius: 10,
-                        px: 1,
-                        py: 0.2,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {successCount}
-                    </Box>
-                  </Box>
-                }
-                {...a11yProps(3)}
-              />
-              <Tab
-                label={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <AlertCircle size={18} />
-                    <Typography sx={{ ml: 1 }}>Avertissements</Typography>
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 1,
-                        backgroundColor: alpha(theme.palette.warning.main, 0.1),
-                        color: theme.palette.warning.main,
-                        borderRadius: 10,
-                        px: 1,
-                        py: 0.2,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {warningCount}
-                    </Box>
-                  </Box>
-                }
-                {...a11yProps(4)}
-              />
-              <Tab
-                label={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <XCircle size={18} />
-                    <Typography sx={{ ml: 1 }}>Erreurs</Typography>
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 1,
-                        backgroundColor: alpha(theme.palette.error.main, 0.1),
-                        color: theme.palette.error.main,
-                        borderRadius: 10,
-                        px: 1,
-                        py: 0.2,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {errorCount}
-                    </Box>
-                  </Box>
-                }
-                {...a11yProps(5)}
-              />
-            </Tabs>
-          </Box>
-
-          {loading && (
-            <LinearProgress
-              sx={{
-                "& .MuiLinearProgress-bar": {
-                  backgroundColor: GREEN_COLOR,
-                },
-              }}
-            />
-          )}
-
-          <TabPanel value={tabValue} index={tabValue}>
-            <Box sx={{ p: 0 }}>
-              {filteredNotifications.length === 0 ? (
-                <Box
-                  sx={{
-                    py: 8,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center",
-                    color: "text.secondary",
+                <Menu
+                  anchorEl={filterAnchorEl}
+                  open={Boolean(filterAnchorEl)}
+                  onClose={handleFilterClose}
+                  PaperProps={{
+                    elevation: 3,
+                    sx: {
+                      borderRadius: 2,
+                      minWidth: 180,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                    },
                   }}
                 >
-                  <Avatar
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      backgroundColor: alpha(GREEN_COLOR, 0.1),
-                      color: GREEN_COLOR,
-                      mb: 2,
-                    }}
+                  <MenuItem
+                    onClick={() => handleTimeFilterChange("all")}
+                    selected={timeFilter === "all"}
+                    sx={{ py: 1.5 }}
                   >
-                    <Bell size={40} />
-                  </Avatar>
-                  <Typography variant="h6" gutterBottom>
-                    Aucune notification {tabValue !== 0 ? "dans cette catégorie" : ""}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400 }}>
-                    {tabValue === 1
-                      ? "Vous avez lu toutes vos notifications. Revenez plus tard pour voir les nouvelles notifications."
-                      : "Vous n'avez pas encore reçu de notifications. Revenez plus tard pour voir les mises à jour."}
-                  </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Calendar size={16} />
+                      <Typography sx={{ ml: 1.5 }}>Tout le temps</Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => handleTimeFilterChange("today")}
+                    selected={timeFilter === "today"}
+                    sx={{ py: 1.5 }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Calendar size={16} />
+                      <Typography sx={{ ml: 1.5 }}>Aujourd'hui</Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => handleTimeFilterChange("yesterday")}
+                    selected={timeFilter === "yesterday"}
+                    sx={{ py: 1.5 }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Calendar size={16} />
+                      <Typography sx={{ ml: 1.5 }}>Hier</Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => handleTimeFilterChange("thisWeek")}
+                    selected={timeFilter === "thisWeek"}
+                    sx={{ py: 1.5 }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Calendar size={16} />
+                      <Typography sx={{ ml: 1.5 }}>Cette semaine</Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => handleTimeFilterChange("thisMonth")}
+                    selected={timeFilter === "thisMonth"}
+                    sx={{ py: 1.5 }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Calendar size={16} />
+                      <Typography sx={{ ml: 1.5 }}>Ce mois-ci</Typography>
+                    </Box>
+                  </MenuItem>
+                </Menu>
+              </Box>
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography variant="body2" color="text.secondary">
+                {filteredNotifications.length} notification{filteredNotifications.length !== 1 ? "s" : ""}
+                {unreadCount > 0 && ` (${unreadCount} non lue${unreadCount !== 1 ? "s" : ""})`}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                {unreadCount > 0 && (
                   <Button
-                    variant="outlined"
-                    startIcon={<RefreshCw size={16} />}
-                    onClick={fetchNotifications}
+                    variant="contained"
+                    startIcon={
+                      markAllAsReadLoading ? <CircularProgress size={16} color="inherit" /> : <Check size={16} />
+                    }
+                    onClick={markAllAsRead}
+                    disabled={markAllAsReadLoading}
+                    size="small"
                     sx={{
-                      mt: 3,
                       borderRadius: 2,
                       textTransform: "none",
-                      borderColor: alpha(GREEN_COLOR, 0.5),
-                      color: GREEN_COLOR,
+                      fontWeight: 500,
+                      boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                      backgroundColor: GREEN_COLOR,
                       "&:hover": {
-                        borderColor: GREEN_COLOR,
-                        backgroundColor: alpha(GREEN_COLOR, 0.05),
+                        backgroundColor: alpha(GREEN_COLOR, 0.9),
                       },
                     }}
                   >
-                    Actualiser
+                    {markAllAsReadLoading ? "Marquage..." : "Tout marquer comme lu"}
                   </Button>
-                </Box>
-              ) : (
-                <Box>
-                  {filteredNotifications.map((notification) => (
-                    <Box
-                      key={notification.id}
+                )}
+                {notifications.length > 0 && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<Trash2 size={16} />}
+                    onClick={openDeleteAllDialog}
+                    size="small"
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: "none",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Tout supprimer
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </Paper>
+
+          <Paper
+            elevation={2}
+            sx={{
+              borderRadius: 2,
+              overflow: "hidden",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Box sx={{ borderBottom: 1, borderColor: "divider", backgroundColor: alpha(GREEN_COLOR, 0.03) }}>
+              <Tabs
+                value={tabValue}
+                onChange={handleTabChange}
+                aria-label="notification tabs"
+                variant="scrollable"
+                scrollButtons="auto"
+                TabIndicatorProps={{
+                  style: { backgroundColor: GREEN_COLOR },
+                }}
+                sx={{
+                  "& .MuiTab-root": {
+                    textTransform: "none",
+                    fontWeight: 500,
+                    fontSize: "0.95rem",
+                    minHeight: 56,
+                  },
+                  "& .Mui-selected": {
+                    fontWeight: 600,
+                    color: `${GREEN_COLOR} !important`,
+                  },
+                }}
+              >
+                <Tab
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Bell size={18} />
+                      <Typography sx={{ ml: 1 }}>Toutes</Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          ml: 1,
+                          backgroundColor: alpha(GREEN_COLOR, 0.1),
+                          color: GREEN_COLOR,
+                          borderRadius: 10,
+                          px: 1,
+                          py: 0.2,
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {notifications.length}
+                      </Box>
+                    </Box>
+                  }
+                  {...a11yProps(0)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Bell size={18} />
+                      <Typography sx={{ ml: 1 }}>Non lues</Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          ml: 1,
+                          backgroundColor: alpha(GREEN_COLOR, 0.1),
+                          color: GREEN_COLOR,
+                          borderRadius: 10,
+                          px: 1,
+                          py: 0.2,
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {unreadCount}
+                      </Box>
+                    </Box>
+                  }
+                  {...a11yProps(1)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Info size={18} />
+                      <Typography sx={{ ml: 1 }}>Informations</Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          ml: 1,
+                          backgroundColor: alpha(theme.palette.info.main, 0.1),
+                          color: theme.palette.info.main,
+                          borderRadius: 10,
+                          px: 1,
+                          py: 0.2,
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {infoCount}
+                      </Box>
+                    </Box>
+                  }
+                  {...a11yProps(2)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <CheckCircle2 size={18} />
+                      <Typography sx={{ ml: 1 }}>Succès</Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          ml: 1,
+                          backgroundColor: alpha(GREEN_COLOR, 0.1),
+                          color: GREEN_COLOR,
+                          borderRadius: 10,
+                          px: 1,
+                          py: 0.2,
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {successCount}
+                      </Box>
+                    </Box>
+                  }
+                  {...a11yProps(3)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <AlertCircle size={18} />
+                      <Typography sx={{ ml: 1 }}>Avertissements</Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          ml: 1,
+                          backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                          color: theme.palette.warning.main,
+                          borderRadius: 10,
+                          px: 1,
+                          py: 0.2,
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {warningCount}
+                      </Box>
+                    </Box>
+                  }
+                  {...a11yProps(4)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <XCircle size={18} />
+                      <Typography sx={{ ml: 1 }}>Erreurs</Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          ml: 1,
+                          backgroundColor: alpha(theme.palette.error.main, 0.1),
+                          color: theme.palette.error.main,
+                          borderRadius: 10,
+                          px: 1,
+                          py: 0.2,
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {errorCount}
+                      </Box>
+                    </Box>
+                  }
+                  {...a11yProps(5)}
+                />
+              </Tabs>
+            </Box>
+
+            {loading && (
+              <LinearProgress
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: GREEN_COLOR,
+                  },
+                }}
+              />
+            )}
+
+            <TabPanel value={tabValue} index={tabValue}>
+              <Box sx={{ p: 0 }}>
+                {filteredNotifications.length === 0 ? (
+                  <Box
+                    sx={{
+                      py: 8,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      color: "text.secondary",
+                    }}
+                  >
+                    <Avatar
                       sx={{
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                        transition: "all 0.2s",
+                        width: 80,
+                        height: 80,
+                        backgroundColor: alpha(GREEN_COLOR, 0.1),
+                        color: GREEN_COLOR,
+                        mb: 2,
+                      }}
+                    >
+                      <Bell size={40} />
+                    </Avatar>
+                    <Typography variant="h6" gutterBottom>
+                      Aucune notification {tabValue !== 0 ? "dans cette catégorie" : ""}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400 }}>
+                      {tabValue === 1
+                        ? "Vous avez lu toutes vos notifications. Revenez plus tard pour voir les nouvelles notifications."
+                        : "Vous n'avez pas encore reçu de notifications. Revenez plus tard pour voir les mises à jour."}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      startIcon={<RefreshCw size={16} />}
+                      onClick={fetchNotifications}
+                      sx={{
+                        mt: 3,
+                        borderRadius: 2,
+                        textTransform: "none",
+                        borderColor: alpha(GREEN_COLOR, 0.5),
+                        color: GREEN_COLOR,
                         "&:hover": {
-                          backgroundColor: alpha(GREEN_COLOR, 0.02),
+                          borderColor: GREEN_COLOR,
+                          backgroundColor: alpha(GREEN_COLOR, 0.05),
                         },
                       }}
                     >
+                      Actualiser
+                    </Button>
+                  </Box>
+                ) : (
+                  <Box>
+                    {filteredNotifications.map((notification) => (
                       <Box
+                        key={notification.id}
                         sx={{
-                          p: 3,
-                          display: "flex",
-                          position: "relative",
-                          backgroundColor: notification.is_read ? "transparent" : alpha(GREEN_COLOR, 0.03),
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            backgroundColor: alpha(GREEN_COLOR, 0.02),
+                          },
                         }}
                       >
-                        <Avatar
+                        <Box
                           sx={{
-                            width: 48,
-                            height: 48,
-                            backgroundColor: getTypeBackground(notification.type),
-                            color: getTypeColor(notification.type),
+                            p: 3,
+                            display: "flex",
+                            position: "relative",
+                            backgroundColor: notification.is_read ? "transparent" : alpha(GREEN_COLOR, 0.03),
                           }}
                         >
-                          {getTypeIcon(notification.type)}
-                        </Avatar>
-
-                        <Box sx={{ ml: 2, flex: 1 }}>
-                          <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
-                            <Typography
-                              variant="subtitle1"
-                              sx={{
-                                fontWeight: notification.is_read ? 500 : 600,
-                                color: "text.primary",
-                              }}
-                            >
-                              {notification.title}
-                            </Typography>
-                            {!notification.is_read && (
-                              <Box
-                                component="span"
-                                sx={{
-                                  ml: 1.5,
-                                  px: 1.5,
-                                  py: 0.5,
-                                  borderRadius: 10,
-                                  backgroundColor: alpha(GREEN_COLOR, 0.1),
-                                  color: GREEN_COLOR,
-                                  fontSize: "0.75rem",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                Non lu
-                              </Box>
-                            )}
-                          </Box>
-
-                          <Typography
-                            variant="body1"
+                          <Avatar
                             sx={{
-                              color: notification.is_read ? "text.secondary" : "text.primary",
-                              mb: 1,
+                              width: 48,
+                              height: 48,
+                              backgroundColor: getTypeBackground(notification.type),
+                              color: getTypeColor(notification.type),
                             }}
                           >
-                            {notification.message}
-                          </Typography>
+                            {getTypeIcon(notification.type)}
+                          </Avatar>
 
-                          <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                color: "text.secondary",
-                                fontSize: "0.875rem",
-                              }}
-                            >
-                              <Clock size={14} strokeWidth={2} />
-                              <Typography variant="body2" sx={{ ml: 0.5 }}>
-                                {formatDate(notification.created_at)}
+                          <Box sx={{ ml: 2, flex: 1 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+                              <Typography
+                                variant="subtitle1"
+                                sx={{
+                                  fontWeight: notification.is_read ? 500 : 600,
+                                  color: "text.primary",
+                                }}
+                              >
+                                {notification.title}
                               </Typography>
+                              {!notification.is_read && (
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    ml: 1.5,
+                                    px: 1.5,
+                                    py: 0.5,
+                                    borderRadius: 10,
+                                    backgroundColor: alpha(GREEN_COLOR, 0.1),
+                                    color: GREEN_COLOR,
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Non lu
+                                </Box>
+                              )}
                             </Box>
 
-                            <Box sx={{ ml: "auto", display: "flex" }}>
-                              {!notification.is_read && (
+                            <Typography
+                              variant="body1"
+                              sx={{
+                                color: notification.is_read ? "text.secondary" : "text.primary",
+                                mb: 1,
+                              }}
+                            >
+                              {notification.message}
+                            </Typography>
+
+                            <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  color: "text.secondary",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                <Clock size={14} strokeWidth={2} />
+                                <Typography variant="body2" sx={{ ml: 0.5 }}>
+                                  {formatDate(notification.created_at)}
+                                </Typography>
+                              </Box>
+
+                              <Box sx={{ ml: "auto", display: "flex" }}>
+                                {!notification.is_read && (
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={
+                                      markAsReadLoading === notification.id ? (
+                                        <CircularProgress size={14} color="inherit" />
+                                      ) : (
+                                        <Check size={14} />
+                                      )
+                                    }
+                                    onClick={() => markAsRead(notification.id)}
+                                    disabled={markAsReadLoading === notification.id}
+                                    sx={{
+                                      mr: 1,
+                                      borderRadius: 2,
+                                      textTransform: "none",
+                                      borderColor: alpha(GREEN_COLOR, 0.5),
+                                      color: GREEN_COLOR,
+                                      "&:hover": {
+                                        borderColor: GREEN_COLOR,
+                                        backgroundColor: alpha(GREEN_COLOR, 0.08),
+                                      },
+                                    }}
+                                  >
+                                    {markAsReadLoading === notification.id ? "Marquage..." : "Marquer comme lu"}
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outlined"
                                   size="small"
-                                  startIcon={<Check size={14} />}
-                                  onClick={() => markAsRead(notification.id)}
+                                  color="error"
+                                  startIcon={<Trash2 size={14} />}
+                                  onClick={() => openDeleteDialog(notification.id)}
                                   sx={{
-                                    mr: 1,
                                     borderRadius: 2,
                                     textTransform: "none",
-                                    borderColor: alpha(GREEN_COLOR, 0.5),
-                                    color: GREEN_COLOR,
+                                    borderColor: theme.palette.error.main,
+                                    color: theme.palette.error.main,
                                     "&:hover": {
-                                      borderColor: GREEN_COLOR,
-                                      backgroundColor: alpha(GREEN_COLOR, 0.08),
+                                      backgroundColor: alpha(theme.palette.error.main, 0.08),
                                     },
                                   }}
                                 >
-                                  Marquer comme lu
+                                  Supprimer
                                 </Button>
-                              )}
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                color="error"
-                                startIcon={<Trash2 size={14} />}
-                                onClick={() => openDeleteDialog(notification.id)}
-                                sx={{
-                                  borderRadius: 2,
-                                  textTransform: "none",
-                                  borderColor: theme.palette.error.main,
-                                  color: theme.palette.error.main,
-                                  "&:hover": {
-                                    backgroundColor: alpha(theme.palette.error.main, 0.08),
-                                  },
-                                }}
-                              >
-                                Supprimer
-                              </Button>
+                              </Box>
                             </Box>
                           </Box>
                         </Box>
                       </Box>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-          </TabPanel>
-        </Paper>
-      </Box>
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            </TabPanel>
+          </Paper>
+        </Box>
 
-      {/* Boîte de dialogue de confirmation pour supprimer une notification */}
-      <DeleteDialog
-        open={deleteDialogOpen}
-        title="Supprimer la notification"
-        content="Êtes-vous sûr de vouloir supprimer cette notification ? Cette action est irréversible."
-        onClose={closeDeleteDialog}
-        onConfirm={deleteNotification}
-        isSingle={true}
-      />
+        {/* Boîte de dialogue de confirmation pour supprimer une notification */}
+        <DeleteDialog
+          open={deleteDialogOpen}
+          title="Supprimer la notification"
+          content="Êtes-vous sûr de vouloir supprimer cette notification ? Cette action est irréversible."
+          onClose={closeDeleteDialog}
+          onConfirm={deleteNotification}
+          isSingle={true}
+          loading={deleteLoading}
+        />
 
-      {/* Boîte de dialogue de confirmation pour supprimer toutes les notifications */}
-      <DeleteDialog
-        open={deleteAllDialogOpen}
-        title="Supprimer toutes les notifications"
-        content="Êtes-vous sûr de vouloir supprimer toutes vos notifications ? Cette action est irréversible."
-        onClose={closeDeleteAllDialog}
-        onConfirm={deleteAllNotifications}
-        isSingle={false}
-      />
+        {/* Boîte de dialogue de confirmation pour supprimer toutes les notifications */}
+        <DeleteDialog
+          open={deleteAllDialogOpen}
+          title="Supprimer toutes les notifications"
+          content="Êtes-vous sûr de vouloir supprimer toutes vos notifications ? Cette action est irréversible."
+          onClose={closeDeleteAllDialog}
+          onConfirm={deleteAllNotifications}
+          isSingle={false}
+          loading={deleteAllLoading}
+        />
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{
-            width: "100%",
-            ...(snackbar.severity === "success" && {
-              backgroundColor: GREEN_COLOR,
-            }),
-          }}
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            sx={{
+              width: "100%",
+              borderRadius: 2,
+            }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
     </AppLayout>
   )
 }

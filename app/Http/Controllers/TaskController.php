@@ -7,6 +7,7 @@ use App\Events\TaskCompleted;
 use App\Events\TaskCreated;
 use App\Events\TaskDeleted;
 use App\Events\TaskUpdated;
+use App\Http\Requests\BulkTaskRequest;
 use App\Http\Requests\TaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
@@ -18,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 
 class TaskController extends Controller
@@ -31,9 +33,25 @@ class TaskController extends Controller
         if (!$user)
             return response()->json(['message' => 'Unauthenticated'], 401);
 
-        Task::where('status_id', 1)
+        $tasks = Task::with('dependencies')->where('status_id', 1)
             ->whereDate('start_date', '<=', Carbon::today())
-            ->update(['status_id' => 2]);
+            ->get();
+
+        foreach ($tasks as $task) {
+            $canStart = true;
+
+            foreach ($task->dependencies as $dep) {
+                if ($dep->status_id !== 3) { // 3 = terminée
+                    $canStart = false;
+                    break;
+                }
+            }
+
+            if ($canStart) {
+                $task->status_id = 2; // en cours
+                $task->save();
+            }
+        }
 
         if ($user->role === 'admin') {
             $tasks = Task::with(['project', 'status', 'priority', 'assignedUser'])->get();
@@ -193,7 +211,7 @@ class TaskController extends Controller
 
     public function Taskterminer($id)
     {
-        
+
 
         $user = Auth::user();
         /** @var \App\Models\Task $task */
@@ -252,7 +270,76 @@ class TaskController extends Controller
 
     }
 
+    public function storeTaskGroupWithDependencies(BulkTaskRequest $request)
+    {
+        $createdTasks = [];
 
+        // Étape 1 : Créer les tâches
+        foreach ($request->tasks as $index => $taskData) {
+            $task = Task::create([
+                'project_id' => $request->project_id,
+                'title' => $taskData['title'],
+                'description' => $taskData['description'] ?? null,
+                'assigned_to' => $taskData['assigned_to'] ?? null,
+                'priority_id' => $taskData['priority_id'],
+                'start_date' => $taskData['start_date'],
+                'end_date' => $taskData['end_date'],
+                'progress' => $taskData['progress'] ?? 0,
+                'status_id' => 1, // Statut par défaut : "non démarrée"
+            ]);
+
+            event(new TaskCreated($task));
+
+            $createdTasks[$index] = $task;
+        }
+
+        // Étape 2 : Créer les dépendances
+        foreach ($request->tasks as $index => $taskData) {
+            if (!empty($taskData['depends_on'])) {
+                foreach ($taskData['depends_on'] as $depIndex) {
+                    if (isset($createdTasks[$depIndex])) {
+                        DB::table('task_dependencies')->insert([
+                            'task_id' => $createdTasks[$index]->id,
+                            'depends_on_task_id' => $createdTasks[$depIndex]->id,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tâches et dépendances créées avec succès.',
+            'tasks' => TaskResource::collection($createdTasks)
+        ], 201);
+    }
+
+
+    public function startTask($id)
+    {
+        $task = Task::with('dependencies')->findOrFail($id);
+
+        // Vérifie que toutes les tâches dont elle dépend sont terminées
+        foreach ($task->dependencies as $dependency) {
+            if ($dependency->status_id !== 3) { // 3 = statut "terminée"
+                return response()->json([
+                    'success' => false,
+                    'message' => "Impossible de commencer la tâche. Elle dépend de : {$dependency->title} (non terminée)",
+                ], 400);
+            }
+        }
+
+        // Toutes les dépendances sont terminées → on peut commencer
+        $task->status_id = 2; // 2 = "en cours"
+        $task->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tâche démarrée avec succès.',
+        ]);
+    }
 
 
 
@@ -272,6 +359,8 @@ class TaskController extends Controller
             'message' => 'Tâches avec une échéance dans les 5 prochains jours',
         ]);
     }
+
+
 
 
 

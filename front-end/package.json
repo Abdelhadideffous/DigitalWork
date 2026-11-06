@@ -12,7 +12,9 @@
     "dependencies": {
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.0",
+        "@hello-pangea/dnd": "^18.0.1",
         "@mui/icons-material": "^7.0.2",
+        "@mui/lab": "^7.0.0-beta.13",
         "@mui/material": "^7.0.2",
         "@mui/x-date-pickers": "^7.28.3",
         "axios": "^1.8.4",
@@ -32,6 +34,7 @@
         "@types/date-fns": "^2.5.3",
         "@types/file-saver": "^2.0.7",
         "@types/react": "^19.0.10",
+        "@types/react-beautiful-dnd": "^13.1.8",
         "@types/react-dom": "^19.0.4",
         "@vitejs/plugin-react-swc": "^3.8.0",
         "eslint": "^9.21.0",

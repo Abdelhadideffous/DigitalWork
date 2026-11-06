@@ -2,16 +2,7 @@
 
 import type React from "react"
 
-import {
-  LayoutDashboard,
-  FolderKanban,
-  ClipboardList,
-  CheckSquare,
-  Users,
-  User,
-  LogOut,
-  Menu,
-} from "lucide-react"
+import { LayoutDashboard, FolderKanban, ClipboardList, CheckSquare, Users, User, LogOut, Menu } from "lucide-react"
 import {
   AppBar,
   Avatar,
@@ -58,8 +49,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   // Mettre à jour currentUser sur event 'user-updated'
   useEffect(() => {
     const updateUser = () => setCurrentUser(getCurrentUser())
-    window.addEventListener('user-updated', updateUser)
-    return () => window.removeEventListener('user-updated', updateUser)
+    window.addEventListener("user-updated", updateUser)
+    return () => window.removeEventListener("user-updated", updateUser)
   }, [])
 
   // Structure du menu avec icônes appropriées
@@ -70,14 +61,15 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     { text: "Tâches", icon: <CheckSquare {...iconProps} />, path: "/4" },
     { text: "Équipe", icon: <Users {...iconProps} />, path: "/5" },
     // 'Users' only for admin
-    ...(currentUser?.role === 'admin' ? [
-      { text: "Users", icon: <User {...iconProps} />, path: "/6" },
-    ] : []),
+    ...(currentUser?.role === "admin" ? [{ text: "Users", icon: <User {...iconProps} />, path: "/6" }] : []),
   ]
 
   // Détection de l'élément actif à partir de l'URL
   const getActiveIndex = () => {
-    return menuItems.findIndex((item) => window.location.pathname === item.path)
+    const currentPath = window.location.pathname
+    return menuItems.findIndex(
+      (item) => currentPath === item.path || (item.path !== "/" && currentPath.startsWith(item.path)),
+    )
   }
 
   const activeIndex = getActiveIndex()
@@ -145,33 +137,36 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   // Polling global pour rafraîchir les infos utilisateur dans sessionStorage
   useEffect(() => {
     const pollUser = () => {
-      const userStr = sessionStorage.getItem('user');
-      if (!userStr) return;
-      let user;
+      const userStr = sessionStorage.getItem("user")
+      if (!userStr) return
+      let user
       try {
-        user = JSON.parse(userStr);
+        user = JSON.parse(userStr)
       } catch {
-        return;
+        return
       }
-      if (!user?.id) return;
-      userService.getUserById(user.id).then(response => {
-        if (response.success && response.data) {
-          const updatedUser = response.data;
-          const updatedUserStr = JSON.stringify(updatedUser);
-          if (updatedUserStr !== userStr) {
-            sessionStorage.setItem('user', updatedUserStr);
-            // Déclencher un event pour informer les autres onglets/pages
-            window.dispatchEvent(new Event('user-updated'));
+      if (!user?.id) return
+      userService
+        .getUserById(user.id)
+        .then((response) => {
+          if (response.success && response.data) {
+            const updatedUser = response.data
+            const updatedUserStr = JSON.stringify(updatedUser)
+            if (updatedUserStr !== userStr) {
+              sessionStorage.setItem("user", updatedUserStr)
+              // Déclencher un event pour informer les autres onglets/pages
+              window.dispatchEvent(new Event("user-updated"))
+            }
           }
-        }
-      }).catch(() => {});
-    };
+        })
+        .catch(() => {})
+    }
     // Premier appel immédiat
-    pollUser();
+    pollUser()
     // Puis toutes les 2 minutes
-    const interval = setInterval(pollUser, 1 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(pollUser, 1 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f5f5f5" }}>
@@ -211,9 +206,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
           {/* Espace flexible pour pousser les éléments suivants à droite */}
           <Box sx={{ flexGrow: 1 }} />
-          
+
           {/* Composant de notification */}
-          {sessionStorage.getItem('token') && <NotificationBell />}
+          {sessionStorage.getItem("token") && <NotificationBell />}
 
           {/* Bouton de profil avec menu */}
           <Box sx={{ display: "flex", alignItems: "center", textAlign: "center" }}>
@@ -223,7 +218,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               sx={{ ml: 2 }}
             >
               <Avatar sx={{ width: 32, height: 32, bgcolor: "#16A249" }}>
-                {currentUser?.name ? currentUser.name.charAt(0) : 'M'}
+                {currentUser?.name ? currentUser.name.charAt(0) : "M"}
               </Avatar>
             </IconButton>
           </Box>
@@ -240,7 +235,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <MenuItem
               onClick={() => {
                 setAnchorEl(null) // Close the menu
-                window.location.href = "/7" 
+                window.location.href = "/7"
               }}
             >
               <ListItemIcon>

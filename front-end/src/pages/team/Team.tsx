@@ -1126,16 +1126,9 @@ const Team: React.FC = () => {
                     <>
                         <Box sx={{ mb: 2 }}>
                             <Breadcrumbs aria-label="breadcrumb">
-                                <Typography
-                                    color="inherit"
-                                    sx={{
-                                        cursor: 'pointer',
-                                        '&:hover': { textDecoration: 'underline' },
-                                    }}
-                                    onClick={() => handleBackToTeamsList()}
-                                >
+                            <Link underline="hover" color="inherit" href="/dashboard">
                                     Tableau de bord
-                                </Typography>
+                                </Link>
                                 <Typography
                                     color="inherit"
                                     sx={{
@@ -1445,7 +1438,7 @@ const Team: React.FC = () => {
                     <>
                         <Box sx={{ mb: 2 }}>
                             <Breadcrumbs aria-label="breadcrumb">
-                                <Link underline="hover" color="inherit" href="/1">
+                                <Link underline="hover" color="inherit" href="/dashboard">
                                     Tableau de bord
                                 </Link>
                                 <Typography color="text.primary">Équipe </Typography>

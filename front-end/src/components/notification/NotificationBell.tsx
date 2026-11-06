@@ -749,26 +749,24 @@ const NotificationBell: React.FC = () => {
         onConfirm={deleteNotification}
       />
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{
-            width: "100%",
-            ...(snackbar.severity === "success" && {
-              backgroundColor: GREEN_COLOR,
-            }),
-          }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+<Snackbar
+  open={snackbar.open}
+  autoHideDuration={6000}
+  onClose={() => setSnackbar({ ...snackbar, open: false })}
+  anchorOrigin={{ vertical: "top", horizontal: "right" }}
+>
+  <Alert
+    onClose={() => setSnackbar({ ...snackbar, open: false })}
+    severity={snackbar.severity}
+    sx={{
+      width: "100%",
+      borderRadius: 2,
+    }}
+  >
+    {snackbar.message}
+  </Alert>
+</Snackbar>
+
     </>
   )
 }

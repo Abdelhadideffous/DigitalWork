@@ -769,7 +769,7 @@ const FinalEdb: React.FC = () => {
             {/* Fil d'Ariane */}
             <Box sx={{ mb: 2 }}>
               <Breadcrumbs aria-label="breadcrumb">
-                <Link underline="hover" color="inherit" href="/1">
+                <Link underline="hover" color="inherit" href="/dashboard">
                   Tableau de bord
                 </Link>
                 <Typography color="text.primary">Expressions de Besoin</Typography>

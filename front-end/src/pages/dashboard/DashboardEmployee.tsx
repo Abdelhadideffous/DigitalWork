@@ -6,7 +6,6 @@ import {
   Folder as FolderIcon,
   Group as GroupIcon,
   KeyboardArrowRight as ArrowRightIcon,
-  MoreVert as MoreIcon,
   Refresh as RefreshIcon,
   Task as TaskIcon,
   Warning as AlertTriangleIcon,
@@ -106,6 +105,7 @@ export default function DashboardEmployee() {
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     const user = getCurrentUser()
@@ -209,6 +209,7 @@ export default function DashboardEmployee() {
 
   const fetchNotifications = async () => {
     try {
+      setRefreshing(true)
       const token = sessionStorage.getItem("token")
       if (token) {
         const response = await api.get("/notifications", {
@@ -248,6 +249,8 @@ export default function DashboardEmployee() {
         },
       ]
       setNotifications(mockNotifications)
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -437,6 +440,7 @@ export default function DashboardEmployee() {
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
               <Button
                 variant="outlined"
+                href="/4"
                 startIcon={<TaskIcon />}
                 sx={{
                   borderColor: "white",
@@ -446,12 +450,12 @@ export default function DashboardEmployee() {
                   textTransform: "none",
                   fontWeight: 600,
                 }}
-                onClick={() => (window.location.href = "/4")}
               >
                 Voir mes tâches
               </Button>
               <Button
                 variant="outlined"
+                href="/3"
                 startIcon={<AssignmentIcon />}
                 sx={{
                   borderColor: "white",
@@ -461,12 +465,12 @@ export default function DashboardEmployee() {
                   textTransform: "none",
                   fontWeight: 600,
                 }}
-                onClick={() => (window.location.href = "/edb")}
               >
                 Mes EDBs
               </Button>
               <Button
                 variant="outlined"
+                href="/5"
                 startIcon={<GroupIcon />}
                 sx={{
                   borderColor: "white",
@@ -476,7 +480,6 @@ export default function DashboardEmployee() {
                   textTransform: "none",
                   fontWeight: 600,
                 }}
-                onClick={() => (window.location.href = "/3")}
               >
                 Mes équipes
               </Button>
@@ -522,9 +525,6 @@ export default function DashboardEmployee() {
                       <TableCell sx={{ fontWeight: 600 }}>Statut</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Priorité</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Progression</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }} align="right">
-                        Actions
-                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -585,11 +585,6 @@ export default function DashboardEmployee() {
                                   {project.progress || 0}%
                                 </Typography>
                               </Box>
-                            </TableCell>
-                            <TableCell align="right">
-                              <IconButton size="small">
-                                <MoreIcon fontSize="small" />
-                              </IconButton>
                             </TableCell>
                           </TableRow>
                         )
@@ -700,7 +695,7 @@ export default function DashboardEmployee() {
               >
                 <Button
                   endIcon={<ArrowRightIcon />}
-                  href="/3"
+                  href="/5"
                   sx={{
                     color: "#16A249",
                     textTransform: "none",
@@ -800,7 +795,7 @@ export default function DashboardEmployee() {
               >
                 <Button
                   endIcon={<ArrowRightIcon />}
-                  href="/edb"
+                  href="/3"
                   sx={{
                     color: "#16A249",
                     textTransform: "none",
@@ -825,7 +820,21 @@ export default function DashboardEmployee() {
                 }
                 subheader="Dernières notifications"
                 action={
-                  <IconButton size="small" onClick={fetchNotifications}>
+                  <IconButton 
+                    size="small" 
+                    onClick={fetchNotifications}
+                    disabled={refreshing}
+                    sx={{
+                      minWidth: "auto",
+                      p: 0.5,
+                      color: "text.secondary",
+                      animation: refreshing ? "spin 1s linear infinite" : "none",
+                      "@keyframes spin": {
+                        "0%": { transform: "rotate(0deg)" },
+                        "100%": { transform: "rotate(360deg)" }
+                      }
+                    }}
+                  >
                     <RefreshIcon fontSize="small" />
                   </IconButton>
                 }
@@ -1037,13 +1046,13 @@ export default function DashboardEmployee() {
               >
                 <Button
                   size="small"
+                  href="/8"
                   sx={{
                     textTransform: "none",
                     fontWeight: 500,
                     color: "#16A249",
                     fontSize: "0.875rem",
                   }}
-                  onClick={() => (window.location.href = "/8")}
                 >
                   Voir tout
                 </Button>

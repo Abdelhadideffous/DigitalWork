@@ -115,6 +115,10 @@ Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
 // Route::post('/tasks/{taskId}/annuler', [TaskController::class, 'Taskanuule']);
 // Route::post('/tasks/{taskId}/terminer', [TaskController::class, 'Taskterminer']);
 Route::get('/tasks-UpcomingTasks', [TaskController::class, 'getUpcomingTasks']);
+Route::post('/tasks/group', [TaskController::class, 'storeTaskGroupWithDependencies']);
+Route::post('/tasks/{id}/start', [TaskController::class, 'startTask']);
+
+
 
 //route subtask
 Route::get('/tasks/{taskId}/subtasks', [SubtaskController::class, 'index']);

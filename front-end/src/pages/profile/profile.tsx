@@ -8,6 +8,7 @@ import {
   Phone as PhoneIcon,
   Visibility,
   VisibilityOff,
+  Edit as EditIcon,
 } from "@mui/icons-material"
 import WorkIcon from "@mui/icons-material/Work"
 import {
@@ -25,6 +26,8 @@ import {
   Breadcrumbs,
   Link,
   Avatar,
+  Divider,
+  Chip,
 } from "@mui/material"
 import AppLayout from "../../components/layout/AppLayout"
 import { profileApi } from "./apiProfile"
@@ -218,13 +221,39 @@ const Profile: React.FC = () => {
     }
   }
 
+  const getRoleColor = (role: string) => {
+    switch (role.toLowerCase()) {
+      case "admin":
+        return "#f44336"
+      case "manager":
+        return "#ff9800"
+      case "employee":
+        return "#2196f3"
+      default:
+        return "#9e9e9e"
+    }
+  }
+
+  const getRoleLabel = (role: string) => {
+    switch (role.toLowerCase()) {
+      case "admin":
+        return "Administrateur"
+      case "manager":
+        return "Manager"
+      case "employee":
+        return "Employé"
+      default:
+        return role
+    }
+  }
+
   return (
     <AppLayout>
       <Container maxWidth="xl" sx={{ py: 3 }}>
         {/* Fil d'Ariane */}
         <Box sx={{ mb: 2 }}>
           <Breadcrumbs aria-label="breadcrumb">
-            <Link underline="hover" color="inherit" href="/1">
+            <Link underline="hover" color="inherit" href="/dashboard">
               Tableau de bord
             </Link>
             <Typography color="text.primary">Profil</Typography>
@@ -238,49 +267,143 @@ const Profile: React.FC = () => {
               Mon Profil
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Gérez vos informations personnelles
+              Gérez vos informations personnelles et paramètres de sécurité
             </Typography>
           </Box>
         </Box>
 
         <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3 }}>
-          {/* Carte de profil */}
-          <Box sx={{ flex: { xs: "1 1 100%", md: "0 0 30%" } }}>
-            <Paper elevation={2} sx={{ p: 3, borderRadius: 2, boxShadow: 3, height: "100%" }}>
+          {/* Carte de profil améliorée */}
+          <Box sx={{ flex: { xs: "1 1 100%", md: "0 0 35%" } }}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                height: "100%",
+                background: "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
+                border: "1px solid rgba(22, 162, 73, 0.1)",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.1)",
+                },
+              }}
+            >
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3 }}>
-                <Avatar
-                  sx={{
-                    width: 100,
-                    height: 100,
-                    bgcolor: "#16A249",
-                    fontSize: "2rem",
-                    mb: 2,
-                  }}
-                >
-                  {userData.name.charAt(0).toUpperCase()}
-                </Avatar>
-                <Typography variant="h6" fontWeight="bold">
+                <Box sx={{ position: "relative", mb: 2 }}>
+                  <Avatar
+                    sx={{
+                      width: 100,
+                      height: 100,
+                      bgcolor: "#16A249",
+                      fontSize: "2rem",
+                      fontWeight: "bold",
+                      boxShadow: "0 4px 20px rgba(22, 162, 73, 0.3)",
+                      border: "3px solid white",
+                    }}
+                  >
+                    {userData.name.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      bgcolor: "#16A249",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "2px solid white",
+                      boxShadow: "0 2px 8px rgba(22, 162, 73, 0.3)",
+                    }}
+                  >
+                    <EditIcon sx={{ color: "white", fontSize: 14 }} />
+                  </Box>
+                </Box>
+
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 1, textAlign: "center" }}>
                   {userData.name}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {userData.email}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {userData.role.charAt(0).toUpperCase() + userData.role.slice(1)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {userData.number ? userData.number : "Aucun numéro de téléphone"}
-                </Typography>
+
+                <Chip
+                  label={getRoleLabel(userData.role)}
+                  sx={{
+                    backgroundColor: getRoleColor(userData.role),
+                    color: "white",
+                    fontWeight: 600,
+                    mb: 2,
+                    borderRadius: 2,
+                  }}
+                />
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box sx={{ space: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    mb: 2,
+                    p: 1.5,
+                    borderRadius: 2,
+                    bgcolor: "rgba(22, 162, 73, 0.05)",
+                  }}
+                >
+                  <EmailIcon sx={{ color: "#16A249", mr: 2 }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      Email
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {userData.email}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    p: 1.5,
+                    borderRadius: 2,
+                    bgcolor: "rgba(22, 162, 73, 0.05)",
+                  }}
+                >
+                  <PhoneIcon sx={{ color: "#16A249", mr: 2 }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      Téléphone
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {userData.number || "Non renseigné"}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
             </Paper>
           </Box>
 
-          {/* Formulaire de profil */}
-          <Box sx={{ flex: { xs: "1 1 100%", md: "0 0 70%" } }}>
-            <Paper elevation={2} sx={{ p: 3, borderRadius: 2, boxShadow: 3 }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>
+          {/* Formulaire de profil amélioré */}
+          <Box sx={{ flex: { xs: "1 1 100%", md: "0 0 65%" } }}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                background: "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
+                border: "1px solid rgba(22, 162, 73, 0.1)",
+              }}
+            >
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
+                <PersonIcon sx={{ color: "#16A249" }} />
                 Informations personnelles
               </Typography>
+
               <Box>
                 <TextField
                   required
@@ -302,11 +425,14 @@ const Profile: React.FC = () => {
                     mb: 3,
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
+                      transition: "all 0.3s ease",
                       "&:hover .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                       "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                     },
                     "& .MuiInputLabel-root.Mui-focused": {
@@ -336,11 +462,14 @@ const Profile: React.FC = () => {
                     mb: 3,
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
+                      transition: "all 0.3s ease",
                       "&:hover .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                       "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                     },
                     "& .MuiInputLabel-root.Mui-focused": {
@@ -365,14 +494,17 @@ const Profile: React.FC = () => {
                     ),
                   }}
                   sx={{
-                    mb: 3,
+                    mb: 4,
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
+                      transition: "all 0.3s ease",
                       "&:hover .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                       "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                     },
                     "& .MuiInputLabel-root.Mui-focused": {
@@ -381,7 +513,14 @@ const Profile: React.FC = () => {
                   }}
                 />
 
-                <Typography variant="h6" fontWeight="bold" sx={{ mb: 3, mt: 4 }}>
+                <Divider sx={{ my: 3 }} />
+
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{ mb: 3, display: "flex", alignItems: "center", gap: 1 }}
+                >
+                  <WorkIcon sx={{ color: "#16A249" }} />
                   Changer le mot de passe
                 </Typography>
 
@@ -406,7 +545,12 @@ const Profile: React.FC = () => {
                           aria-label="toggle password visibility"
                           onClick={() => setShowPassword(!showPassword)}
                           edge="end"
-                          sx={{ color: "#16A249" }}
+                          sx={{
+                            color: "#16A249",
+                            "&:hover": {
+                              backgroundColor: "rgba(22, 162, 73, 0.1)",
+                            },
+                          }}
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
@@ -417,29 +561,19 @@ const Profile: React.FC = () => {
                     mb: 3,
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
+                      transition: "all 0.3s ease",
                       "&:hover .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                       "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                     },
                     "& .MuiInputLabel-root.Mui-focused": {
                       color: "#16A249",
                     },
-                    // Masquer le bouton natif du navigateur
-                    "& input::-ms-reveal, & input::-ms-clear": {
-                      display: "none",
-                    },
-                    "& input::-webkit-contacts-auto-fill-button, & input::-webkit-credentials-auto-fill-button, & input::-webkit-credit-card-auto-fill-button":
-                      {
-                        visibility: "hidden",
-                        display: "none !important",
-                        pointerEvents: "none",
-                        height: "0",
-                        width: "0",
-                        margin: "0",
-                      },
                   }}
                 />
 
@@ -463,29 +597,19 @@ const Profile: React.FC = () => {
                     mb: 3,
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
+                      transition: "all 0.3s ease",
                       "&:hover .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                       "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#16A249",
+                        borderWidth: 2,
                       },
                     },
                     "& .MuiInputLabel-root.Mui-focused": {
                       color: "#16A249",
                     },
-                    // Masquer le bouton natif du navigateur
-                    "& input::-ms-reveal, & input::-ms-clear": {
-                      display: "none",
-                    },
-                    "& input::-webkit-contacts-auto-fill-button, & input::-webkit-credentials-auto-fill-button, & input::-webkit-credit-card-auto-fill-button":
-                      {
-                        visibility: "hidden",
-                        display: "none !important",
-                        pointerEvents: "none",
-                        height: "0",
-                        width: "0",
-                        margin: "0",
-                      },
                   }}
                 />
 
@@ -499,15 +623,20 @@ const Profile: React.FC = () => {
                       bgcolor: "#16A249",
                       border: "1px solid #16A249",
                       textTransform: "none",
-                      borderRadius: 1,
-                      px: 2,
+                      borderRadius: 2,
+                      px: 3,
+                      py: 1.5,
+                      fontWeight: 600,
+                      transition: "all 0.3s ease",
                       "&:hover": {
                         bgcolor: "#138a3c",
                         borderColor: "#138a3c",
+                        transform: "translateY(-1px)",
+                        boxShadow: "0 4px 12px rgba(22, 162, 73, 0.3)",
                       },
                     }}
                   >
-                    {loading ? <CircularProgress size={24} color="success" /> : "Mettre à jour"}
+                    {loading ? <CircularProgress size={24} color="inherit" /> : "Mettre à jour"}
                   </Button>
                 </Box>
               </Box>

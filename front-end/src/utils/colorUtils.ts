@@ -8,10 +8,6 @@ export const getStatusColor = (statut: string) => {
         return { bg: "#e8f5e9", text: "#4caf50" }
       case "annulé":
         return { bg: "#ffebee", text: "#f44336" }
-        case"rejeté"  :
-        return { bg: "#ffebee", text: "#f44336" }
-      case "validé":
-        return { bg: "#e3f2fd", text: "#1976d2" }
       default:
         return { bg: "#f5f5f5", text: "#757575" }
     }

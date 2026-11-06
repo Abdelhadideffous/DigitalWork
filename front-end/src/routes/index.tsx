@@ -16,6 +16,7 @@ import DashboardManager from '../pages/dashboard/DashboardManager';
 import DashboardEmployee from '../pages/dashboard/DashboardEmployee';
 import NotificationsPage from "../pages/notification/NotificationsPage";
 import FirstDirection from "../pages/dashboard/FirstDirection";
+import { testsRoutes } from "./testsRoutes";
 
 export const router = createBrowserRouter(
     createRoutesFromElements(
@@ -33,6 +34,9 @@ export const router = createBrowserRouter(
             <Route path="6" element={<CreateUser />} />
             <Route path="7" element={<Profile/>} /> 
             <Route path="8" element={<NotificationsPage/>} />
+            {testsRoutes}
+
+            
 
 
         </>

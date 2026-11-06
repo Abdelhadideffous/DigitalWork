@@ -424,9 +424,9 @@ const CreateUser: React.FC = () => {
         {/* Fil d'Ariane */}
         <Box sx={{ mb: 2 }}>
           <Breadcrumbs aria-label="breadcrumb">
-            <Link underline="hover" color="inherit" href="/1">
-              Tableau de bord
-            </Link>
+              <Link underline="hover" color="inherit" href="/dashboard">
+                Tableau de bord
+              </Link>
             <Typography color="text.primary">Utilisateurs</Typography>
           </Breadcrumbs>
         </Box>

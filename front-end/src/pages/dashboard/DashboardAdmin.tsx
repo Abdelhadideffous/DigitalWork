@@ -34,6 +34,7 @@ import {
   TableRow,
   Typography,
   useTheme,
+  IconButton,
 } from "@mui/material"
 import { styled } from "@mui/system"
 import { useEffect, useRef, useState } from "react"
@@ -97,12 +98,13 @@ export default function DashboardAdmin() {
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [edbs, setEdbs] = useState<Edb[]>([])
-  const [teams, setTeams] = useState<Team[]>([])
+  const [_teams, setTeams] = useState<Team[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [refreshing, setRefreshing] = useState(false)
 
   // Refs pour l'exportation
   const projectProgressChartRef = useRef<HTMLDivElement>(null)
@@ -202,6 +204,7 @@ export default function DashboardAdmin() {
 
   const fetchNotifications = async () => {
     try {
+      setRefreshing(true)
       const token = sessionStorage.getItem("token")
       if (token) {
         const response = await api.get("/notifications", {
@@ -209,7 +212,6 @@ export default function DashboardAdmin() {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Prendre seulement les 4 dernières notifications
         setNotifications(response.data.slice(0, 4))
       }
     } catch (err) {
@@ -218,8 +220,8 @@ export default function DashboardAdmin() {
       const mockNotifications: Notification[] = [
         {
           id: 1,
-          title: "Nouveau utilisateur inscrit",
-          message: "Un nouvel utilisateur s'est inscrit",
+          title: "Nouveau projet créé",
+          message: "Un nouveau projet a été ajouté",
           type: "info",
           is_read: false,
           created_at: new Date().toISOString(),
@@ -234,14 +236,16 @@ export default function DashboardAdmin() {
         },
         {
           id: 3,
-          title: "Projet en retard",
-          message: "Un projet dépasse sa date limite",
+          title: "Tâche en retard",
+          message: "Une tâche dépasse sa date limite",
           type: "warning",
           is_read: true,
           created_at: new Date(Date.now() - 7200000).toISOString(),
         },
       ]
       setNotifications(mockNotifications)
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -591,7 +595,7 @@ export default function DashboardAdmin() {
               >
                 <Button
                   endIcon={<ArrowRightIcon />}
-                  href="/edb"
+                  href="/3"
                   sx={{
                     color: "#16A249",
                     textTransform: "none",
@@ -753,17 +757,23 @@ export default function DashboardAdmin() {
                 }
                 subheader="Dernières actions sur la plateforme"
                 action={
-                  <Button
-                    size="small"
+                  <IconButton 
+                    size="small" 
                     onClick={fetchNotifications}
+                    disabled={refreshing}
                     sx={{
                       minWidth: "auto",
                       p: 0.5,
                       color: "text.secondary",
+                      animation: refreshing ? "spin 1s linear infinite" : "none",
+                      "@keyframes spin": {
+                        "0%": { transform: "rotate(0deg)" },
+                        "100%": { transform: "rotate(360deg)" }
+                      }
                     }}
                   >
                     <RefreshIcon fontSize="small" />
-                  </Button>
+                  </IconButton>
                 }
               />
               <Divider />
@@ -975,13 +985,13 @@ export default function DashboardAdmin() {
               >
                 <Button
                   size="small"
+                  href="/8"
                   sx={{
                     textTransform: "none",
                     fontWeight: 500,
                     color: "#16A249",
                     fontSize: "0.875rem",
                   }}
-                  onClick={() => (window.location.href = "/8")}
                 >
                   Voir tout
                 </Button>

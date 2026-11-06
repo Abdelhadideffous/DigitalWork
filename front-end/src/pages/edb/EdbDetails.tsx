@@ -429,7 +429,7 @@ const EdbDetails: React.FC<EdbDetailsProps> = ({ edb, onBack, onApprove, onRejec
                     <Link
                         underline="hover"
                         color="inherit"
-                        href="/1"
+                        href="/dashboard"
                         onClick={(e) => {
                             e.preventDefault();
                             onBack();

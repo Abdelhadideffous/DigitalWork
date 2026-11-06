@@ -13,14 +13,12 @@ import {
   Avatar,
   Box,
   Button,
-  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Fade,
-  FormControlLabel,
   IconButton,
   InputAdornment,
   Link,
@@ -71,7 +69,6 @@ const Login: React.FC = () => {
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [rememberMe, setRememberMe] = useState(false)
   const [showPassword, setShowPassword] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -514,32 +511,12 @@ const Login: React.FC = () => {
               <Box
                 sx={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent: "flex-end",
                   alignItems: "center",
                   mb: 3,
                   mt: 1,
                 }}
               >
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      sx={{
-                        color: "#16A249",
-                        "&.Mui-checked": {
-                          color: "#16A249",
-                        },
-                      }}
-                    />
-                  }
-                  label={
-                    <Typography variant="body2" color="text.secondary">
-                      Se souvenir de moi
-                    </Typography>
-                  }
-                />
-
                 <Link
                   href="#"
                   underline="none"
