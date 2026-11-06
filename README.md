@@ -220,24 +220,6 @@ curl http://localhost:5173/
 ### API Connection
 The frontend communicates with the backend via API calls. Check the browser's Network tab in Developer Tools to verify requests are sent to `http://localhost:8000/api/`.
 
-## Screenshots
-
-Planned screenshots to document the application (place in `docs/screenshots/`):
-
-- **Login Page** - User authentication interface
-- **Admin Dashboard** - Administrative overview with system statistics
-- **Manager Dashboard** - Project and team management view
-- **Employee Dashboard** - Assigned tasks and notifications
-- **Projects List** - Project overview with filters
-- **Project Details** - Project view with team, tasks, and comments
-- **Task Management** - Task list with creation and editing
-- **Task Details** - Task view with subtasks, dependencies, and comments
-- **Team Management** - Team members and role assignment
-- **Requirements Document (EDB)** - Specification document creation and validation
-- **Notifications** - Real-time notification center
-- **User Roles & Permissions** - Role management interface
-
-*To generate screenshots: Log in as each role, navigate to key features, and capture representative views.*
 
 ## API Documentation
 
